@@ -1,0 +1,439 @@
+<title>向量 · Vectors</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.1", slug: "vectors",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "向量", en: "Vectors" },
+  minutes: 60, prereqs: ["0.2"],
+  prev: "0.2-threejs-first-scene.html", next: null,
+  concepts: ["vector", "point", "addition", "subtraction", "scaling", "length", "normalization"],
+  videos: { UCD: [], MIT: [] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 60 分钟 · 前置：0.2 · 视频：两套课都默认你会向量，没有单独一讲；看 3Blue1Brown《线性代数的本质》第 1 集和 GAMES101 第 2 讲前半</div>
+  <div class="meta en">About 60 min · Prerequisite: 0.2 · Video: both courses assume vectors; watch 3Blue1Brown's Essence of Linear Algebra ep. 1 and the first half of GAMES101 lecture 2</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li>分清<b>点</b>（一个位置）和<b>向量</b>（一个方向加一个长度），知道点 − 点 = 向量，点 + 向量 = 点。</li>
+    <li>会向量的加、减、数乘，并能在图上画出来。</li>
+    <li>会算长度、做归一化，知道零向量为什么不能归一化。</li>
+  </ul>
+  <ul class="en">
+    <li>Tell a <b>point</b> (a position) from a <b>vector</b> (a direction plus a length), and know that point − point = vector and point + vector = point.</li>
+    <li>Add, subtract and scale vectors, and draw each operation.</li>
+    <li>Compute length, normalize, and know why the zero vector cannot be normalized.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">向量就是一支箭头：它说"往哪个方向、走多远"，但不说"从哪里出发"。把同一支箭头平移到任何地方，它还是同一个向量。点则相反，它只说"在哪里"。</p>
+  <p class="en">A vector is an arrow: it says "which way and how far" but not "starting from where". Slide the same arrow anywhere and it is still the same vector. A point is the opposite: it only says "where".</p>
+  <p class="zh">图形学里几乎所有东西都是这两种之一：顶点位置是点；光照方向、表面法线、相机朝向、速度都是向量。上一课 three.js 里的 <code>position.set(3, 0.6, 0)</code> 是点，后面要学的 <code>lookAt</code> 用的就是"目标点 − 相机位置"得到的向量。</p>
+  <p class="en">Nearly everything in graphics is one of the two: vertex positions are points; light directions, surface normals, camera directions and velocities are vectors. Last lesson's <code>position.set(3, 0.6, 0)</code> is a point, and the <code>lookAt</code> we meet later uses the vector "target point − camera position".</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：拖动箭头</span><span class="en">Demo: drag the arrows</span></h2>
+  <p class="meta zh">拖动 a（玫红）和 b（青）的箭头尖。切换运算，看结果向量（绿）怎么画出来。</p>
+  <p class="meta en">Drag the tips of a (magenta) and b (teal). Switch the operation and watch how the result (green) is drawn.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg seg4" role="radiogroup" aria-label="operation">
+        <input type="radio" name="op" id="opAdd" value="add" checked><label for="opAdd">a + b</label>
+        <input type="radio" name="op" id="opSub" value="sub"><label for="opSub">a − b</label>
+        <input type="radio" name="op" id="opScale" value="scale"><label for="opScale">k · a</label>
+        <input type="radio" name="op" id="opNorm" value="norm"><label for="opNorm"><span class="zh">归一化 â</span><span class="en">normalize â</span></label>
+      </span>
+    </div>
+    <div class="row" id="kRow" hidden>
+      <label for="k" class="meta">k = <output id="kOut">1.5</output></label>
+      <input type="range" id="k" min="-2" max="2" step="0.1" value="1.5" style="flex:1;min-width:0">
+    </div>
+    <canvas id="vc" width="720" height="440" aria-label="vector plane"></canvas>
+    <dl class="readout" id="vOut"></dl>
+    <p class="meta" id="vNote"></p>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <p class="zh">所有运算都是<b>逐分量</b>进行的（3D 时多一个 z，规则完全一样）：</p>
+  <p class="en">Every operation works <b>component by component</b> (3D just adds a z with the same rules):</p>
+  <pre class="formula">a + b = (aₓ + bₓ, a_y + b_y)
+a − b = (aₓ − bₓ, a_y − b_y)
+k · a = (k·aₓ, k·a_y)
+|a|   = √(aₓ² + a_y²)              ← 勾股定理 / Pythagoras
+â     = a / |a|                     ← 方向不变，长度变成 1 / same direction, length 1</pre>
+  <p class="zh"><b>a − b 的几何意义：</b>从 b 的箭头尖指向 a 的箭头尖。这就是"点 − 点 = 向量"：两个位置相减，得到从一个指向另一个的位移。</p>
+  <p class="en"><b>What a − b means:</b> the arrow from the tip of b to the tip of a. That is "point − point = vector": subtracting two positions gives the displacement from one to the other.</p>
+  <p class="zh"><b>归一化之后的向量叫单位向量</b>，只表示方向。光照、法线计算几乎都要求输入是单位向量，下一课的点积会解释原因。</p>
+  <p class="en"><b>A normalized vector is a unit vector</b> and carries direction only. Lighting and normal math almost always expect unit vectors; next lesson's dot product shows why.</p>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>写一个 <code>Vec3</code> 类，实现 <code>add</code>、<code>sub</code>、<code>scale</code>、<code>length</code>、<code>normalize</code>。每个方法都<b>返回新的向量，不修改自己</b>。零向量归一化时返回 (0, 0, 0)，不能出现 NaN。点"运行测试"，页面会逐条检查。这个类后面的课会一直用到，最后会成为你自己渲染器的数学库。</p>
+    <p class="en"><b>Task:</b> write a <code>Vec3</code> class with <code>add</code>, <code>sub</code>, <code>scale</code>, <code>length</code> and <code>normalize</code>. Every method <b>returns a new vector and leaves the original unchanged</b>. Normalizing the zero vector returns (0, 0, 0), never NaN. Press "Run tests" and the page checks each one. You will keep using this class, and it becomes the math library of your own renderer.</p>
+    <label for="code" class="meta"><span class="zh">你的代码</span><span class="en">Your code</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:260px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+
+  add(v)      { /* TODO */ }
+  sub(v)      { /* TODO */ }
+  scale(k)    { /* TODO */ }
+  length()    { /* TODO */ }
+  normalize() { /* TODO */ }
+}</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    return len === 0 ? new Vec3(0, 0, 0) : this.scale(1 / len);
+  }
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>归一化零向量。</b>长度是 0，除以 0 得到 NaN，NaN 会沿着后面所有计算一路传下去，最后画面上出现黑点或整个物体消失，很难查。</li>
+    <li><b>把点和向量混用。</b>"点 + 点"没有几何意义（两个位置相加是什么？）。第 1.6 课会用第 4 个分量 w 区分两者：点的 w = 1，向量的 w = 0，平移只作用在点上。</li>
+    <li><b>方法悄悄修改了自己。</b>如果 <code>a.add(b)</code> 改掉了 a，后面再用 a 时就是错的值。three.js 的 <code>Vector3.add</code> 就是会修改自己的，这是它最常见的坑之一，所以我们的类故意设计成返回新对象。</li>
+    <li><b>只为比较远近还开平方。</b>比较两个距离谁大时，比较长度的平方就够了，可以省掉开方。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Normalizing the zero vector.</b> Its length is 0, dividing by 0 gives NaN, and NaN spreads through every later calculation until black pixels appear or a whole object vanishes. It is hard to trace.</li>
+    <li><b>Mixing up points and vectors.</b> "Point + point" has no geometric meaning (what is the sum of two places?). Lesson 1.6 separates them with a fourth component w: points have w = 1, vectors w = 0, and translation only moves points.</li>
+    <li><b>Methods that quietly modify the original.</b> If <code>a.add(b)</code> changes a, every later use of a is wrong. three.js's <code>Vector3.add</code> does modify in place, one of its most common traps, which is why our class returns new objects on purpose.</li>
+    <li><b>Taking a square root just to compare distances.</b> To see which of two distances is larger, comparing squared lengths is enough and skips the square root.</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. 向量 (1, 2, 2) 的长度是多少？归一化后是什么？</span><span class="en">1. What is the length of (1, 2, 2), and what is it normalized?</span></summary>
+    <p class="zh">√(1 + 4 + 4) = 3；归一化后是 (1/3, 2/3, 2/3)。</p><p class="en">√(1 + 4 + 4) = 3; normalized it is (1/3, 2/3, 2/3).</p></details>
+  <details><summary><span class="zh">2. 相机在点 C = (1, 1)，目标在点 T = (4, 5)。从相机指向目标的向量是什么？距离是多少？</span><span class="en">2. The camera is at C = (1, 1) and the target at T = (4, 5). What vector points from camera to target, and how far is it?</span></summary>
+    <p class="zh">T − C = (3, 4)，距离是 √(9 + 16) = 5。注意顺序：从 C 指向 T，是 T − C，不是 C − T。</p><p class="en">T − C = (3, 4), at distance √(9 + 16) = 5. Mind the order: from C to T is T − C, not C − T.</p></details>
+  <details><summary><span class="zh">3. 把一个向量乘以 −1，会发生什么？</span><span class="en">3. What happens when you multiply a vector by −1?</span></summary>
+    <p class="zh">长度不变，方向反过来。在演示里选 k · a，把 k 拖到 −1 就能看到。</p><p class="en">Same length, opposite direction. Pick k · a in the demo and drag k to −1.</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><a href="https://www.3blue1brown.com/lessons/vectors" target="_blank" rel="noopener"><span class="zh">3Blue1Brown《线性代数的本质》第 1 集：向量究竟是什么</span><span class="en">3Blue1Brown, Essence of Linear Algebra, ch. 1: Vectors</span></a></li>
+    <li><span class="zh">GAMES101 第 2 讲：线性代数回顾（前半部分，B 站官方视频）</span><span class="en">GAMES101 lecture 2: Review of Linear Algebra, first half (in Chinese, official Bilibili video)</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 2.4 节：向量</span><span class="en">section 2.4: Vectors</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+
+<script>
+// 本课的演示 / this lesson's demos
+(function(){
+  const S_ = {
+    zh: { res: "结果", len: "长度", noteAdd: "首尾相接：b 平移到 a 的箭头尖。虚线画出了另一种顺序 b + a，结果一样（平行四边形）。",
+          noteSub: "a − b 是从 b 的箭头尖指向 a 的箭头尖。浅色的是同一个向量平移回原点。",
+          noteScale: "k > 1 拉长，0 < k < 1 缩短，k < 0 方向反过来。",
+          noteNorm: "â 落在单位圆上：方向和 a 一样，长度是 1。", zero: "a 几乎是零向量，没有方向，无法归一化。",
+          err: "代码出错：", pass: "通过", fail: "未通过", all: "全部通过！", some: "通过" },
+    en: { res: "result", len: "length", noteAdd: "Tip to tail: b is moved to the tip of a. The dashed path shows b + a, which lands on the same point (a parallelogram).",
+          noteSub: "a − b points from the tip of b to the tip of a. The faint copy is the same vector moved back to the origin.",
+          noteScale: "k > 1 stretches, 0 < k < 1 shrinks, k < 0 flips the direction.",
+          noteNorm: "â lies on the unit circle: same direction as a, length 1.", zero: "a is almost the zero vector: it has no direction and cannot be normalized.",
+          err: "Code error: ", pass: "pass", fail: "fail", all: "All tests pass!", some: "passed" }
+  };
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const cv = document.getElementById("vc"), ctx = cv.getContext("2d"), out = document.getElementById("vOut"), note = document.getElementById("vNote");
+  const U = 50; // 每单位像素 / pixels per unit
+  const O = () => ({ x: cv.width / 2, y: cv.height / 2 });
+  let a = { x: 3, y: 1 }, b = { x: 1, y: 2 }, drag = null, op = "add", k = 1.5;
+  const P = v => ({ x: O().x + v.x * U, y: O().y - v.y * U });
+  const W = (px, py) => ({ x: Math.round((px - O().x) / U * 10) / 10, y: Math.round((O().y - py) / U * 10) / 10 });
+  const add = (p, q) => ({ x: p.x + q.x, y: p.y + q.y }), sub = (p, q) => ({ x: p.x - q.x, y: p.y - q.y });
+  const mul = (p, s) => ({ x: p.x * s, y: p.y * s }), len = p => Math.hypot(p.x, p.y);
+  function arrow(from, v, col, w = 3, dash = null, alpha = 1){
+    const p0 = P(from), p1 = P(add(from, v));
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]);
+    if (len(v) > 0.05){ const g = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p1.x - 13 * Math.cos(g - 0.4), p1.y - 13 * Math.sin(g - 0.4));
+      ctx.lineTo(p1.x - 13 * Math.cos(g + 0.4), p1.y - 13 * Math.sin(g + 0.4)); ctx.fill(); }
+    ctx.restore();
+  }
+  function label(v, text, col){ const p = P(v); ctx.fillStyle = col; ctx.font = "600 16px " + css("--f-mono"); ctx.fillText(text, p.x + 8, p.y - 8); }
+  function draw(){
+    const A = css("--accent-2"), B = css("--accent"), R = css("--good"), line = css("--line"), muted = css("--muted");
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = line; ctx.lineWidth = 1;
+    for (let x = O().x % U; x < cv.width; x += U){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
+    for (let y = O().y % U; y < cv.height; y += U){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); }
+    ctx.strokeStyle = muted; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, O().y + .5); ctx.lineTo(cv.width, O().y + .5); ctx.moveTo(O().x + .5, 0); ctx.lineTo(O().x + .5, cv.height); ctx.stroke();
+    const t = S_[lang()], Z = { x: 0, y: 0 };
+    let r, noteText;
+    if (op === "add"){
+      r = add(a, b);
+      arrow(b, a, A, 2, [6, 5], 0.5); arrow(Z, b, B, 2, null, 0.35);
+      arrow(Z, a, A); arrow(a, b, B); arrow(Z, r, R, 4);
+      label(a, "a", A); label(r, "a+b", R); noteText = t.noteAdd;
+    } else if (op === "sub"){
+      r = sub(a, b);
+      arrow(Z, r, R, 2, [6, 5], 0.45);
+      arrow(Z, a, A); arrow(Z, b, B); arrow(b, r, R, 4);
+      label(a, "a", A); label(b, "b", B); label(r, "a−b", R); noteText = t.noteSub;
+    } else if (op === "scale"){
+      r = mul(a, k);
+      arrow(Z, r, R, 7, null, 0.85); arrow(Z, a, A, 3);
+      label(a, "a", A); label(r, "k·a", R); noteText = t.noteScale;
+    } else {
+      const o = O(); ctx.strokeStyle = muted; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(o.x, o.y, U, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      const L = len(a); r = L < 1e-6 ? null : mul(a, 1 / L);
+      arrow(Z, a, A); if (r) { arrow(Z, r, R, 5); label(r, "â", R); }
+      label(a, "a", A); noteText = r ? t.noteNorm : t.zero;
+    }
+    if (op !== "scale" && op !== "norm") { const pb = P(b); ctx.fillStyle = B; ctx.beginPath(); ctx.arc(pb.x, pb.y, 5, 0, 7); ctx.fill(); }
+    if (op === "scale" || op === "norm") arrow(Z, b, B, 2, null, 0.15);
+    const pa = P(a); ctx.fillStyle = A; ctx.beginPath(); ctx.arc(pa.x, pa.y, 5, 0, 7); ctx.fill();
+    const f = v => v ? `(${v.x.toFixed(2)}, ${v.y.toFixed(2)})` : "—";
+    out.innerHTML = [["a", f(a) + `   ${t.len} ${len(a).toFixed(2)}`], ["b", f(b) + `   ${t.len} ${len(b).toFixed(2)}`],
+      [t.res, f(r) + (r ? `   ${t.len} ${len(r).toFixed(2)}` : "")]].map(([x, y]) => `<dt>${x}</dt><dd>${y}</dd>`).join("");
+    note.textContent = noteText;
+  }
+  function pos(e){ const rc = cv.getBoundingClientRect(); return { x: (e.clientX - rc.left) * cv.width / rc.width, y: (e.clientY - rc.top) * cv.height / rc.height }; }
+  cv.addEventListener("pointerdown", e => { const p = pos(e);
+    const da = Math.hypot(P(a).x - p.x, P(a).y - p.y), db = Math.hypot(P(b).x - p.x, P(b).y - p.y);
+    drag = da < 28 && da <= db ? "a" : db < 28 ? "b" : null;
+    if (drag) { cv.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const p = pos(e), w = W(p.x, p.y);
+    w.x = Math.max(-7, Math.min(7, w.x)); w.y = Math.max(-4.3, Math.min(4.3, w.y));
+    if (drag === "a") a = w; else b = w; draw(); });
+  cv.addEventListener("pointerup", () => drag = null);
+  document.querySelectorAll('input[name="op"]').forEach(r => r.addEventListener("change", () => {
+    op = document.querySelector('input[name="op"]:checked').value; document.getElementById("kRow").hidden = op !== "scale"; draw(); }));
+  const kIn = document.getElementById("k");
+  kIn.addEventListener("input", () => { k = +kIn.value; document.getElementById("kOut").textContent = k.toFixed(1); draw(); });
+  onLangChange.push(draw);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  draw();
+
+  // ---- 练习：自动测试 Vec3 / exercise: auto-test Vec3 ----
+  const TESTS = [
+    { zh: "add：(1,2,3) + (4,5,6) = (5,7,9)", en: "add: (1,2,3) + (4,5,6) = (5,7,9)",
+      f: V => eq(new V(1,2,3).add(new V(4,5,6)), 5,7,9) },
+    { zh: "sub：(5,7,9) − (4,5,6) = (1,2,3)", en: "sub: (5,7,9) − (4,5,6) = (1,2,3)",
+      f: V => eq(new V(5,7,9).sub(new V(4,5,6)), 1,2,3) },
+    { zh: "scale：(1,−2,3) × 2 = (2,−4,6)", en: "scale: (1,−2,3) × 2 = (2,−4,6)",
+      f: V => eq(new V(1,-2,3).scale(2), 2,-4,6) },
+    { zh: "length：|(3,4,0)| = 5，|(1,2,2)| = 3", en: "length: |(3,4,0)| = 5, |(1,2,2)| = 3",
+      f: V => near(new V(3,4,0).length(), 5) && near(new V(1,2,2).length(), 3) },
+    { zh: "normalize：(0,3,4) → (0, 0.6, 0.8)", en: "normalize: (0,3,4) → (0, 0.6, 0.8)",
+      f: V => eq(new V(0,3,4).normalize(), 0,0.6,0.8) },
+    { zh: "不修改自己：a.add(b)、a.scale(3)、a.normalize() 之后 a 还是 (1,2,3)", en: "No mutation: after a.add(b), a.scale(3), a.normalize(), a is still (1,2,3)",
+      f: V => { const a = new V(1,2,3); const s = a.add(new V(9,9,9)), m = a.scale(3); a.normalize(); return eq(s, 10,11,12) && eq(m, 3,6,9) && eq(a, 1,2,3); } },
+    { zh: "零向量归一化返回 (0,0,0)，没有 NaN", en: "Normalizing the zero vector returns (0,0,0), no NaN",
+      f: V => eq(new V(0,0,0).normalize(), 0,0,0) }
+  ];
+  function near(p, q){ return typeof p === "number" && Math.abs(p - q) < 1e-9; }
+  function eq(v, x, y, z){ return !!v && near(v.x, x) && near(v.y, y) && near(v.z, z); }
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  let results = null;
+  function show(){
+    const t = S_[lang()];
+    if (!results) { list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length;
+    err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`;
+    err.classList.toggle("allok", n === results.length);
+  }
+  function run(){
+    err.classList.remove("allok");
+    let V;
+    try { V = new Function(document.getElementById("code").value + "\nreturn Vec3;")(); }
+    catch (e) { results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(V); } catch { return false; } });
+    show();
+  }
+  document.getElementById("run").onclick = run;
+  onLangChange.push(show);
+  run();
+})();
+</script>

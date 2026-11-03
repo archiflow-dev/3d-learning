@@ -143,6 +143,33 @@
         "UCD": [],
         "MIT": []
       }
+    },
+    {
+      "id": "1.1",
+      "stage": 1,
+      "title": {
+        "zh": "向量",
+        "en": "Vectors"
+      },
+      "file": "lessons/1.1-vectors.html",
+      "prereqs": [
+        "0.2"
+      ],
+      "concepts": [
+        "向量",
+        "点",
+        "加减",
+        "数乘",
+        "长度",
+        "归一化"
+      ],
+      "status": "in-progress",
+      "completedAt": null,
+      "artifactUrl": "https://claude.ai/artifact/37zfocXy29T5bfKGgYSXEW",
+      "videos": {
+        "UCD": [],
+        "MIT": []
+      }
     }
   ],
   "videoRefs": {

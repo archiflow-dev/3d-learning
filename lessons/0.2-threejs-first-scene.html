@@ -76,6 +76,8 @@ button.done{border-color:var(--good);color:var(--good)}
 footer{color:var(--muted);font-size:13px;margin-top:24px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:560px){.two{grid-template-columns:1fr}}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
 .stage3d{position:relative;aspect-ratio:16/10;max-width:100%;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
 .stage3d canvas{width:100%;height:100%;image-rendering:auto;cursor:grab}
 .stage3d .err{position:absolute;inset:auto 12px 12px 12px;background:var(--surface);padding:8px 10px;border-radius:4px;border:1px solid var(--line)}
@@ -186,6 +188,22 @@ visibleWidth  = visibleHeight × aspect      (aspect = canvasWidth / canvasHeigh
   //               THREE.Mesh, mesh.position.set(x, y, z), THREE.PointLight
 }</textarea>
     <div class="row"><button type="button" id="run"><span class="zh">运行</span><span class="en">Run</span></button><span class="err" id="exErr"></span></div>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-03）</span><span class="en">My solution (2026-11-03)</span></p>
+      <pre class="formula">function build(THREE, group) {
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 32, 16),
+    new THREE.MeshStandardMaterial({ color: 0xf4a261, roughness: 0.4 })
+  );
+  ball.position.set(3, 0.6, 0);   // 半径是 1，y 应为 1 才刚好放在地上 / radius 1, so y = 1 rests on the ground
+  group.add(ball);
+  const bulb = new THREE.PointLight(0xffffff, 8, 0, 2);
+  bulb.position.set(3.2, 1.6, 0.8);
+  group.add(bulb);
+}</pre>
+      <p class="zh"><b>评审时学到的：</b>"灯光"开关只控制场景自带的环境光和平行光，我加的点光源不受它控制，所以关灯后球朝灯的一侧仍然亮，立方体也被点光源微微照亮。<code>MeshBasicMaterial</code> 完全不参与光照计算：有没有灯，球都是一块均匀的橙色，没有明暗，看起来像一个平面圆盘，不会变黑。衰减指数 2 就是平方反比定律：距离变为 2 倍，照度变为 1/4。</p>
+      <p class="en"><b>What the review taught me:</b> the "Lights" switch only controls the scene's own ambient and directional lights. My point light is not tied to it, so with the switch off the side of the sphere facing my light stays bright and the cube is still faintly lit by it. <code>MeshBasicMaterial</code> takes no part in lighting: with or without lights the sphere is one flat orange with no shading, like a disc, and it never turns black. A decay of 2 is the inverse-square law: twice the distance gives a quarter of the light.</p>
+    </div>
     <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
       <pre class="formula">function build(THREE, group) {
   const ball = new THREE.Mesh(

@@ -136,8 +136,8 @@
         "灯光",
         "渲染循环"
       ],
-      "status": "in-progress",
-      "completedAt": null,
+      "status": "done",
+      "completedAt": "2026-11-03",
       "artifactUrl": "https://claude.ai/artifact/4XTPsa9YG6KSbFFkWNvpNu",
       "videos": {
         "UCD": [],

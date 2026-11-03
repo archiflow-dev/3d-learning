@@ -243,10 +243,14 @@ const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
 const onLangChange = [];
 (function(){
   const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
   const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
-  document.querySelectorAll(".site-only").forEach(el => { if (!onSite) el.hidden = true; });
-  if (LESSON.prev) $("prev").href = LESSON.prev; else $("prev").style.visibility = "hidden";
-  if (LESSON.next) $("next").href = LESSON.next; else $("next").style.visibility = "hidden";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
   document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
   const KEY = "3dl-progress";
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };

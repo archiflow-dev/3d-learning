@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>点积与投影</title>
+<!-- 全站固定版本：改版本要全站一起改 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+<!-- 需要 three.js 的课取消注释，然后用 <script type="module"> import * as THREE from 'three'
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+-->
+<style>
+:root{
+  --bg:#fbfaf7; --surface:#ffffff; --text:#1d1d1f; --muted:#6b6b70; --border:#e4e2dc;
+  --accent:#2f6fde; --accent-2:#d9480f; --good:#2b8a3e; --code-bg:#f3f1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141416; --surface:#1d1d20; --text:#ececee; --muted:#9a9aa2; --border:#2e2e33;
+    --accent:#6ea0ff; --accent-2:#ff8a4c; --good:#5cc27a; --code-bg:#24242a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141416; --surface:#1d1d20; --text:#ececee; --muted:#9a9aa2; --border:#2e2e33;
+  --accent:#6ea0ff; --accent-2:#ff8a4c; --good:#5cc27a; --code-bg:#24242a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.7 system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+header .crumb{color:var(--muted);font-size:14px}
+h1{font-size:30px;line-height:1.25;margin:4px 0 8px}
+h2{font-size:20px;margin:40px 0 8px;padding-top:8px;border-top:1px solid var(--border)}
+.meta{color:var(--muted);font-size:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+canvas{display:block;width:100%;height:auto;touch-action:none;background:var(--surface);
+  border:1px solid var(--border);border-radius:10px}
+.readout{font-family:ui-monospace,Consolas,monospace;font-size:14px;margin-top:8px}
+pre,code{font-family:ui-monospace,Consolas,monospace;background:var(--code-bg);border-radius:6px}
+code{padding:1px 5px}
+pre{padding:12px;overflow-x:auto}
+details{margin:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;margin-top:40px}
+a{color:var(--accent)}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);cursor:pointer}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:32px}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ① 元数据：和 lessons.json 中的条目保持一致 -->
+<script>
+const LESSON = {
+  id: "1.2",
+  slug: "dot-product",
+  stage: "阶段 1 · 数学基础",
+  title: "点积与投影",
+  minutes: 60,
+  prereqs: ["1.1"],
+  prev: "1.1-vectors.html",
+  next: "1.3-cross-product.html",
+  concepts: ["点积", "投影", "夹角"]
+};
+</script>
+
+<header id="meta">
+  <div class="crumb"><a href="../index.html">目录</a> · <span id="stage"></span> · 第 <span id="lid"></span> 课</div>
+  <h1 id="ltitle"></h1>
+  <div class="meta">预计 <span id="lmin"></span> 分钟 · 前置：<span id="lpre"></span></div>
+</header>
+
+<section id="goals">
+  <h2>学习目标</h2>
+  <ul>
+    <li>能解释点积的几何意义：一个向量在另一个向量方向上的投影长度乘以后者的长度。</li>
+    <li>能用点积的正负判断两个方向是同向、垂直还是反向。</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2>直觉</h2>
+  <p>点积回答一个问题：<b>a 有多少"朝着" b 的方向？</b>把 a 的影子投到 b 所在的直线上，影子越长，点积越大；影子落在反方向，点积就是负的。</p>
+</section>
+
+<section id="demo">
+  <h2>交互演示</h2>
+  <p class="meta">拖动两个箭头的端点。</p>
+  <canvas id="c" width="720" height="420"></canvas>
+  <div class="readout" id="out"></div>
+</section>
+
+<section id="math">
+  <h2>数学</h2>
+  <p>代数定义和几何定义是同一个东西：</p>
+  $$\mathbf a\cdot\mathbf b = a_x b_x + a_y b_y = \lVert\mathbf a\rVert\,\lVert\mathbf b\rVert\cos\theta$$
+  <p>其中 $\theta$ 是两向量的夹角。a 在 b 方向上的投影向量是 $\dfrac{\mathbf a\cdot\mathbf b}{\lVert\mathbf b\rVert^2}\,\mathbf b$。</p>
+</section>
+
+<section id="exercise">
+  <h2>你动手</h2>
+  <div class="card">
+    <p><b>任务：</b>给你的 <code>Vec3</code> 加上 <code>dot()</code> 和 <code>projectOnto()</code>，并用它判断一个点在相机前面还是后面。</p>
+    <p><b>我的解答：</b>（这一块由你自己写，AI 只评审）</p>
+    <pre><code>// 在这里粘贴你的代码</code></pre>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2>常见误区</h2>
+  <ul>
+    <li>点积结果是标量，不是向量。</li>
+    <li>只有在 b 是单位向量时，a·b 才直接等于投影长度。</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2>自测</h2>
+  <details><summary>1. 两个单位向量的点积是 0.5，夹角是多少？</summary><p>cos θ = 0.5，所以 θ = 60°。</p></details>
+  <details><summary>2. 光照里为什么经常写 max(0, n·l)？</summary><p>n·l 为负表示光从表面背后照来，这部分不应贡献亮度。</p></details>
+</section>
+
+<section id="refs">
+  <h2>参考资料</h2>
+  <ul>
+    <li>GAMES101 第 2 讲（线性代数回顾），B 站官方视频</li>
+    <li>3Blue1Brown《线性代数的本质》第 9 集：点积与对偶性</li>
+    <li><i>Fundamentals of Computer Graphics</i>，第 2 章</li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#">← 上一课</a>
+  <button id="doneBtn" type="button">标记为已完成</button>
+  <a id="next" href="#">下一课 →</a>
+</nav>
+
+<footer>学习笔记，由我与 AI 共同制作，可能有错误。以参考资料为准。</footer>
+</main>
+
+<!-- ② 通用页面逻辑：所有课程页都一样，不要改 -->
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  $("stage").textContent = LESSON.stage;
+  $("lid").textContent = LESSON.id;
+  $("ltitle").textContent = LESSON.title;
+  $("lmin").textContent = LESSON.minutes;
+  $("lpre").textContent = LESSON.prereqs.length ? LESSON.prereqs.join("、") : "无";
+  if (LESSON.prev) $("prev").href = LESSON.prev; else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = LESSON.next; else $("next").style.visibility = "hidden";
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  const paint = () => { const d = !!load()[LESSON.id];
+    btn.textContent = d ? "✓ 已完成" : "标记为已完成"; btn.classList.toggle("done", d); };
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); paint(); };
+  paint();
+})();
+</script>
+
+<!-- ③ 本课的交互演示代码 -->
+<script>
+(function(){
+  const cv = document.getElementById("c"), ctx = cv.getContext("2d"), out = document.getElementById("out");
+  const S = 60; // 每单位像素数
+  const O = () => ({x: cv.width/2, y: cv.height/2});
+  let a = {x:3, y:1.5}, b = {x:2.5, y:-1}, drag = null;
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const toPx = v => ({x: O().x + v.x*S, y: O().y - v.y*S});
+  const toW = (px,py) => ({x: (px-O().x)/S, y: (O().y-py)/S});
+  function arrow(v, col, w=3){
+    const p = toPx(v), o = O(); ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w;
+    ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    const ang = Math.atan2(p.y-o.y, p.x-o.x);
+    ctx.beginPath(); ctx.moveTo(p.x,p.y);
+    ctx.lineTo(p.x-12*Math.cos(ang-0.4), p.y-12*Math.sin(ang-0.4));
+    ctx.lineTo(p.x-12*Math.cos(ang+0.4), p.y-12*Math.sin(ang+0.4)); ctx.fill();
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.strokeStyle = css("--border"); ctx.lineWidth = 1;
+    for (let x = O().x % S; x < cv.width; x += S){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cv.height); ctx.stroke(); }
+    for (let y = O().y % S; y < cv.height; y += S){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cv.width,y); ctx.stroke(); }
+    const dot = a.x*b.x + a.y*b.y, bb = b.x*b.x + b.y*b.y;
+    const proj = {x: b.x*dot/bb, y: b.y*dot/bb};
+    ctx.setLineDash([5,5]); ctx.strokeStyle = css("--muted");
+    const pa = toPx(a), pp = toPx(proj);
+    ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pp.x,pp.y); ctx.stroke(); ctx.setLineDash([]);
+    arrow(proj, css("--good"), 6);
+    arrow(b, css("--accent")); arrow(a, css("--accent-2"));
+    const ang = Math.acos(Math.max(-1, Math.min(1, dot/Math.sqrt((a.x*a.x+a.y*a.y)*bb)))) * 180/Math.PI;
+    out.textContent = `a=(${a.x.toFixed(2)}, ${a.y.toFixed(2)})  b=(${b.x.toFixed(2)}, ${b.y.toFixed(2)})  a·b=${dot.toFixed(2)}  θ=${ang.toFixed(1)}°  ${dot>0.01?"同向":dot<-0.01?"反向":"垂直"}`;
+  }
+  function pos(e){ const r = cv.getBoundingClientRect();
+    return {x:(e.clientX-r.left)*cv.width/r.width, y:(e.clientY-r.top)*cv.height/r.height}; }
+  cv.addEventListener("pointerdown", e => { const p = pos(e);
+    for (const [k,v] of [["a",a],["b",b]]){ const q = toPx(v); if (Math.hypot(q.x-p.x,q.y-p.y) < 24){ drag = k; cv.setPointerCapture(e.pointerId); } } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const p = pos(e), w = toW(p.x,p.y);
+    if (Math.hypot(w.x,w.y) < 0.2) return; if (drag==="a") a = w; else b = w; draw(); });
+  cv.addEventListener("pointerup", () => drag = null);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  draw();
+})();
+</script>
+</body>
+</html>

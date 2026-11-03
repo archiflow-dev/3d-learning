@@ -1,0 +1,27 @@
+{
+  "$comment": "所有课程的唯一清单。首页、进度条、概念索引都从这里生成。status: planned | in-progress | done",
+  "site": { "title": "3D 数学与图形学学习笔记", "author": "ArchiFlow" },
+  "stages": [
+    { "id": 0, "title": "环境与工具" },
+    { "id": 1, "title": "数学基础" },
+    { "id": 2, "title": "坐标空间、相机与投影" },
+    { "id": 3, "title": "光栅化管线" },
+    { "id": 4, "title": "经典着色与光照" },
+    { "id": 5, "title": "光线追踪" },
+    { "id": 6, "title": "基于物理的渲染 PBR" },
+    { "id": 7, "title": "进阶分支" }
+  ],
+  "lessons": [
+    {
+      "id": "1.2",
+      "stage": 1,
+      "title": "点积与投影",
+      "file": "lessons/1.2-dot-product.html",
+      "prereqs": ["1.1"],
+      "concepts": ["点积", "投影", "夹角"],
+      "status": "planned",
+      "completedAt": null,
+      "artifactUrl": null
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 # 课程页模板规范
 
-模板文件：[templates/lesson-template.html](../templates/lesson-template.html)。每节新课都从它复制，**不改结构，只填内容**。这样后面合并成网站时不需要重做任何页面。
+模板文件：[templates/lesson-template.html](../templates/lesson-template.html)（就是第 0.1 课的副本）。每节新课都从它复制，**不改结构，只填内容**。这样后面合并成网站时不需要重做任何页面。
+
+**中英双语（2026-11-03 起）**：每段文字写两份，`class="zh"` 和 `class="en"`；页面右上角的按钮切换语言，选择存在浏览器里，第一次打开时跟随浏览器语言。JS 里显示的文字放进 `{zh, en}` 字典。两种语言内容必须对等，不能一边详细一边简略。
 
 ## 每节课的固定区块（顺序不变）
 
@@ -19,7 +21,7 @@
 
 ## 硬规则
 
-1. **单文件**：每课一个 `.html`，CSS 和 JS 内联，外部库只从 jsdelivr 按固定版本加载。这样同一个文件既能直接发布成 Claude artifact，也能原样放到 GitHub Pages。
+1. **单文件**：每课一个 `.html`，不写 `<!doctype>`/`<html>`/`<head>`/`<body>`（发布 artifact 时会自动包上；以后建网站时由构建脚本补上），CSS 和 JS 内联，外部库只从 jsdelivr 按固定版本加载。这样同一个文件既能直接发布成 Claude artifact，也能原样放到 GitHub Pages。
 2. **固定版本**：three.js、KaTeX 版本写在模板里，全站统一，不要每课随手换版本。
 3. **文件名 = 课号**：`lessons/1.2-dot-product.html`。课号一旦发布不再改，避免外链失效。
 4. **元数据在页面顶部的 `LESSON` 对象里**，和 `lessons.json` 里的条目保持一致。

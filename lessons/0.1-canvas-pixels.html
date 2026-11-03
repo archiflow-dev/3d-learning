@@ -47,7 +47,7 @@ h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);t
 .meta{color:var(--muted);font-size:14px}
 p,li{max-width:66ch}
 a{color:var(--accent)}
-code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
@@ -69,6 +69,8 @@ button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outli
 textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
 .err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
 .formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
 details{border-top:1px solid var(--line);padding:8px 0}
 summary{cursor:pointer}
 nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
@@ -85,7 +87,7 @@ const LESSON = {
   stage: { zh: "阶段 0 · 环境与工具", en: "Stage 0 · Tools" },
   title: { zh: "像素与帧缓冲", en: "Pixels and the Framebuffer" },
   minutes: 60, prereqs: [],
-  prev: null, next: null, // 0.2 上线后再填 / fill in once 0.2 exists
+  prev: null, next: "0.2-threejs-first-scene.html",
   concepts: ["pixel", "framebuffer", "coordinate system", "ImageData"],
   videos: { UCD: ["01"], MIT: ["1"] }
 };
@@ -174,6 +176,17 @@ const LESSON = {
       <canvas id="ex" width="256" height="160" aria-label="exercise output"></canvas>
     </div>
     <div class="row"><button type="button" id="run"><span class="zh">运行</span><span class="en">Run</span></button><span class="err" id="exErr"></span></div>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-03）</span><span class="en">My solution (2026-11-03)</span></p>
+      <pre class="formula">function shade(x, y, W, H) {
+  const y_up = H - 1 - y;
+  const r = Math.round(255 * x / (W - 1));
+  const g = Math.round(255 * y_up / (H - 1));
+  return [r, g, 0];
+}</pre>
+      <p class="zh"><b>评审时学到的：</b>写成 <code>H − y</code> 会让每一行都往上错一行，最上面一行越界，最下面一行永远是空的。<code>(x + 0.5) / W</code> 是在像素中心取样，两端分别是一点点红和略低于 255，永远不会超过 255；需要两端正好是 0 和 255 时用 <code>x / (W − 1)</code>，在连续函数上取样（光栅化、光追、纹理）时用像素中心。<code>ImageData</code> 用的是 <code>Uint8ClampedArray</code>，写入小数时会自动限制在 0–255 并取整，不会报错，所以去掉 <code>Math.round</code> 结果几乎不变。</p>
+      <p class="en"><b>What the review taught me:</b> writing <code>H − y</code> shifts every row up by one, so the top row falls off the buffer and the bottom row stays empty. <code>(x + 0.5) / W</code> samples at pixel centers: the ends get a little red and slightly under 255, never above it. Use <code>x / (W − 1)</code> when the ends must be exactly 0 and 255, and pixel centers when sampling a continuous function (rasterization, ray tracing, textures). <code>ImageData</code> is a <code>Uint8ClampedArray</code>, which clamps written values to 0–255 and rounds them without any error, so dropping <code>Math.round</code> barely changes the result.</p>
+    </div>
     <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
       <pre class="formula">function shade(x, y, W, H) {
   const yUp = H - 1 - y;

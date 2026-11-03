@@ -1,0 +1,415 @@
+<title>three.js 第一个场景 · Your First three.js Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+.stage3d{position:relative;aspect-ratio:16/10;max-width:100%;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.stage3d canvas{width:100%;height:100%;image-rendering:auto;cursor:grab}
+.stage3d .err{position:absolute;inset:auto 12px 12px 12px}
+.controls{display:grid;grid-template-columns:minmax(0,12em) minmax(0,1fr);gap:4px 12px;align-items:center;font-size:14px}
+.controls output{font:13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.check{font-size:14px;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.check input{accent-color:var(--accent)}
+@media (max-width:480px){.controls{grid-template-columns:1fr}}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "0.2", slug: "threejs-first-scene",
+  stage: { zh: "阶段 0 · 环境与工具", en: "Stage 0 · Tools" },
+  title: { zh: "用 three.js 搭第一个场景", en: "Your First three.js Scene" },
+  minutes: 60, prereqs: ["0.1"],
+  prev: "0.1-canvas-pixels.html", next: null,
+  concepts: ["scene", "camera", "renderer", "mesh", "light", "render loop"],
+  videos: { UCD: [], MIT: [] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a class="site-only" href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a><span class="site-only"> / </span><span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 60 分钟 · 前置：0.1 · 视频：两套课都没有对应的讲次（它们不讲具体库），看 three.js 官方入门文档</div>
+  <div class="meta en">About 60 min · Prerequisite: 0.1 · Video: neither course covers a specific library; read the official three.js intro instead</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li>说出一个 three.js 程序的三件套：场景（Scene）、相机（Camera）、渲染器（Renderer），以及它们各自负责什么。</li>
+    <li>解释透视相机的四个参数：视角 fov、宽高比 aspect、近平面 near、远平面 far。</li>
+    <li>知道一个可见物体 = 几何体 + 材质，以及为什么有的材质没有灯光就是黑的。</li>
+  </ul>
+  <ul class="en">
+    <li>Name the three parts of every three.js program (Scene, Camera, Renderer) and what each one does.</li>
+    <li>Explain the four perspective-camera parameters: field of view, aspect ratio, near plane and far plane.</li>
+    <li>Know that a visible object is geometry plus material, and why some materials render black without lights.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">上一课我们亲手给每个像素填颜色。three.js 做的是同一件事，只不过它替你回答了"这个像素是什么颜色"：你告诉它世界里有什么（<b>场景</b>）、从哪里看（<b>相机</b>），<b>渲染器</b>就在 GPU 上算出整张帧缓冲。</p>
+  <p class="en">Last lesson you filled every pixel yourself. three.js does the same job, but it answers "what color is this pixel?" for you: you describe what is in the world (the <b>scene</b>) and where you look from (the <b>camera</b>), and the <b>renderer</b> computes the whole framebuffer on the GPU.</p>
+  <p class="zh">这节课是在<b>预览终点</b>。相机矩阵（阶段 2）、光栅化（阶段 3）、光照（阶段 4）这些 three.js 帮你藏起来的东西，后面每一课都会拆开来自己写一遍。</p>
+  <p class="en">Think of this lesson as a <b>preview of the destination</b>. The camera matrices (stage 2), rasterization (stage 3) and lighting (stage 4) that three.js hides from you are exactly what the later lessons take apart and rebuild by hand.</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：调相机、开关灯</span><span class="en">Demo: tune the camera, switch the lights</span></h2>
+  <p class="meta zh">在画面上拖动可以绕着物体转，滚轮缩放。拖动滑块改相机参数，看画面和下面的数值怎么变。</p>
+  <p class="meta en">Drag the view to orbit, scroll to zoom. Move the sliders and watch the image and the readout below change.</p>
+  <div class="panel">
+    <div class="stage3d"><canvas id="view" aria-label="three.js scene"></canvas><p class="err" id="glErr" hidden></p></div>
+    <div class="controls">
+      <label for="fov"><span class="zh">视角 fov</span><span class="en">Field of view</span> <output id="fovOut"></output></label>
+      <input type="range" id="fov" min="10" max="120" value="50">
+      <label for="near"><span class="zh">近平面 near</span><span class="en">Near plane</span> <output id="nearOut"></output></label>
+      <input type="range" id="near" min="0" max="100" value="33">
+      <label for="far"><span class="zh">远平面 far</span><span class="en">Far plane</span> <output id="farOut"></output></label>
+      <input type="range" id="far" min="0" max="100" value="100">
+    </div>
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="material">
+        <input type="radio" name="mat" id="matStd" checked><label for="matStd"><span class="zh">受光材质 Standard</span><span class="en">Lit (Standard)</span></label>
+        <input type="radio" name="mat" id="matBasic"><label for="matBasic"><span class="zh">不受光材质 Basic</span><span class="en">Unlit (Basic)</span></label>
+      </span>
+      <label class="check"><input type="checkbox" id="lights" checked> <span class="zh">灯光</span><span class="en">Lights</span></label>
+      <label class="check"><input type="checkbox" id="wire"> <span class="zh">线框</span><span class="en">Wireframe</span></label>
+      <label class="check"><input type="checkbox" id="spin" checked> <span class="zh">自转</span><span class="en">Spin</span></label>
+    </div>
+    <dl class="readout" id="camOut"></dl>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <p class="zh">three.js 的 fov 是<b>垂直</b>视角。在距离相机 d 的地方，画面从上到下能装下的世界高度是：</p>
+  <p class="en">In three.js, fov is the <b>vertical</b> angle. At distance d from the camera, the visible world height from top to bottom is:</p>
+  <pre class="formula">visibleHeight = 2 × d × tan(fov / 2)
+visibleWidth  = visibleHeight × aspect      (aspect = canvasWidth / canvasHeight)</pre>
+  <p class="zh">所以物体在屏幕上的大小大约和 1 / (d × tan(fov/2)) 成正比：离得越远、视角越大，物体看起来越小。把 fov 拉到 10° 像长焦镜头，拉到 120° 像鱼眼。只有落在 near 和 far 之间的东西才会被画出来，这一段空间叫<b>视锥体</b>（frustum），第 2.3 课会推导它的矩阵。</p>
+  <p class="en">So an object's size on screen is roughly proportional to 1 / (d × tan(fov/2)): farther away or a wider angle makes it smaller. A 10° fov looks like a telephoto lens and 120° like a fisheye. Only things between near and far get drawn; that region is the <b>view frustum</b>, whose matrix we derive in lesson 2.3.</p>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>补全 <code>build(THREE, group)</code>，往场景里加<b>一个球体</b>（放在立方体右边，不要和它重叠）和<b>一盏点光源</b>（PointLight），让球体靠近灯的一侧明显更亮。点"运行"替换你加的东西，原来的场景不受影响。</p>
+    <p class="en"><b>Task:</b> complete <code>build(THREE, group)</code> to add <b>a sphere</b> (to the right of the cube, not overlapping it) and <b>a point light</b> (PointLight) so the side of the sphere near the light is clearly brighter. Run replaces only what you add; the original scene stays.</p>
+    <label for="code" class="meta"><span class="zh">你的代码</span><span class="en">Your code</span></label>
+    <textarea id="code" spellcheck="false">function build(THREE, group) {
+  // group.add(...) 把物体加进场景 / adds objects to the scene
+  // 提示 / hints: THREE.SphereGeometry, THREE.MeshStandardMaterial,
+  //               THREE.Mesh, mesh.position.set(x, y, z), THREE.PointLight
+}</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行</span><span class="en">Run</span></button><span class="err" id="exErr"></span></div>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">function build(THREE, group) {
+  const ball = new THREE.Mesh(
+    new THREE.SphereGeometry(0.6, 32, 16),
+    new THREE.MeshStandardMaterial({ color: 0xf4a261, roughness: 0.4 })
+  );
+  ball.position.set(2, 0.6, 0);
+  group.add(ball);
+
+  const bulb = new THREE.PointLight(0xffffff, 8, 0, 2); // 颜色, 强度, 距离, 衰减
+  bulb.position.set(3.2, 1.6, 0.8);
+  group.add(bulb);
+}</pre>
+      <p class="zh">检查方法：关掉上面的"灯光"开关，球体朝着你那盏灯的一侧应该仍然是亮的。如果球是全黑的，说明灯太远、太暗，或者放到球的背面去了。</p>
+      <p class="en">Check: switch off the "Lights" box above. The side of the sphere facing your light should still be lit. If the sphere is completely black, the light is too far, too dim, or behind the sphere.</p>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>物体全黑。</b><code>MeshStandardMaterial</code> 要靠灯光算颜色，没有灯就是黑的；<code>MeshBasicMaterial</code> 不受光，永远是同一个颜色。在上面切换材质并关灯就能看到区别。</li>
+    <li><b>画面被拉扁。</b>窗口大小变了，但没有更新 <code>camera.aspect</code> 并调用 <code>camera.updateProjectionMatrix()</code>。改了相机的任何参数，都要调用这个函数。</li>
+    <li><b>near 设成 0 或特别小。</b>透视投影里 near 不能是 0，太小会让深度精度变差，远处的面互相闪烁（z-fighting）。第 2.4 课会解释原因。</li>
+    <li><b>画面模糊。</b>高分屏上要调用 <code>renderer.setPixelRatio(devicePixelRatio)</code>，原因和上一课讲的"Canvas 有两个尺寸"一样。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Everything is black.</b> <code>MeshStandardMaterial</code> needs lights to compute color, so with no light it is black. <code>MeshBasicMaterial</code> ignores lights and always shows one flat color. Switch the material above and turn the lights off to see the difference.</li>
+    <li><b>The image looks squashed.</b> The window size changed but <code>camera.aspect</code> was not updated and <code>camera.updateProjectionMatrix()</code> not called. Call it after changing any camera parameter.</li>
+    <li><b>near set to 0 or very small.</b> A perspective camera cannot have near = 0, and a tiny value wrecks depth precision so distant faces flicker against each other (z-fighting). Lesson 2.4 explains why.</li>
+    <li><b>The image is blurry.</b> On high-DPI screens call <code>renderer.setPixelRatio(devicePixelRatio)</code>, for the same reason as last lesson's "a canvas has two sizes".</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. fov = 90°，物体离相机 5 个单位，画面从上到下能装下多高的世界？</span><span class="en">1. With fov = 90° and an object 5 units away, how tall a slice of the world fits from top to bottom?</span></summary>
+    <p class="zh">2 × 5 × tan(45°) = 10 个单位。</p><p class="en">2 × 5 × tan(45°) = 10 units.</p></details>
+  <details><summary><span class="zh">2. 把 far 调得比立方体到相机的距离还小，会发生什么？</span><span class="en">2. What happens when far is smaller than the distance from the camera to the cube?</span></summary>
+    <p class="zh">立方体在视锥体外面，被裁剪掉，不会被画出来。可以在上面的演示里试一下。</p><p class="en">The cube falls outside the frustum and is clipped, so it is not drawn. Try it in the demo above.</p></details>
+  <details><summary><span class="zh">3. 为什么每一帧都要调用 renderer.render(scene, camera)，而不是只调用一次？</span><span class="en">3. Why call renderer.render(scene, camera) every frame instead of once?</span></summary>
+    <p class="zh">帧缓冲只是一张图。物体转动、相机移动之后，旧的图不会自己更新，必须重新算一遍所有像素。这个"每帧重画"的循环就是渲染循环。</p><p class="en">The framebuffer is just an image. After objects or the camera move, the old image does not update itself; every pixel has to be computed again. That redraw-every-frame cycle is the render loop.</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><a href="https://threejs.org/manual/#en/fundamentals" target="_blank" rel="noopener"><span class="zh">three.js 官方手册：Fundamentals（有中文版）</span><span class="en">three.js manual: Fundamentals</span></a></li>
+    <li><a href="https://threejs.org/docs/#api/en/cameras/PerspectiveCamera" target="_blank" rel="noopener">three.js docs: PerspectiveCamera</a></li>
+    <li><span class="zh">预告：MIT 6.837 第 4 讲（Transformations）和 UC Davis 第 05 讲（The Camera Transform）讲的就是这里藏起来的相机数学，阶段 1–2 会学到。</span><span class="en">Coming up: MIT 6.837 lecture 4 (Transformations) and UC Davis lecture 05 (The Camera Transform) cover the camera math hidden here; we reach them in stages 1–2.</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" class="site-only" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" class="site-only" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  document.querySelectorAll(".site-only").forEach(el => { if (!onSite) el.hidden = true; });
+  if (LESSON.prev) $("prev").href = LESSON.prev; else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = LESSON.next; else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+// 本课的演示 / this lesson's demo
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const S_ = {
+  zh: { fov: "视角 fov", aspect: "宽高比 aspect", nf: "near / far", dist: "相机到原点", vis: "原点处可见高度", noGL: "你的浏览器不能创建 WebGL 画布，所以 3D 演示无法显示。", err: "出错了：", cut: "（立方体被裁掉了）" },
+  en: { fov: "fov", aspect: "aspect", nf: "near / far", dist: "camera to origin", vis: "visible height at origin", noGL: "Your browser could not create a WebGL canvas, so the 3D demo cannot run.", err: "Error: ", cut: " (cube is clipped)" }
+};
+const $ = id => document.getElementById(id);
+const canvas = $("view");
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
+catch (e) { const g = $("glErr"); g.hidden = false; g.textContent = S_[lang()].noGL + " / " + S_[lang() === "en" ? "zh" : "en"].noGL; }
+
+if (renderer) {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ① 场景 / scene
+  const scene = new THREE.Scene();
+  // ② 相机 / camera
+  const camera = new THREE.PerspectiveCamera(50, 16 / 10, 0.1, 100);
+  camera.position.set(4, 3, 6);
+  const controls = new OrbitControls(camera, canvas);
+  controls.target.set(0, 0.5, 0); controls.enableDamping = true;
+
+  // 物体 = 几何体 + 材质 / mesh = geometry + material
+  const std = { cube: new THREE.MeshStandardMaterial({ color: 0x2a9d8f, roughness: 0.5 }),
+                ground: new THREE.MeshStandardMaterial({ color: 0x9aa7a3, roughness: 0.9 }) };
+  const basic = { cube: new THREE.MeshBasicMaterial({ color: 0x2a9d8f }),
+                  ground: new THREE.MeshBasicMaterial({ color: 0x9aa7a3 }) };
+  const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), std.cube);
+  cube.position.y = 0.5;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), std.ground);
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(cube, ground, new THREE.AxesHelper(1.5));
+
+  // 灯光 / lights
+  const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(3, 5, 2);
+  scene.add(ambient, sun);
+
+  const userGroup = new THREE.Group(); scene.add(userGroup);
+
+  // 控件 / controls
+  const nearVal = t => 0.01 * Math.pow(10, t / 100 * 3);   // 0.01 .. 10
+  const farVal  = t => Math.pow(10, t / 100 * 2);           // 1 .. 100
+  function applyCamera() {
+    camera.fov = +$("fov").value;
+    camera.near = nearVal(+$("near").value);
+    camera.far = Math.max(farVal(+$("far").value), camera.near + 0.01);
+    camera.updateProjectionMatrix(); // 改完相机参数必须调用 / required after any change
+    $("fovOut").textContent = camera.fov + "°";
+    $("nearOut").textContent = camera.near.toFixed(2);
+    $("farOut").textContent = camera.far.toFixed(1);
+  }
+  ["fov", "near", "far"].forEach(id => $(id).addEventListener("input", applyCamera));
+  $("lights").addEventListener("change", e => { ambient.visible = sun.visible = e.target.checked; });
+  const setMat = () => { const m = $("matBasic").checked ? basic : std; cube.material = m.cube; ground.material = m.ground; setWire(); };
+  const setWire = () => { [std, basic].forEach(m => { m.cube.wireframe = $("wire").checked; }); };
+  $("matStd").addEventListener("change", setMat); $("matBasic").addEventListener("change", setMat);
+  $("wire").addEventListener("change", setWire);
+
+  function report() {
+    const t = S_[lang()], d = camera.position.length();
+    const vis = 2 * camera.position.distanceTo(controls.target) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const toCube = camera.position.distanceTo(cube.position);
+    const clipped = toCube - 0.87 > camera.far || toCube + 0.87 < camera.near;
+    $("camOut").innerHTML = [
+      [t.fov, camera.fov + "°"], [t.aspect, camera.aspect.toFixed(3)],
+      [t.nf, camera.near.toFixed(2) + " / " + camera.far.toFixed(1) + (clipped ? t.cut : "")],
+      [t.dist, d.toFixed(2)], [t.vis, vis.toFixed(2)]
+    ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  }
+  onLangChange.push(report);
+
+  // 尺寸跟着画布走 / keep the framebuffer matched to the displayed size
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  // 练习 / exercise
+  $("run").onclick = () => {
+    const err = $("exErr"); err.textContent = "";
+    userGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose?.(); });
+    userGroup.clear();
+    try { new Function($("code").value + "\nreturn build;")()(THREE, userGroup); }
+    catch (e) { err.textContent = S_[lang()].err + e.message; }
+  };
+
+  const bg = () => scene.background = new THREE.Color(css("--surface"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", bg);
+  new MutationObserver(bg).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  bg(); applyCamera(); resize();
+
+  // ③ 渲染循环 / render loop
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) $("spin").checked = false;
+  let frame = 0;
+  renderer.setAnimationLoop(() => {
+    if ($("spin").checked) cube.rotation.y += 0.01;
+    controls.update();
+    renderer.render(scene, camera);
+    if (++frame % 10 === 0) report();
+  });
+  report();
+}
+</script>

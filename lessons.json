@@ -116,6 +116,33 @@
           "1"
         ]
       }
+    },
+    {
+      "id": "0.2",
+      "stage": 0,
+      "title": {
+        "zh": "用 three.js 搭第一个场景",
+        "en": "Your First three.js Scene"
+      },
+      "file": "lessons/0.2-threejs-first-scene.html",
+      "prereqs": [
+        "0.1"
+      ],
+      "concepts": [
+        "场景",
+        "相机",
+        "渲染器",
+        "网格",
+        "灯光",
+        "渲染循环"
+      ],
+      "status": "in-progress",
+      "completedAt": null,
+      "artifactUrl": "https://claude.ai/artifact/4XTPsa9YG6KSbFFkWNvpNu",
+      "videos": {
+        "UCD": [],
+        "MIT": []
+      }
     }
   ],
   "videoRefs": {

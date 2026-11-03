@@ -1,56 +1,102 @@
 {
-  "$comment": "所有课程的唯一清单。首页、进度条、概念索引都从这里生成。status: planned | in-progress | done",
+  "$comment": "课程清单：网站首页从这里生成。只列出已经做好页面的课；plannedLessons 是路线图里每个阶段计划的课数。status: in-progress | done",
   "site": {
-    "title": "3D 数学与图形学学习笔记",
+    "title": {
+      "zh": "3D 数学与图形学学习笔记",
+      "en": "3D Math & Graphics Study Notes"
+    },
     "author": "ArchiFlow"
   },
   "stages": [
     {
       "id": 0,
-      "title": "环境与工具"
+      "title": {
+        "zh": "环境与工具",
+        "en": "Tools"
+      },
+      "plannedLessons": 2
     },
     {
       "id": 1,
-      "title": "数学基础"
+      "title": {
+        "zh": "数学基础",
+        "en": "Math foundations"
+      },
+      "plannedLessons": 11
     },
     {
       "id": 2,
-      "title": "相机、投影与层级建模"
+      "title": {
+        "zh": "相机、投影与层级建模",
+        "en": "Cameras, projection and hierarchical modeling"
+      },
+      "plannedLessons": 6
     },
     {
       "id": 3,
-      "title": "光栅化、可见面与图像"
+      "title": {
+        "zh": "光栅化、可见面与图像",
+        "en": "Rasterization, visibility and images"
+      },
+      "plannedLessons": 9
     },
     {
       "id": 4,
-      "title": "颜色、着色与阴影"
+      "title": {
+        "zh": "颜色、着色与阴影",
+        "en": "Color, shading and shadows"
+      },
+      "plannedLessons": 7
     },
     {
       "id": 5,
-      "title": "光线追踪"
+      "title": {
+        "zh": "光线追踪",
+        "en": "Ray tracing"
+      },
+      "plannedLessons": 6
     },
     {
       "id": 6,
-      "title": "几何建模：曲线、曲面、细分"
+      "title": {
+        "zh": "几何建模：曲线、曲面、细分",
+        "en": "Geometric modeling: curves, surfaces, subdivision"
+      },
+      "plannedLessons": 6
     },
     {
       "id": 7,
-      "title": "动画与物理模拟"
+      "title": {
+        "zh": "动画与物理模拟",
+        "en": "Animation and physical simulation"
+      },
+      "plannedLessons": 6
     },
     {
       "id": 8,
-      "title": "基于物理的渲染 PBR"
+      "title": {
+        "zh": "基于物理的渲染 PBR",
+        "en": "Physically based rendering"
+      },
+      "plannedLessons": 5
     },
     {
       "id": 9,
-      "title": "应用分支"
+      "title": {
+        "zh": "应用分支：Web 3D、游戏、3D 高斯泼溅",
+        "en": "Branches: Web 3D, games, 3D Gaussian Splatting"
+      },
+      "plannedLessons": 17
     }
   ],
   "lessons": [
     {
       "id": "0.1",
       "stage": 0,
-      "title": "像素与帧缓冲",
+      "title": {
+        "zh": "像素与帧缓冲",
+        "en": "Pixels and the Framebuffer"
+      },
       "file": "lessons/0.1-canvas-pixels.html",
       "prereqs": [],
       "concepts": [
@@ -69,27 +115,6 @@
         "MIT": [
           "1"
         ]
-      }
-    },
-    {
-      "id": "1.2",
-      "stage": 1,
-      "title": "点积与投影",
-      "file": "lessons/1.2-dot-product.html",
-      "prereqs": [
-        "1.1"
-      ],
-      "concepts": [
-        "点积",
-        "投影",
-        "夹角"
-      ],
-      "status": "planned",
-      "completedAt": null,
-      "artifactUrl": null,
-      "videos": {
-        "UCD": [],
-        "MIT": []
       }
     }
   ],

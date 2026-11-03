@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D 数学与图形学学习笔记 · 3D Math &amp; Graphics Study Notes</title>
+<meta name="description" content="从零学 3D 数学、计算机图形学和渲染的交互式学习笔记，中英双语。Interactive study notes on 3D math, computer graphics and rendering.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 和课程页同一套设计 token / same tokens as the lesson pages */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:880px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:32px 64px;display:flex;flex-direction:column;gap:12px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted)}
+h1{font:800 clamp(30px,6vw,46px)/1.15 var(--f-display);margin:8px 0 0;text-wrap:balance}
+.lede{color:var(--muted);max-width:66ch;margin:0}
+a{color:var(--accent)}
+button{font:600 13px var(--f-mono);padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--surface);color:var(--accent);cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.overall{display:flex;flex-wrap:wrap;gap:8px 24px;font:14px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--muted)}
+.overall b{color:var(--ink);font-size:20px}
+.stages{display:flex;flex-direction:column;gap:12px}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.stage-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.stage h2{font:600 19px/1.3 var(--f-display);margin:0;text-wrap:balance}
+.stage h2 .num{font:600 12px var(--f-mono);color:var(--accent);margin-right:8px;letter-spacing:.06em}
+.count{font:13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--code);border-radius:3px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .d{background:var(--good)} .bar .p{background:var(--accent)}
+ul.lessons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+ul.lessons li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.lid{font:13px var(--f-mono);color:var(--muted);min-width:3.5em;font-variant-numeric:tabular-nums}
+.pill{font:11px/1 var(--f-mono);padding:3px 7px;border-radius:999px;border:1px solid currentColor;letter-spacing:.04em}
+.pill.done{color:var(--good)} .pill.in-progress{color:var(--accent)} .pill.mine{color:var(--accent-2)}
+.note{color:var(--muted);font-size:13px;margin:0}
+footer{color:var(--muted);font-size:13px;margin-top:24px;display:flex;flex-direction:column;gap:4px}
+</style>
+<script>
+(function(){ let l=null; try{ l=localStorage.getItem("3dl-lang"); }catch{}
+  if (l!=="zh"&&l!=="en") l=/^zh/i.test(navigator.language||"")?"zh":"en";
+  document.documentElement.dataset.lang=l; })();
+</script>
+</head>
+<body>
+<main>
+  <div class="topbar">
+    <div class="crumb">ArchiFlow / 3d-learning</div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1><span class="zh">3D 数学与图形学学习笔记</span><span class="en">3D Math &amp; Graphics Study Notes</span></h1>
+  <p class="lede zh">我和 AI 一起从零学 3D 数学、计算机图形学和渲染的过程。每节课是一个可以动手操作的网页，对照 UC Davis ECS 175（2009）和 MIT 6.837（2021）两套公开课。</p>
+  <p class="lede en">My path through 3D math, computer graphics and rendering, learned from scratch with an AI tutor. Each lesson is a hands-on interactive page, mapped to two open courses: UC Davis ECS 175 (2009) and MIT 6.837 (2021).</p>
+  <div class="overall" id="overall"></div>
+  <p class="note" id="loadErr" hidden></p>
+  <div class="stages" id="stages"></div>
+  <footer>
+    <span class="zh">"我已学完"标记只保存在你自己的浏览器里。学习笔记由 ArchiFlow 与 AI 共同制作，可能有错误，以各课的参考资料为准。</span>
+    <span class="en">"I finished" marks are stored only in your own browser. Notes made by ArchiFlow with AI; they may contain mistakes, so trust each lesson's references.</span>
+    <span><a href="https://github.com/archiflow-dev/3d-learning">GitHub</a> · <a href="https://github.com/archiflow-dev/3d-learning/blob/main/ROADMAP.md"><span class="zh">完整路线图</span><span class="en">Full roadmap (in Chinese)</span></a></span>
+  </footer>
+</main>
+<script>
+const T = {
+  zh:{toggle:"EN",stage:"阶段",lessons:"课",done:"已完成",prog:"进行中",mine:"我已学完",built:"已上线",authorDone:"作者已学完",err:"课程清单加载失败。直接双击打开本地文件时浏览器会拦截读取，请通过网站访问。"},
+  en:{toggle:"中文",stage:"Stage",lessons:"lessons",done:"done",prog:"in progress",mine:"I finished",built:"published",authorDone:"finished by author",err:"Could not load the lesson list. Browsers block this when the file is opened directly from disk; view it on the website instead."}
+};
+const lang = () => document.documentElement.dataset.lang==="en"?"en":"zh";
+let DATA = null;
+function mine(){ try{ return JSON.parse(localStorage.getItem("3dl-progress"))||{}; }catch{ return {}; } }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function render(){
+  const L=lang(), t=T[L];
+  document.documentElement.lang = L==="en"?"en":"zh-CN";
+  document.getElementById("langBtn").textContent=t.toggle;
+  if(!DATA) return;
+  const my=mine();
+  const planned=DATA.stages.reduce((a,s)=>a+s.plannedLessons,0);
+  const built=DATA.lessons.length, doneN=DATA.lessons.filter(l=>l.status==="done").length;
+  document.getElementById("overall").innerHTML =
+    `<span><b>${built}</b> / ${planned} ${t.built}</span><span><b>${doneN}</b> ${t.authorDone}</span><span><b>${DATA.lessons.filter(l=>my[l.id]).length}</b> ${t.mine}</span>`;
+  document.getElementById("stages").innerHTML = DATA.stages.map(s=>{
+    const ls=DATA.lessons.filter(l=>l.stage===s.id);
+    const d=ls.filter(l=>l.status==="done").length, p=ls.length-d, n=Math.max(s.plannedLessons,ls.length,1);
+    const items = ls.length ? `<ul class="lessons">${ls.map(l=>`<li><span class="lid">${esc(l.id)}</span><a href="${esc(l.file)}">${esc(l.title[L]||l.title.zh)}</a><span class="pill ${l.status==="done"?"done":"in-progress"}">${l.status==="done"?t.done:t.prog}</span>${my[l.id]?`<span class="pill mine">${t.mine}</span>`:""}</li>`).join("")}</ul>` : "";
+    return `<section class="stage"><div class="stage-head"><h2><span class="num">${t.stage} ${s.id}</span>${esc(s.title[L])}</h2><span class="count">${ls.length} / ${s.plannedLessons} ${t.lessons}</span></div><div class="bar" aria-hidden="true"><i class="d" style="width:${d/n*100}%"></i><i class="p" style="width:${p/n*100}%"></i></div>${items}</section>`;
+  }).join("");
+}
+document.getElementById("langBtn").onclick=()=>{ const n=lang()==="en"?"zh":"en"; document.documentElement.dataset.lang=n; try{localStorage.setItem("3dl-lang",n);}catch{} render(); };
+fetch("lessons.json").then(r=>r.json()).then(j=>{DATA=j; render();}).catch(()=>{ const e=document.getElementById("loadErr"); e.hidden=false; e.textContent=T[lang()].err; });
+render();
+</script>
+</body>
+</html>

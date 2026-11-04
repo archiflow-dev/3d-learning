@@ -172,21 +172,43 @@ const LESSON = {
 </section>
 
 <section id="game">
-  <h2><span class="tag">Game</span><span class="zh">小游戏：影子与哨兵</span><span class="en">Game: shadows and sentries</span></h2>
-  <p class="meta zh">共 10 回合，先凭直觉判断，再看揭晓。<b>猜影子</b>：在 b 所在的虚线上点一下，猜 a 的影子（投影）落在哪里，再按"确定"。<b>哨兵</b>：哨兵朝箭头方向看，视野锥是隐藏的，判断红点看不看得见。</p>
-  <p class="meta en">Ten rounds: trust your gut first, then see the answer. <b>Shadow</b>: tap the dashed line through b where you think the shadow (projection) of a lands, then press Confirm. <b>Sentry</b>: the guard looks along the arrow and the view cone is hidden; decide whether the red dot is visible.</p>
+  <h2><span class="tag">Game</span><span class="zh">小游戏：三关，对应三个学习目标</span><span class="en">Game: three levels for three learning goals</span></h2>
+  <p class="meta zh">每一关只练一个学习目标。完成一关的全部任务后，会出现这一关要你记住的那句话。进度保存在你的浏览器里。</p>
+  <p class="meta en">Each level trains one learning goal. Finish all of a level's missions to unlock the one sentence it wants you to keep. Progress is saved in your browser.</p>
   <div class="panel">
-    <div class="row" style="justify-content:space-between"><span class="meta" id="gRound"></span><span class="meta" id="gScore"></span></div>
-    <canvas id="gc" width="720" height="440" aria-label="game board"></canvas>
-    <p id="gPrompt" style="margin:0;font-weight:600"></p>
     <div class="row">
-      <button type="button" id="gOk"><span class="zh">确定</span><span class="en">Confirm</span></button>
-      <button type="button" id="gYes"><span class="zh">看得见</span><span class="en">Visible</span></button>
-      <button type="button" id="gNo"><span class="zh">看不见</span><span class="en">Hidden</span></button>
-      <button type="button" id="gNext"><span class="zh">下一回合</span><span class="en">Next round</span></button>
-      <button type="button" id="gAgain"><span class="zh">再来一局</span><span class="en">Play again</span></button>
+      <span class="seg" role="radiogroup" aria-label="level">
+        <input type="radio" name="glv" id="gl1" value="0" checked><label for="gl1"><span class="zh">1 符号</span><span class="en">1 Sign</span><span id="gd0"></span></label>
+        <input type="radio" name="glv" id="gl2" value="1"><label for="gl2"><span class="zh">2 归一化</span><span class="en">2 Normalize</span><span id="gd1"></span></label>
+        <input type="radio" name="glv" id="gl3" value="2"><label for="gl3"><span class="zh">3 光照</span><span class="en">3 Lighting</span><span id="gd2"></span></label>
+      </span>
     </div>
-    <p class="meta" id="gFb" style="margin:0"></p>
+    <p id="gTitle" style="margin:0;font-weight:600"></p>
+    <p class="meta" id="gIntro" style="margin:0"></p>
+    <div class="row" data-lv="0">
+      <button type="button" id="l1Guess"><span class="zh">我知道方向了，开始猜</span><span class="en">I know the direction, let me guess</span></button>
+      <button type="button" id="l1Submit"><span class="zh">提交</span><span class="en">Submit</span></button>
+      <button type="button" id="l1New"><span class="zh">换一题</span><span class="en">New puzzle</span></button>
+      <span class="meta" id="l1Info"></span>
+    </div>
+    <div class="row" data-lv="1">
+      <span class="seg" role="radiogroup" aria-label="judge">
+        <input type="radio" name="judge" id="jA" value="A" checked><label for="jA"><span class="zh">A：f · d</span><span class="en">A: f · d</span></label>
+        <input type="radio" name="judge" id="jB" value="B"><label for="jB"><span class="zh">B：f̂ · d̂</span><span class="en">B: f̂ · d̂</span></label>
+        <input type="radio" name="judge" id="jP" value="P"><label for="jP"><span class="zh">量影子</span><span class="en">Shadow</span></label>
+      </span>
+      <label class="meta" id="l2NormRow"><input type="checkbox" id="l2Norm"> <span class="zh">机器人先把 b 归一化（用 a · b̂）</span><span class="en">Robot normalizes b first (uses a · b̂)</span></label>
+    </div>
+    <div class="row" data-lv="2">
+      <label for="l3Sun" class="meta"><span class="zh">太阳角度</span><span class="en">Sun angle</span> <output id="l3SunOut">70°</output></label>
+      <input type="range" id="l3Sun" min="0" max="180" step="1" value="70" style="flex:1;min-width:0">
+      <label class="meta"><input type="checkbox" id="l3Clamp" checked> max(0, n · l)</label>
+    </div>
+    <canvas id="gc" width="720" height="440" aria-label="game board"></canvas>
+    <dl class="readout" id="gOut"></dl>
+    <p id="gFb" style="margin:0"></p>
+    <ul class="tests" id="gMissions"></ul>
+    <p id="gTake" hidden style="margin:0;padding:10px 12px;border-left:3px solid var(--good);background:var(--code);border-radius:4px"></p>
   </div>
 </section>
 
@@ -565,107 +587,234 @@ const onLangChange = [];
 })();
 </script>
 <script>
-// 小游戏：影子与哨兵 / game: shadows and sentries
+// 小游戏：三关对应三个学习目标 / game: three levels, one per learning goal
 (function(){
-  const T = {
-    zh: { round: (i, n) => `第 ${i} / ${n} 回合`, score: (s, b) => `得分 ${s}` + (b != null ? ` · 最高 ${b}` : ""),
-      shadow: "猜影子：a 在 b 方向上的影子落在哪里？在虚线上点一下。", sentry: f => `哨兵：视野 ${f}°。红点看得见吗？`,
-      shadowFb: (g, t, p) => `你猜 ${g.toFixed(2)}，真实的 a · b̂ = ${t.toFixed(2)}，误差 ${Math.abs(g - t).toFixed(2)}，得 ${p} 分。` + (Math.sign(g) !== Math.sign(t) && Math.abs(t) > 0.3 ? " 正负猜反了：夹角大于 90° 时影子落在 b 的反方向。" : ""),
-      sentryFb: (c, th, vis, ok) => `f̂ · d̂ = ${c.toFixed(2)}，cos(视野 / 2) = ${th.toFixed(2)}，所以${vis ? "看得见" : "看不见"}。${ok ? "答对，得 100 分。" : "答错，0 分。"}`,
-      end: (s, best) => `本局 ${s} / 1000 分。` + (s > best ? "新的最高分！" : `最高分 ${best}。`) + (s >= 800 ? " 直觉已经很准了。" : s >= 500 ? " 再来一局，留意影子的正负和视野边缘。" : " 回到上面的演示 1 多拖几次，再来挑战。"),
-      last: "看总分" },
-    en: { round: (i, n) => `Round ${i} / ${n}`, score: (s, b) => `Score ${s}` + (b != null ? ` · best ${b}` : ""),
-      shadow: "Shadow: where does the shadow of a land along b? Tap the dashed line.", sentry: f => `Sentry: ${f}° field of view. Can it see the red dot?`,
-      shadowFb: (g, t, p) => `You guessed ${g.toFixed(2)}; the true a · b̂ = ${t.toFixed(2)}, off by ${Math.abs(g - t).toFixed(2)}: ${p} ${p === 1 ? "point" : "points"}.` + (Math.sign(g) !== Math.sign(t) && Math.abs(t) > 0.3 ? " Wrong sign: when the angle is over 90° the shadow lands behind b." : ""),
-      sentryFb: (c, th, vis, ok) => `f̂ · d̂ = ${c.toFixed(2)}, cos(fov / 2) = ${th.toFixed(2)}, so it is ${vis ? "visible" : "hidden"}. ${ok ? "Correct: 100 points." : "Wrong: 0 points."}`,
-      end: (s, best) => `This game: ${s} / 1000. ` + (s > best ? "New best!" : `Best ${best}.`) + (s >= 800 ? " Your intuition is sharp." : s >= 500 ? " Play again and watch the sign of the shadow and the edge of the cone." : " Go back to Demo 1, drag a few more times, then try again."),
-      last: "See total" }
-  };
+  const $ = id => document.getElementById(id), L = () => lang();
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const cv = document.getElementById("gc"), ctx = cv.getContext("2d"), U = 50, N = 10, KEY = "3dl-game-1.2";
-  const $ = id => document.getElementById(id);
-  const P = v => ({ x: cv.width / 2 + v.x * U, y: cv.height / 2 - v.y * U });
-  const dot = (p, q) => p.x * q.x + p.y * q.y, mul = (p, s) => ({ x: p.x * s, y: p.y * s }), dir = g => ({ x: Math.cos(g), y: Math.sin(g) });
-  const rnd = (lo, hi) => lo + Math.random() * (hi - lo);
-  let round, score, phase, R, prevBest = 0;
-  function best(){ try { const v = +localStorage.getItem(KEY); return v > 0 ? v : 0; } catch { return 0; } }
-  function setBest(v){ try { localStorage.setItem(KEY, String(v)); } catch {} }
-  function newRound(){
-    if (round % 2 === 0){
-      const gb = rnd(0, 2 * Math.PI), bh = dir(gb), b = mul(bh, rnd(2, 3.2));
-      let a, t; do { a = mul(dir(gb + rnd(0, 2 * Math.PI)), rnd(2, 4)); t = dot(a, bh); } while (Math.abs(t) < 0.4);
-      R = { type: "shadow", a, b, bh, t, guess: null };
-    } else {
-      const fov = [60, 90, 120][Math.floor(Math.random() * 3)], half = fov / 2, gf = rnd(0, 2 * Math.PI);
-      let phi; do { phi = rnd(0, 175); } while (Math.abs(phi - half) < 10);
-      const side = Math.random() < 0.5 ? 1 : -1, gt = gf + side * phi * Math.PI / 180;
-      R = { type: "sentry", fov, f: dir(gf), d: dir(gt), dist: rnd(2, 4), vis: phi <= half, gf };
-    }
-    phase = "ask"; render();
-  }
-  function arrow(from, v, col, w = 3, alpha = 1){
-    const p0 = P(from), p1 = P({ x: from.x + v.x, y: from.y + v.y });
+  const cv = $("gc"), ctx = cv.getContext("2d"), U = 50, KEY = "3dl-game-1.2";
+  const dot = (p, q) => p.x * q.x + p.y * q.y, mul = (p, s) => ({ x: p.x * s, y: p.y * s }), add = (p, q) => ({ x: p.x + q.x, y: p.y + q.y });
+  const len = p => Math.hypot(p.x, p.y), dir = g => ({ x: Math.cos(g), y: Math.sin(g) }), unit = p => { const l = len(p); return l < 1e-9 ? { x: 0, y: 0 } : mul(p, 1 / l); };
+  const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+  const angBetween = (p, q) => { const d = len(p) * len(q); return d < 1e-9 ? 0 : deg(Math.acos(Math.max(-1, Math.min(1, dot(p, q) / d)))); };
+  let view = { ox: 360, oy: 220 };
+  const P = v => ({ x: view.ox + v.x * U, y: view.oy - v.y * U });
+  const W = e => { const rc = cv.getBoundingClientRect(); const px = (e.clientX - rc.left) * cv.width / rc.width, py = (e.clientY - rc.top) * cv.height / rc.height;
+    return { x: (px - view.ox) / U, y: (view.oy - py) / U }; };
+  // ---- 画图工具 / drawing helpers ----
+  function grid(){ ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+    for (let x = view.ox % U; x < cv.width; x += U){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
+    for (let y = view.oy % U; y < cv.height; y += U){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); } }
+  function arrow(from, v, col, w = 3, alpha = 1){ const p0 = P(from), p1 = P(add(from, v));
     ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
-    const g = Math.atan2(p1.y - p0.y, p1.x - p0.x); ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p1.x - 13 * Math.cos(g - 0.4), p1.y - 13 * Math.sin(g - 0.4)); ctx.lineTo(p1.x - 13 * Math.cos(g + 0.4), p1.y - 13 * Math.sin(g + 0.4)); ctx.fill();
-    ctx.restore();
-  }
-  function seg(p, q, col, dash, w = 1.5){ const s = P(p), e = P(q); ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = w; if (dash) ctx.setLineDash(dash);
-    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore(); }
-  function dotAt(v, col, r = 7){ const p = P(v); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); }
-  function label(v, s, col, dx = 8, dy = -8){ const p = P(v); ctx.fillStyle = col; ctx.font = "600 16px " + css("--f-mono"); ctx.fillText(s, p.x + dx, p.y + dy); }
-  function render(){
-    const t = T[lang()], A = css("--accent-2"), B = css("--accent"), G = css("--good"), ink = css("--ink"), line = css("--line");
-    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
-    ctx.strokeStyle = line; ctx.lineWidth = 1;
-    for (let x = (cv.width / 2) % U; x < cv.width; x += U){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
-    for (let y = (cv.height / 2) % U; y < cv.height; y += U){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); }
-    const Z = { x: 0, y: 0 }, rv = phase !== "ask";
-    if (phase === "end"){ ctx.fillStyle = ink; ctx.font = "800 44px " + css("--f-display"); ctx.textAlign = "center";
-      ctx.fillText(`${score} / 1000`, cv.width / 2, cv.height / 2 + 14); ctx.textAlign = "start"; }
-    else if (R.type === "shadow"){
-      seg(mul(R.bh, -9), mul(R.bh, 9), B, [3, 6]);
-      if (rv){ const foot = mul(R.bh, R.t); seg(R.a, foot, G, [5, 4]); ctx.save(); ctx.globalAlpha = 0.4; seg(Z, foot, G, null, 12); ctx.restore(); dotAt(foot, G, 6); }
-      arrow(Z, R.a, A); arrow(Z, R.b, B); label(R.a, "a", A); label(R.b, "b", B, 8, 20);
-      if (R.guess != null){ const gp = mul(R.bh, R.guess); dotAt(gp, ink, 7); if (rv) label(gp, lang() === "zh" ? "你猜" : "guess", ink, -44, -14); }
-    } else {
-      if (rv){ const h = R.fov / 2 * Math.PI / 180, o = P(Z);
-        ctx.save(); ctx.globalAlpha = 0.15; ctx.fillStyle = B; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.arc(o.x, o.y, 9 * U, -(R.gf + h), -(R.gf - h)); ctx.closePath(); ctx.fill(); ctx.restore();
-        seg(Z, mul(dir(R.gf + h), 9), B, [6, 5]); seg(Z, mul(dir(R.gf - h), 9), B, [6, 5]);
-        arrow(Z, mul(R.d, R.dist), A, 2, 0.6); }
-      dotAt(Z, ink, 9); arrow(Z, mul(R.f, 1.6), ink, 4); label(mul(R.f, 1.6), "f", ink);
-      dotAt(mul(R.d, R.dist), "#d33", 8);
+    if (len(v) > 0.15){ const g = Math.atan2(p1.y - p0.y, p1.x - p0.x); ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p1.x - 13 * Math.cos(g - 0.4), p1.y - 13 * Math.sin(g - 0.4)); ctx.lineTo(p1.x - 13 * Math.cos(g + 0.4), p1.y - 13 * Math.sin(g + 0.4)); ctx.fill(); }
+    ctx.restore(); }
+  function seg(p, q, col, dash, w = 1.5, alpha = 1){ const s = P(p), e = P(q); ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round";
+    if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore(); }
+  function disc(v, col, r = 7){ const p = P(v); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill(); }
+  function text(v, s, col, dx = 8, dy = -8, size = 16, align = "start"){ const p = P(v); ctx.fillStyle = col; ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.textAlign = align; ctx.fillText(s, p.x + dx, p.y + dy); ctx.textAlign = "start"; }
+  function halfPlane(n, col, alpha){ const pp = { x: -n.y, y: n.x }, F = 40; ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath();
+    [mul(pp, F), add(mul(pp, F), mul(n, F)), add(mul(pp, -F), mul(n, F)), mul(pp, -F)].map(P).forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.fill(); ctx.restore(); }
+  function arc(r, g0, g1){ const o = P({ x: 0, y: 0 }); let d = g1 - g0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    ctx.strokeStyle = css("--ink"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(o.x, o.y, r, -g0, -(g0 + d), d > 0); ctx.stroke(); }
+  const f2 = x => (Math.abs(x) < 0.005 ? 0 : x).toFixed(2);
+
+  // ---- 进度 / progress ----
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+  let lv = 0, fb = null;
+
+  // ==== 第 1 关：隐藏的方向 / level 1: the hidden direction ====
+  const L1 = {
+    title: { zh: "第 1 关 · 隐藏的方向（目标：读懂点积的正、负、0）", en: "Level 1 · The hidden direction (goal: read the sign of a dot product)" },
+    intro: { zh: "有一个看不见的方向 h。在画布上点一下放一个探测点 p，游戏只告诉你 p · h 是正、负还是 0（不告诉你数值）。根据这些符号推断 h 指向哪里，然后拖动箭头猜它的方向。",
+             en: "There is an invisible direction h. Tap the board to drop a probe p; the game only tells you whether p · h is positive, negative or 0 (never the value). Use the signs to work out where h points, then drag an arrow to guess it." },
+    missions: [
+      { zh: "找到三种探测结果：一个 +、一个 −、一个 0（0 要落在分界线附近）", en: "Get all three results: one +, one −, and one 0 (a 0 has to sit near the dividing line)",
+        note: { zh: "所有 0 的点都在同一条过原点的直线上，这条线和 h 垂直。+ 全在它的一侧，− 在另一侧。", en: "All the 0 probes lie on one line through the origin, perpendicular to h. Every + is on one side and every − on the other." } },
+      { zh: "猜中 h 的方向，误差不超过 15°", en: "Guess the direction of h within 15°",
+        note: { zh: "离原点远一点、近一点都不改变符号：符号只看 p 在分界线的哪一侧。", en: "Moving a probe nearer or farther never changes its sign: the sign only depends on which side of the line p is." } },
+      { zh: "只用 4 个以内的探测点猜中（误差 ≤ 15°）", en: "Guess within 15° using 4 probes or fewer",
+        note: { zh: "每个探测点都把可能的方向砍掉一半：这就是「判断在前面还是后面」只需要一次点积。", en: "Each probe rules out half of the possible directions: that is why \"in front or behind\" takes a single dot product." } }
+    ],
+    take: { zh: "点积的符号把平面切成两半：和 h 垂直、过原点的那条线上 p · h = 0，h 指向的一侧为正，另一侧为负。只要符号，就能判断前后，长度无关。",
+            en: "The sign of a dot product splits the plane in two: on the line through the origin perpendicular to h, p · h = 0; the side h points to is positive, the other negative. The sign alone tells front from behind, whatever the lengths." },
+    s: null,
+    reset(){ this.s = { h: dir(Math.random() * 2 * Math.PI), probes: [], mode: "probe", guess: null }; fb = null; },
+    kind(p){ const c = dot(p, this.s.h) / len(p); return Math.abs(c) < 0.15 ? 0 : Math.sign(c); },
+    down(p){ const s = this.s;
+      if (s.mode === "probe"){ if (len(p) < 0.4) return; const k = this.kind(p); s.probes.push({ p, k });
+        const kinds = new Set(s.probes.map(q => q.k)); if (kinds.size === 3) done(0, 0);
+        fb = { zh: `这个点：p · h ${k > 0 ? "> 0，是 +" : k < 0 ? "< 0，是 −" : "≈ 0"}`, en: `This probe: p · h ${k > 0 ? "> 0, so +" : k < 0 ? "< 0, so −" : "≈ 0"}` }; }
+      else if (s.mode === "guess"){ if (len(p) > 0.2) s.guess = Math.atan2(p.y, p.x); }
+      return true; },
+    move(p){ if (this.s.mode === "guess" && len(p) > 0.2){ this.s.guess = Math.atan2(p.y, p.x); return true; } },
+    submit(){ const s = this.s; if (s.guess == null) return; s.mode = "done";
+      const err = angBetween(dir(s.guess), s.h), n = s.probes.length;
+      if (err <= 15){ done(0, 1); if (n <= 4) done(0, 2); }
+      fb = { zh: `误差 ${err.toFixed(1)}°，用了 ${n} 个探测点。` + (err <= 15 ? (n <= 4 ? "又准又省！" : "猜中了。试试只用 4 个点？") : "差得有点远：看看揭晓的分界线，+ 和 − 是不是分在它两侧？"),
+             en: `Off by ${err.toFixed(1)}° using ${n} probes. ` + (err <= 15 ? (n <= 4 ? "Accurate and efficient!" : "Got it. Can you do it with 4 probes?") : "Quite far off: look at the revealed line. Are the + and − probes on opposite sides of it?") }; },
+    draw(){ view = { ox: 360, oy: 220 }; grid(); const s = this.s, B = css("--accent"), A = css("--accent-2"), G = css("--good"), ink = css("--ink"), mu = css("--muted");
+      const Z = { x: 0, y: 0 };
+      if (s.mode === "done"){ halfPlane(s.h, B, 0.12); const pp = { x: -s.h.y, y: s.h.x }; seg(mul(pp, -9), mul(pp, 9), B, [8, 6], 2); text(mul(pp, 3.4), "p · h = 0", B, 8, 18); arrow(Z, mul(s.h, 3), B, 4); text(mul(s.h, 3), "h", B); }
+      disc(Z, mu, 5);
+      s.probes.forEach(({ p, k }) => { const c = k > 0 ? G : k < 0 ? A : ink; disc(p, c, 9); const q = P(p); ctx.fillStyle = css("--surface"); ctx.font = "700 14px " + css("--f-mono"); ctx.textAlign = "center"; ctx.fillText(k > 0 ? "+" : k < 0 ? "−" : "0", q.x, q.y + 5); ctx.textAlign = "start"; });
+      if (s.guess != null){ arrow(Z, mul(dir(s.guess), 3), ink, 3, 0.85); text(mul(dir(s.guess), 3), L() === "zh" ? "你猜" : "guess", ink, 8, 18); }
+      $("l1Info").textContent = (L() === "zh" ? `探测点 ${s.probes.length} 个` : `${s.probes.length} probes`) + (s.mode === "guess" ? (L() === "zh" ? " · 在画布上拖动来猜方向" : " · drag on the board to aim") : "");
+      $("l1Guess").hidden = s.mode !== "probe"; $("l1Submit").hidden = s.mode !== "guess"; $("l1Submit").disabled = s.guess == null;
+      return []; }
+  };
+
+  // ==== 第 2 关：两个裁判 / level 2: two judges ====
+  const F = dir(rad(15));
+  const L2 = {
+    title: { zh: "第 2 关 · 两个裁判（目标：求夹角、投影前为什么要归一化）", en: "Level 2 · Two judges (goal: why angles and projections need normalizing)" },
+    intro: { zh: "拖动 d 的箭头尖。两个裁判都想给「d 和 f 有多同向」打分：A 直接用 f · d，B 先把两者归一化再点积。看看谁能被骗。最后用「量影子」看机器人少除一个 |b| 会怎样。",
+             en: "Drag the tip of d. Both judges score \"how much d points along f\": A uses f · d directly, B normalizes both first. See which one can be fooled. Finally, use the shadow meter to see what happens when a robot forgets to divide by |b|." },
+    missions: [
+      { zh: "裁判 A：让分数 ≥ 3，但夹角要大于 60°（想办法「作弊」）", en: "Judge A: score ≥ 3 while the angle is over 60° (find the cheat)",
+        note: { zh: "作弊成功：角度很差，但把 d 拉长，A 照样给高分。因为 f · d = |f||d|cos θ，长度混进了分数。", en: "Cheat works: the angle is poor, but a longer d still scores high with A, because f · d = |f||d|cos θ mixes length into the score." } },
+      { zh: "裁判 B：分数 ≥ 0.9，且 |d| ≤ 1.5", en: "Judge B: score ≥ 0.9 with |d| ≤ 1.5", note: { zh: "短的 d 也能拿高分。", en: "A short d can score high too." } },
+      { zh: "裁判 B：再用第 1 个任务的作弊法：把 d 拉到 |d| ≥ 6，夹角保持大于 60°，看分数", en: "Judge B: repeat the cheat from mission 1: pull d out to |d| ≥ 6 with the angle still over 60°, and watch the score",
+        note: { zh: "分数连 0.5 都不到（cos 60° = 0.5），拉多长都没用：B 的分数和长度无关，最高只有 1。作弊失效了。", en: "The score stays under 0.5 (cos 60° = 0.5) however long d gets: B ignores length and tops out at 1. The cheat is dead." } },
+      { zh: "裁判 B：让分数正好是 0.50（±0.02），看看夹角是多少", en: "Judge B: make the score exactly 0.50 (±0.02) and read the angle",
+        note: { zh: "0.5 = cos 60°。归一化之后，点积就是夹角的余弦，再用 acos 就能得到角度。", en: "0.5 = cos 60°. After normalizing, the dot product is the cosine of the angle, and acos turns it into the angle." } },
+      { zh: "量影子：b 的长度是 2。机器人用 a · b 量影子。让它报出 4（±0.1），看真实的绿色影子有多长", en: "Shadow meter: b has length 2 and the robot measures a's shadow as a · b. Make it read 4 (±0.1) and check the real green shadow",
+        note: { zh: "机器人说 4，真实影子只有 2：它少除了 |b| = 2。投影长度是 a · b̂，不是 a · b。", en: "The robot says 4, but the real shadow is 2: it forgot to divide by |b| = 2. The shadow length is a · b̂, not a · b." } },
+      { zh: "量影子：勾选「先把 b 归一化」，让读数正好是 3（±0.1），确认绿色影子也是 3", en: "Shadow meter: tick \"normalizes b first\", make it read 3 (±0.1) and confirm the green shadow is 3 too",
+        note: { zh: "读数和影子一样长了。", en: "Now the reading matches the shadow." } }
+    ],
+    take: { zh: "没归一化的点积 = |a||b|cos θ，长度和角度搅在一起，拉长就能刷分。归一化后只剩 cos θ（−1 到 1），只反映角度。所以求夹角、算亮度要两边都归一化，求投影长度要把 b 归一化。只判断正负时可以不归一化，因为长度不改变符号。",
+            en: "An unnormalized dot product is |a||b|cos θ: length and angle are mixed, so stretching a vector games the score. Normalized, only cos θ (−1 to 1) is left and it reflects the angle alone. So normalize both for angles and lighting, and normalize b for a projection length. A sign test needs no normalizing, because lengths never flip the sign." },
+    s: { d: { x: 4, y: 1.5 }, drag: false },
+    reset(){},
+    mode(){ return document.querySelector('input[name="judge"]:checked').value; },
+    down(p){ const s = this.s; if (len(add(p, mul(s.d, -1))) < 0.7){ s.drag = true; return true; } },
+    move(p){ const s = this.s; if (!s.drag) return; s.d = { x: Math.max(-3, Math.min(11, Math.round(p.x * 20) / 20)), y: Math.max(-2, Math.min(6.4, Math.round(p.y * 20) / 20)) }; this.check(); return true; },
+    up(){ this.s.drag = false; },
+    vals(){ const d = this.s.d, m = this.mode(), b = mul(F, 2);
+      return { m, d, th: angBetween(F, d), A: dot(F, d), B: len(d) < 1e-9 ? 0 : dot(F, unit(d)), b, raw: dot(d, b), shadow: dot(d, F), norm: $("l2Norm").checked }; },
+    check(){ const v = this.vals(), r = v.norm ? v.shadow : v.raw;
+      if (v.m === "A" && v.A >= 3 && v.th > 60) done(1, 0);
+      if (v.m === "B" && v.B >= 0.9 && len(v.d) <= 1.5) done(1, 1);
+      if (v.m === "B" && v.th > 60 && len(v.d) >= 6) done(1, 2);
+      if (v.m === "B" && Math.abs(v.B - 0.5) <= 0.02) done(1, 3);
+      if (v.m === "P" && !v.norm && Math.abs(r - 4) <= 0.1) done(1, 4);
+      if (v.m === "P" && v.norm && Math.abs(r - 3) <= 0.1) done(1, 5); },
+    draw(){ view = { ox: 170, oy: 330 }; grid(); const v = this.vals(), B = css("--accent"), A = css("--accent-2"), G = css("--good"), ink = css("--ink"), Z = { x: 0, y: 0 }, z = L() === "zh";
+      ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, view.oy + .5); ctx.lineTo(cv.width, view.oy + .5); ctx.moveTo(view.ox + .5, 0); ctx.lineTo(view.ox + .5, cv.height); ctx.stroke();
+      $("l2NormRow").hidden = v.m !== "P";
+      if (v.m === "P"){
+        seg(mul(F, -9), mul(F, 14), B, [2, 5]); const foot = mul(F, v.shadow);
+        seg(v.d, foot, G, [5, 4]); ctx.save(); ctx.globalAlpha = 0.45; seg(Z, foot, G, null, 12); ctx.restore();
+        arrow(Z, v.d, A); arrow(Z, v.b, B, 4); text(v.d, "a", A); text(v.b, "b", B, 6, 22);
+        const r = v.norm ? v.shadow : v.raw;
+        return [[z ? "机器人公式" : "robot formula", v.norm ? "a · b̂" : "a · b"], [z ? "机器人读数" : "robot reading", `<b>${f2(r)}</b>`],
+                [z ? "真实影子长度" : "real shadow", f2(v.shadow)], ["|b|", "2.00"]];
+      }
+      arrow(Z, mul(F, 1), B, 4); text(mul(F, 1), "f", B, 4, 22);
+      arc(36, Math.atan2(F.y, F.x), Math.atan2(v.d.y, v.d.x));
+      arrow(Z, v.d, A); text(v.d, "d", A); disc(v.d, A, 6);
+      const sc = v.m === "A" ? v.A : v.B;
+      ctx.fillStyle = ink; ctx.font = "800 28px " + css("--f-mono"); ctx.textAlign = "right";
+      ctx.fillText((v.m === "A" ? (z ? "裁判 A " : "Judge A ") : (z ? "裁判 B " : "Judge B ")) + f2(sc), cv.width - 16, 40); ctx.textAlign = "start";
+      return [[z ? "夹角 θ" : "angle θ", v.th.toFixed(1) + "°"], ["|f|", "1.00"], ["|d|", f2(len(v.d))],
+              [v.m === "A" ? "f · d" : "f̂ · d̂", `<b>${f2(sc)}</b>`]];
     }
-    $("gRound").textContent = phase === "end" ? "" : t.round(round + 1, N);
-    const bs = best(); $("gScore").textContent = t.score(score, bs || null);
-    $("gPrompt").textContent = phase === "end" ? "" : R.type === "shadow" ? t.shadow : t.sentry(R.fov);
-    const show = (id, on) => $(id).hidden = !on;
-    show("gOk", phase === "ask" && R.type === "shadow"); $("gOk").disabled = !(R && R.guess != null);
-    show("gYes", phase === "ask" && R.type === "sentry"); show("gNo", phase === "ask" && R.type === "sentry");
-    show("gNext", phase === "reveal"); show("gAgain", phase === "end");
-    $("gNext").querySelector(".zh").textContent = round === N - 1 ? T.zh.last : "下一回合";
-    $("gNext").querySelector(".en").textContent = round === N - 1 ? T.en.last : "Next round";
-    if (phase === "ask") $("gFb").textContent = "";
-    else if (phase === "end") $("gFb").textContent = t.end(score, prevBest);
-    else $("gFb").textContent = R.type === "shadow" ? t.shadowFb(R.guess, R.t, R.pts)
-      : t.sentryFb(dot(R.f, R.d), Math.cos(R.fov / 2 * Math.PI / 180), R.vis, R.ok);
+  };
+
+  // ==== 第 3 关：给房子打光 / level 3: light the house ====
+  const FACES = [
+    { zh: "左墙", en: "left wall", a: { x: -2, y: 0 }, b: { x: -2, y: 2.5 }, n: { x: -1, y: 0 } },
+    { zh: "左屋顶", en: "left roof", a: { x: -2, y: 2.5 }, b: { x: 0, y: 4.5 }, n: unit({ x: -1, y: 1 }) },
+    { zh: "右屋顶", en: "right roof", a: { x: 0, y: 4.5 }, b: { x: 2, y: 2.5 }, n: unit({ x: 1, y: 1 }) },
+    { zh: "右墙", en: "right wall", a: { x: 2, y: 2.5 }, b: { x: 2, y: 0 }, n: { x: 1, y: 0 } }
+  ];
+  const L3 = {
+    title: { zh: "第 3 关 · 给房子打光（目标：看懂 亮度 = max(0, n · l)）", en: "Level 3 · Light the house (goal: understand brightness = max(0, n · l))" },
+    intro: { zh: "拖动太阳（或用滑块）。每个面的亮度 = 它的法线 n（短箭头）和指向太阳的方向 l 的点积，n 和 l 都是单位向量。完成下面的打光任务。",
+             en: "Drag the sun (or use the slider). Each face's brightness is the dot product of its normal n (short arrow) and the direction toward the sun l, both unit vectors. Complete the lighting jobs below." },
+    missions: [
+      { zh: "让右屋顶的亮度正好是 0.50（±0.03）", en: "Make the right roof exactly 0.50 bright (±0.03)",
+        note: { zh: "此时 n 和 l 的夹角是 60°，cos 60° = 0.5：斜着照，光被「摊薄」了。", en: "Now n and l are 60° apart, and cos 60° = 0.5: light hitting at a slant is spread thinner." } },
+      { zh: "让右屋顶达到最亮（≥ 0.99）", en: "Make the right roof as bright as it gets (≥ 0.99)",
+        note: { zh: "太阳正对法线，夹角 0°，cos 0° = 1。", en: "The sun is straight along the normal: angle 0°, cos 0° = 1." } },
+      { zh: "让左屋顶刚好变黑（亮度 0），但太阳要尽量高：太阳角度在 42° 到 45° 之间", en: "Make the left roof just turn dark (brightness 0) with the sun as high as possible: sun angle between 42° and 45°",
+        note: { zh: "在 45° 时左屋顶的 n 和 l 正好垂直，n · l = 0：这就是演示 2 里的明暗交界线。", en: "At 45° the left roof's n is exactly perpendicular to l, so n · l = 0: the light/dark boundary from Demo 2." } },
+      { zh: "让左墙亮度 ≥ 0.7，同时右墙完全黑（0）", en: "Light the left wall to ≥ 0.7 while the right wall is fully dark (0)",
+        note: { zh: "右墙背对太阳，n · l 是负数，max(0, …) 把它截成 0。", en: "The right wall faces away, so n · l is negative and max(0, …) clips it to 0." } },
+      { zh: "关掉 max(0, …)，把太阳放到让「总亮度」比最亮的那一面还低的位置", en: "Switch off max(0, …) and place the sun so the total brightness is lower than the brightest single face",
+        note: { zh: "背光面贡献了负数，把别的面的光「抵消」掉了。现实里没有负的光，所以光照公式必须加 max(0, …)。", en: "The faces turned away contribute negative numbers and cancel the light on other faces. Real light is never negative, which is why the formula needs max(0, …)." } }
+    ],
+    take: { zh: "面的亮度 = cos(法线和光线的夹角)，前提是 n 和 l 都是单位向量：正对光是 1，斜 60° 只剩 0.5，转过 90° 就是 0。超过 90° 时 n · l 变成负数，物理上没有负的光，所以用 max(0, …) 截成 0，否则背光面会把其他光抵消掉。",
+            en: "A face's brightness is cos(angle between its normal and the light), as long as n and l are unit vectors: 1 facing the light, 0.5 at 60°, 0 at 90°. Past 90°, n · l turns negative; real light cannot be negative, so max(0, …) clips it to 0, otherwise faces turned away would cancel other light." },
+    s: { drag: false },
+    reset(){},
+    sun(){ return +$("l3Sun").value; },
+    C: { x: 0, y: 2.25 }, R: 4.6,
+    down(p){ const sp = add(this.C, mul(dir(rad(this.sun())), this.R)); if (len(add(p, mul(sp, -1))) < 0.8){ this.s.drag = true; return true; } },
+    move(p){ if (!this.s.drag) return; const q = add(p, mul(this.C, -1)); let g = Math.round(deg(Math.atan2(q.y, q.x)));
+      if (g < -90) g = 180; else if (g < 0) g = 0; $("l3Sun").value = g; this.check(); return true; },
+    up(){ this.s.drag = false; },
+    vals(){ const s = this.sun(), l = dir(rad(s)), clamp = $("l3Clamp").checked;
+      const raw = FACES.map(f => dot(f.n, l)), br = raw.map(k => clamp ? Math.max(0, k) : k);
+      return { s, l, clamp, raw, br, total: br.reduce((x, y) => x + y, 0), maxF: Math.max(...br) }; },
+    check(){ const v = this.vals();
+      if (v.clamp && Math.abs(v.br[2] - 0.5) <= 0.03) done(2, 0);
+      if (v.br[2] >= 0.99) done(2, 1);
+      if (v.clamp && v.br[1] === 0 && v.s >= 42 && v.s <= 45) done(2, 2);
+      if (v.clamp && v.br[0] >= 0.7 && v.br[3] === 0) done(2, 3);
+      if (!v.clamp && v.total < v.maxF - 1e-9) done(2, 4); },
+    draw(){ view = { ox: 360, oy: 400 }; const v = this.vals(), z = L() === "zh", ink = css("--ink"), mg = css("--accent-2");
+      grid(); seg({ x: -8, y: 0 }, { x: 8, y: 0 }, css("--muted"), null, 2);
+      ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = ink; ctx.beginPath(); [{ x: -2, y: 0 }, { x: -2, y: 2.5 }, { x: 0, y: 4.5 }, { x: 2, y: 2.5 }, { x: 2, y: 0 }].map(P).forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.strokeStyle = css("--muted"); ctx.setLineDash([3, 6]); const o = P(this.C); ctx.beginPath(); ctx.arc(o.x, o.y, this.R * U, Math.PI, 2 * Math.PI); ctx.stroke(); ctx.restore();
+      // 平行光线 / parallel rays
+      for (let k = -3; k <= 3; k++){ const off = mul({ x: -v.l.y, y: v.l.x }, k * 0.9), from = add(add(this.C, off), mul(v.l, 7)), to = add(add(this.C, off), mul(v.l, 3.2)); seg(from, to, "#e0a400", [2, 6], 1.2, 0.6); }
+      FACES.forEach((f, i) => { const k = v.br[i]; let col;
+        if (k >= 0){ const c0 = [28, 28, 28], c1 = [250, 236, 190]; col = `rgb(${c0.map((c, j) => Math.round(c + (c1[j] - c) * k)).join(",")})`; }
+        else { col = mg; }
+        seg(f.a, f.b, col, null, 14, k < 0 ? 0.35 + 0.65 * -k : 1);
+        const mid = mul(add(f.a, f.b), 0.5); arrow(mid, mul(f.n, 0.8), css("--accent"), 2);
+        const lp = add(mid, mul(f.n, 1.35)); text(lp, f2(k), k < 0 ? mg : ink, 0, 6, 15, "center"); });
+      const sp = add(this.C, mul(v.l, this.R)); disc(sp, "#e0a400", 14); text(sp, "l", ink, 16, -10);
+      $("l3SunOut").textContent = v.s + "°";
+      return [["l", `(${f2(v.l.x)}, ${f2(v.l.y)})`]].concat(FACES.map((f, i) => [f[L()], `n · l = ${f2(v.raw[i])} → ${z ? "亮度" : "brightness"} ${f2(v.br[i])}`]))
+        .concat([[z ? "总亮度" : "total", `<b>${f2(v.total)}</b>`]]);
+    }
+  };
+
+  const LV = [L1, L2, L3];
+  function done(l, i){ saved[l] = saved[l] || []; if (saved[l][i]) return; saved[l][i] = true; save(); fb = LV[l].missions[i].note; }
+  function render(){
+    const lvl = LV[lv], z = L();
+    document.querySelectorAll("[data-lv]").forEach(el => el.hidden = +el.dataset.lv !== lv);
+    $("gTitle").textContent = lvl.title[z]; $("gIntro").textContent = lvl.intro[z];
+    const rows = lvl.draw() || [];
+    $("gOut").innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join(""); $("gOut").hidden = !rows.length;
+    const st = saved[lv] || [];
+    $("gMissions").innerHTML = lvl.missions.map((m, i) => `<li class="${st[i] ? "ok" : "no"}"><span class="mark">${st[i] ? "✓" : "○"}</span>${m[z]}</li>`).join("");
+    $("gFb").textContent = fb ? fb[z] : "";
+    const all = lvl.missions.every((_, i) => st[i]);
+    $("gTake").hidden = !all; $("gTake").textContent = all ? (z === "zh" ? "这一关要记住的：" : "Keep this: ") + lvl.take[z] : "";
+    LV.forEach((x, i) => $("gd" + i).textContent = x.missions.every((_, j) => (saved[i] || [])[j]) ? " ✓" : "");
   }
-  function pos(e){ const rc = cv.getBoundingClientRect(); return { x: ((e.clientX - rc.left) * cv.width / rc.width - cv.width / 2) / U, y: (cv.height / 2 - (e.clientY - rc.top) * cv.height / rc.height) / U }; }
-  let dragging = false;
-  const place = e => { R.guess = Math.max(-8, Math.min(8, Math.round(dot(pos(e), R.bh) * 20) / 20)); render(); };
-  cv.addEventListener("pointerdown", e => { if (phase !== "ask" || R.type !== "shadow") return; dragging = true; cv.setPointerCapture(e.pointerId); e.preventDefault(); place(e); });
-  cv.addEventListener("pointermove", e => { if (dragging) place(e); });
-  cv.addEventListener("pointerup", () => dragging = false);
-  $("gOk").onclick = () => { if (R.guess == null) return; R.pts = Math.round(100 * Math.max(0, 1 - Math.abs(R.guess - R.t) / 1.5)); score += R.pts; phase = "reveal"; render(); };
-  const answer = v => { R.ok = v === R.vis; score += R.ok ? 100 : 0; phase = "reveal"; render(); };
-  $("gYes").onclick = () => answer(true); $("gNo").onclick = () => answer(false);
-  $("gNext").onclick = () => { if (round === N - 1){ phase = "end"; prevBest = best(); if (score > prevBest) setBest(score); render(); } else { round++; newRound(); } };
-  $("gAgain").onclick = start;
-  function start(){ round = 0; score = 0; newRound(); }
+  cv.addEventListener("pointerdown", e => { const r = LV[lv].down && LV[lv].down(W(e)); if (r){ cv.setPointerCapture(e.pointerId); e.preventDefault(); render(); } });
+  cv.addEventListener("pointermove", e => { if (LV[lv].move && LV[lv].move(W(e))) render(); });
+  cv.addEventListener("pointerup", () => { L1.s && (L1.dragging = false); LV[lv].up && LV[lv].up(); });
+  document.querySelectorAll('input[name="glv"]').forEach(r => r.addEventListener("change", () => { lv = +document.querySelector('input[name="glv"]:checked').value; fb = null; render(); }));
+  document.querySelectorAll('input[name="judge"]').forEach(r => r.addEventListener("change", () => { fb = null; L2.check(); render(); }));
+  $("l2Norm").addEventListener("change", () => { L2.check(); render(); });
+  $("l3Sun").addEventListener("input", () => { L3.check(); render(); });
+  $("l3Clamp").addEventListener("change", () => { fb = null; L3.check(); render(); });
+  $("l1Guess").onclick = () => { L1.s.mode = "guess"; fb = null; render(); };
+  $("l1Submit").onclick = () => { L1.submit(); render(); };
+  $("l1New").onclick = () => { L1.reset(); render(); };
+  L1.reset();
   onLangChange.push(render);
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
   new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  start();
+  render();
 })();
 </script>

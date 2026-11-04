@@ -1,0 +1,547 @@
+<title>点积 · The Dot Product</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.2", slug: "dot-product",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "点积", en: "The Dot Product" },
+  minutes: 60, prereqs: ["1.1"],
+  prev: "1.1-vectors.html", next: null,
+  concepts: ["dot product", "angle", "projection", "front/behind test", "Lambert cosine"],
+  videos: { UCD: [], MIT: [] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 60 分钟 · 前置：1.1 · 视频：两套课都没有单独讲点积；看 3Blue1Brown《线性代数的本质》第 9 集和 GAMES101 第 2 讲</div>
+  <div class="meta en">About 60 min · Prerequisite: 1.1 · Video: neither course has a lecture on it; watch 3Blue1Brown's Essence of Linear Algebra ch. 9 and GAMES101 lecture 2</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li>会算点积，知道结果是<b>一个数</b>，不是向量。</li>
+    <li>读懂点积的符号：正 = 同一侧（夹角小于 90°），0 = 垂直，负 = 相反一侧。用它判断"在前面还是后面"。</li>
+    <li>用点积求夹角和投影，知道什么时候必须先归一化。</li>
+    <li>看懂光照里最常见的一行：<code>亮度 = max(0, n · l)</code>。</li>
+  </ul>
+  <ul class="en">
+    <li>Compute a dot product and know the result is <b>a number</b>, not a vector.</li>
+    <li>Read its sign: positive = same side (angle under 90°), 0 = perpendicular, negative = opposite side. Use it to tell "in front or behind".</li>
+    <li>Get angles and projections from it, and know when you must normalize first.</li>
+    <li>Understand the most common line in lighting: <code>brightness = max(0, n · l)</code>.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">点积回答一个问题：<b>两支箭头有多"同向"？</b>想象正午的太阳从 b 的方向垂直照在 b 所在的直线上，a 在这条线上投下的影子有多长，再乘以 b 的长度，就是 a · b。a 和 b 指向同一边，影子落在正方向，点积为正；两者垂直，影子缩成一个点，点积为 0；指向相反，影子落在反方向，点积为负。</p>
+  <p class="en">The dot product answers one question: <b>how much do two arrows point the same way?</b> Drop the shadow of a onto the line through b, at right angles. The shadow's length times the length of b is a · b. If a and b point to the same side, the shadow lands forward and the dot product is positive; perpendicular, the shadow shrinks to a point and it is 0; opposite, the shadow lands backward and it is negative.</p>
+  <p class="zh">图形学里点积到处都是：表面朝不朝光（光照）、物体在不在相机前面（裁剪）、敌人在不在视野里（游戏 AI）、三角形是正面还是背面（背面剔除）。它们都是同一个判断：看点积的正负或大小。</p>
+  <p class="en">Graphics uses it everywhere: does a surface face the light (lighting), is an object in front of the camera (clipping), is an enemy inside the field of view (game AI), is a triangle front- or back-facing (back-face culling). Each one is the same test: look at the sign or size of a dot product.</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示 1：投影与正负</span><span class="en">Demo 1: projection and sign</span></h2>
+  <p class="meta zh">拖动 a（玫红）和 b（青）的箭头尖。浅青色的半边平面是"b 的前方"：a 的箭头尖落在里面，a · b 就是正的。绿色是 a 在 b 方向上的投影。</p>
+  <p class="meta en">Drag the tips of a (magenta) and b (teal). The light teal half-plane is "in front of b": whenever the tip of a is inside it, a · b is positive. Green is the projection of a onto the direction of b.</p>
+  <div class="panel">
+    <div class="row">
+      <label class="meta"><input type="checkbox" id="unitB"> <span class="zh">把 b 锁成单位向量</span><span class="en">Lock b to unit length</span></label>
+    </div>
+    <canvas id="dc" width="720" height="440" aria-label="dot product plane"></canvas>
+    <dl class="readout" id="dOut"></dl>
+    <p class="meta" id="dNote"></p>
+  </div>
+
+  <h2 style="margin-top:20px"><span class="tag">Demo</span><span class="zh">交互演示 2：光照里的 n · l</span><span class="en">Demo 2: n · l in lighting</span></h2>
+  <p class="meta zh">一个球，每个像素的亮度 = 该点法线 n 和光照方向 l（都是单位向量）的点积。转动光源，看亮暗交界线在哪里：那里 n · l = 0。关掉 max(0, …)，背光的一面会显示成玫红，表示点积是负数。</p>
+  <p class="meta en">A sphere where each pixel's brightness is the dot product of its normal n and the light direction l (both unit vectors). Turn the light and watch the line between lit and dark: there n · l = 0. Switch off max(0, …) and the side facing away turns magenta, which marks a negative dot product.</p>
+  <div class="panel">
+    <div class="row">
+      <label for="lAng" class="meta"><span class="zh">光源角度</span><span class="en">Light angle</span> <output id="lAngOut">40°</output></label>
+      <input type="range" id="lAng" min="-180" max="180" step="1" value="40" style="flex:1;min-width:0">
+    </div>
+    <div class="row">
+      <label class="meta"><input type="checkbox" id="clamp" checked> max(0, n · l)</label>
+    </div>
+    <canvas id="lc" width="720" height="480" aria-label="lit sphere"></canvas>
+    <p class="meta" id="lNote"></p>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <p class="zh">点积有两种写法，它们相等，这是整节课的核心：</p>
+  <p class="en">The dot product has two forms, and they are equal. That equality is the whole lesson:</p>
+  <pre class="formula">a · b = aₓbₓ + a_y b_y + a_z b_z        ← 代数：逐分量相乘再相加 / algebra: multiply components, add
+a · b = |a| |b| cos θ                    ← 几何：θ 是两者夹角 / geometry: θ is the angle between them</pre>
+  <p class="zh">第一种好算，第二种好理解。由它们可以推出所有用法：</p>
+  <p class="en">The first is easy to compute, the second easy to interpret. Every use follows from them:</p>
+  <pre class="formula">cos θ = (a · b) / (|a| |b|)              ← 求夹角 / angle
+a · b̂ = |a| cos θ                        ← a 在 b 方向上的投影长度（带正负）/ signed length of a along b
+proj_b(a) = (a · b / b · b) · b          ← 投影向量 / projection vector
+a · a = |a|²                              ← 长度的平方，不用开方 / squared length, no square root</pre>
+  <p class="zh"><b>符号表：</b>θ &lt; 90° 时 cos θ &gt; 0，点积为正；θ = 90° 时为 0；θ &gt; 90° 时为负。|a| 和 |b| 永远不是负数，所以<b>点积的符号只由夹角决定</b>，判断前后左右时不需要归一化。</p>
+  <p class="en"><b>Sign table:</b> for θ &lt; 90°, cos θ &gt; 0 and the dot product is positive; at θ = 90° it is 0; above 90° it is negative. |a| and |b| are never negative, so <b>the sign depends only on the angle</b>, and a front/behind test needs no normalization.</p>
+  <p class="zh"><b>什么时候必须归一化：</b>需要的是"多少"而不只是"正负"时。光照要的是 cos θ，所以 n 和 l 都必须是单位向量，否则一个长度为 2 的法线会让表面亮一倍。这就是上一课说"光照几乎都要求单位向量"的原因。</p>
+  <p class="en"><b>When you must normalize:</b> whenever you need "how much", not just the sign. Lighting needs cos θ, so n and l must both be unit vectors; a normal of length 2 would make the surface twice as bright. That is why the last lesson said lighting expects unit vectors.</p>
+  <p class="zh"><b>判断"在不在前面"：</b>观察者在 E，朝向 f，目标在 T。先算从观察者指向目标的向量 d = T − E（1.1 课的"终点 − 起点"），再看 f · d：大于 0 在前面，小于 0 在后面。判断在不在视野锥里：把 f 和 d 都归一化，cos θ = f̂ · d̂ ≥ cos(视野角 / 2) 就看得见。</p>
+  <p class="en"><b>"Is it in front?":</b> an observer stands at E, faces f, and the target is at T. First get the vector from observer to target, d = T − E (lesson 1.1's "end − start"), then check f · d: above 0 is in front, below 0 is behind. For a view cone, normalize both: the target is visible when cos θ = f̂ · d̂ ≥ cos(fov / 2).</p>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>在你 1.1 的 <code>Vec3</code> 上继续加三个方法，再写两个函数：</p>
+    <p class="en"><b>Task:</b> extend your <code>Vec3</code> from lesson 1.1 with three methods, then write two functions:</p>
+    <ul class="zh">
+      <li><code>dot(v)</code>：返回一个数。</li>
+      <li><code>angleTo(v)</code>：返回夹角，单位是弧度（0 到 π）。<b>不能返回 NaN</b>，测试里有会触发浮点误差的数据。</li>
+      <li><code>projectOnto(b)</code>：返回 this 在 b 方向上的投影向量。b 不一定是单位向量。b 是零向量时返回 (0, 0, 0)。</li>
+      <li><code>isInFront(eye, facing, target)</code>：目标在观察者前方（严格大于 0）返回 <code>true</code>。facing 不一定是单位向量。</li>
+      <li><code>canSee(eye, facing, target, fovDeg)</code>：目标和朝向的夹角不超过 <code>fovDeg / 2</code> 时返回 <code>true</code>。</li>
+    </ul>
+    <ul class="en">
+      <li><code>dot(v)</code>: returns a number.</li>
+      <li><code>angleTo(v)</code>: returns the angle in radians (0 to π). <b>It must never return NaN</b>; the tests include data that triggers floating-point error.</li>
+      <li><code>projectOnto(b)</code>: returns the projection of this onto the direction of b. b need not be a unit vector. If b is the zero vector, return (0, 0, 0).</li>
+      <li><code>isInFront(eye, facing, target)</code>: returns <code>true</code> when the target is in front of the observer (strictly above 0). facing need not be a unit vector.</li>
+      <li><code>canSee(eye, facing, target, fovDeg)</code>: returns <code>true</code> when the angle between facing and the target direction is at most <code>fovDeg / 2</code>.</li>
+    </ul>
+    <label for="code" class="meta"><span class="zh">你的代码（已填好你 1.1 的解答）</span><span class="en">Your code (pre-filled with your 1.1 solution)</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:420px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+
+  // ---- 1.2 新增 / new in 1.2 ----
+  dot(v)         { /* TODO */ }
+  angleTo(v)     { /* TODO */ }
+  projectOnto(b) { /* TODO */ }
+}
+
+// eye, target: 点 / points;  facing: 朝向 / direction
+function isInFront(eye, facing, target) { /* TODO */ }
+
+function canSee(eye, facing, target, fovDeg) { /* TODO */ }</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
+      <p class="zh">angleTo 的 NaN 从哪里来：浮点误差可能让 cos θ 算出 1.0000000000000002，而 <code>Math.acos</code> 只接受 −1 到 1。canSee 可以完全不调用 acos，比较余弦值就行。</p>
+      <p class="en">Where angleTo's NaN comes from: rounding can make cos θ come out as 1.0000000000000002, and <code>Math.acos</code> only accepts −1 to 1. canSee can skip acos entirely and compare cosines instead.</p>
+    </details>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  angleTo(v) {
+    const d = this.length() * v.length();
+    if (d === 0) return Math.PI / 2;               // 零向量没有方向，three.js 也这样约定
+    const c = Math.min(1, Math.max(-1, this.dot(v) / d));   // 夹紧到 [-1, 1]
+    return Math.acos(c);
+  }
+  projectOnto(b) {
+    const bb = b.dot(b);
+    return bb === 0 ? new Vec3(0, 0, 0) : b.scale(this.dot(b) / bb);
+  }
+
+function isInFront(eye, facing, target) {
+  return facing.dot(target.sub(eye)) > 0;
+}
+function canSee(eye, facing, target, fovDeg) {
+  const d = target.sub(eye).normalize(), f = facing.normalize();
+  return f.dot(d) >= Math.cos(fovDeg / 2 * Math.PI / 180);
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>以为点积是向量。</b>点积的结果是一个数（标量）。"把两个向量逐分量相乘"得到的是另一种运算（分量乘积），不是点积。</li>
+    <li><b>忘了归一化就当 cos θ 用。</b>只有两个都是单位向量时 a · b 才等于 cos θ。判断正负可以不归一化，算亮度、算角度必须归一化。</li>
+    <li><b>acos 得到 NaN。</b>浮点误差让余弦稍微超过 1 或 −1，<code>Math.acos</code> 就返回 NaN。先夹紧到 [−1, 1]。</li>
+    <li><b>光照忘了 max(0, …)。</b>背光面 n · l 是负数，不夹紧就会出现"负的光"，和其他光源相加时把画面减暗。</li>
+    <li><b>用位置当方向。</b>判断目标在不在前面，要用 T − E，而不是直接用 T。观察者不在原点时，直接用 T 的结果是错的。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Thinking the dot product is a vector.</b> It is a single number (a scalar). Multiplying two vectors component by component gives a different operation (the component-wise product), not the dot product.</li>
+    <li><b>Using it as cos θ without normalizing.</b> a · b equals cos θ only when both are unit vectors. The sign test works without normalizing; brightness and angles do not.</li>
+    <li><b>NaN from acos.</b> Rounding pushes the cosine slightly past 1 or −1, and <code>Math.acos</code> returns NaN. Clamp to [−1, 1] first.</li>
+    <li><b>Forgetting max(0, …) in lighting.</b> On the side facing away, n · l is negative. Without the clamp you get "negative light", which darkens the image when added to other lights.</li>
+    <li><b>Using a position as a direction.</b> To test whether a target is in front, use T − E, not T itself. As soon as the observer is not at the origin, using T gives wrong answers.</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. (2, −1, 3) · (1, 4, 0) 是多少？两者夹角大于还是小于 90°？</span><span class="en">1. What is (2, −1, 3) · (1, 4, 0)? Is the angle between them above or below 90°?</span></summary>
+    <p class="zh">2 − 4 + 0 = −2，是负数，所以夹角大于 90°。</p><p class="en">2 − 4 + 0 = −2. It is negative, so the angle is above 90°.</p></details>
+  <details><summary><span class="zh">2. 法线 n = (0, 1, 0)，光从正上方偏 60° 照下来，l 是单位向量。表面亮度（max(0, n · l)）是多少？</span><span class="en">2. The normal is n = (0, 1, 0) and the light comes in 60° from straight up, with l a unit vector. What is the brightness max(0, n · l)?</span></summary>
+    <p class="zh">n · l = cos 60° = 0.5，亮度是正对光时的一半。在演示 2 里把光源转到 60° 附近，边缘也是这样逐渐变暗的。</p><p class="en">n · l = cos 60° = 0.5, half the brightness of facing the light head-on. Demo 2 shows the same fall-off toward the edge of the sphere.</p></details>
+  <details><summary><span class="zh">3. 为什么判断"在前面还是后面"不需要归一化，但判断"在不在 90° 视野里"需要？</span><span class="en">3. Why does "in front or behind" need no normalization, while "inside a 90° field of view" does?</span></summary>
+    <p class="zh">前后只看正负，长度是正数，不改变符号。视野要和 cos 45° ≈ 0.707 比大小，长度会改变数值，必须先变成单位向量（或者把阈值乘上 |f||d|）。</p><p class="en">Front/behind only needs the sign, and lengths are positive so they cannot flip it. The field of view compares against cos 45° ≈ 0.707, and lengths change that value, so you must normalize first (or multiply the threshold by |f||d|).</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><a href="https://www.3blue1brown.com/lessons/dot-products" target="_blank" rel="noopener"><span class="zh">3Blue1Brown《线性代数的本质》第 9 集：点积与对偶性</span><span class="en">3Blue1Brown, Essence of Linear Algebra, ch. 9: Dot products and duality</span></a></li>
+    <li><span class="zh">GAMES101 第 2 讲：线性代数回顾（点积部分，B 站官方视频）</span><span class="en">GAMES101 lecture 2: Review of Linear Algebra, dot product part (in Chinese, official Bilibili video)</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 2 章向量部分：点积</span><span class="en">chapter 2, vectors: the dot product</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+
+<script>
+// 本课的演示 / this lesson's demos
+(function(){
+  const S_ = {
+    zh: { len: "长度", dot: "a · b", geo: "|a| |b| cos θ", ang: "夹角 θ", proj: "a · b̂（投影长度）",
+          same: "a · b > 0：a 在 b 的前方（夹角小于 90°）。", perp: "a · b ≈ 0：两者垂直。", opp: "a · b < 0：a 在 b 的后方（夹角大于 90°）。",
+          zero: "有一个向量几乎是零向量，没有方向，夹角没有意义。", unit: "b 是单位向量，所以 a · b 正好等于绿色投影的长度（带正负）。",
+          notUnit: "b 不是单位向量：a · b = 投影长度 × |b|。勾选上面的选项看两者重合。",
+          light: "光照方向 l", lit: "亮的部分 n · l > 0，交界线上 n · l = 0（青色细线）。", neg: "玫红色的部分 n · l < 0：如果不夹紧，这里会是\"负的光\"。",
+          back: "光源在球的背后，正面几乎全黑，只有边缘被照亮。",
+          err: "代码出错：", all: "全部通过！", some: "通过", missing: "没有找到 Vec3 类" },
+    en: { len: "length", dot: "a · b", geo: "|a| |b| cos θ", ang: "angle θ", proj: "a · b̂ (along b)",
+          same: "a · b > 0: a is in front of b (angle under 90°).", perp: "a · b ≈ 0: they are perpendicular.", opp: "a · b < 0: a is behind b (angle over 90°).",
+          zero: "One vector is almost zero: it has no direction, so the angle means nothing.", unit: "b is a unit vector, so a · b equals the signed length of the green projection.",
+          notUnit: "b is not a unit vector: a · b = projection length × |b|. Tick the option above to see them match.",
+          light: "light direction l", lit: "The lit part has n · l > 0; along the boundary n · l = 0 (thin teal line).", neg: "The magenta part has n · l < 0: without the clamp this would be \"negative light\".",
+          back: "The light is behind the sphere: the front is nearly black and only the rim is lit.",
+          err: "Code error: ", all: "All tests pass!", some: "passed", missing: "No Vec3 class found" }
+  };
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // ---- 演示 1 / demo 1 ----
+  const cv = document.getElementById("dc"), ctx = cv.getContext("2d"), out = document.getElementById("dOut"), note = document.getElementById("dNote");
+  const unitIn = document.getElementById("unitB");
+  const U = 50, O = () => ({ x: cv.width / 2, y: cv.height / 2 });
+  let a = { x: 1.5, y: 3 }, b = { x: 4, y: 1 }, drag = null;
+  const P = v => ({ x: O().x + v.x * U, y: O().y - v.y * U });
+  const W = (px, py) => ({ x: Math.round((px - O().x) / U * 10) / 10, y: Math.round((O().y - py) / U * 10) / 10 });
+  const mul = (p, s) => ({ x: p.x * s, y: p.y * s }), len = p => Math.hypot(p.x, p.y), dot = (p, q) => p.x * q.x + p.y * q.y;
+  const unitOf = p => { const L = len(p); return L < 1e-9 ? { x: 1, y: 0 } : mul(p, 1 / L); };
+  function arrow(from, v, col, w = 3, dash = null, alpha = 1){
+    const p0 = P(from), p1 = P({ x: from.x + v.x, y: from.y + v.y });
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w;
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]);
+    if (len(v) > 0.15){ const g = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p1.x - 13 * Math.cos(g - 0.4), p1.y - 13 * Math.sin(g - 0.4));
+      ctx.lineTo(p1.x - 13 * Math.cos(g + 0.4), p1.y - 13 * Math.sin(g + 0.4)); ctx.fill(); }
+    ctx.restore();
+  }
+  function label(v, text, col, dx = 8, dy = -8){ const p = P(v); ctx.fillStyle = col; ctx.font = "600 16px " + css("--f-mono"); ctx.fillText(text, p.x + dx, p.y + dy); }
+  function draw(){
+    const A = css("--accent-2"), B = css("--accent"), R = css("--good"), line = css("--line"), muted = css("--muted"), t = S_[lang()];
+    if (unitIn.checked) b = unitOf(b);
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    const bh = unitOf(b), pp = { x: -bh.y, y: bh.x }, far = 40;
+    // b 的前方半平面 / half-plane in front of b
+    ctx.save(); ctx.globalAlpha = 0.1; ctx.fillStyle = B; ctx.beginPath();
+    [mul(pp, far), { x: pp.x * far + bh.x * far, y: pp.y * far + bh.y * far }, { x: -pp.x * far + bh.x * far, y: -pp.y * far + bh.y * far }, mul(pp, -far)]
+      .map(P).forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y));
+    ctx.fill(); ctx.restore();
+    ctx.strokeStyle = line; ctx.lineWidth = 1;
+    for (let x = O().x % U; x < cv.width; x += U){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
+    for (let y = O().y % U; y < cv.height; y += U){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); }
+    ctx.strokeStyle = muted; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, O().y + .5); ctx.lineTo(cv.width, O().y + .5); ctx.moveTo(O().x + .5, 0); ctx.lineTo(O().x + .5, cv.height); ctx.stroke();
+    // b 所在直线、垂直线 / line through b and the perpendicular line
+    const seg = (p, q, col, dash, w = 1.5) => { const s = P(p), e = P(q); ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = w; if (dash) ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore(); };
+    seg(mul(bh, -far), mul(bh, far), B, [2, 5]);
+    seg(mul(pp, -far), mul(pp, far), B, [8, 6], 2);
+    const lp = mul(pp, 3.6); label(lp.y < 0 ? mul(lp, -1) : lp, "a·b = 0", B, 8, 18);
+    if (unitIn.checked){ const o = O(); ctx.strokeStyle = muted; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(o.x, o.y, U, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+    const Z = { x: 0, y: 0 }, d = dot(a, b), bb = dot(b, b), La = len(a), Lb = len(b);
+    const pr = bb < 1e-9 ? Z : mul(b, d / bb);
+    seg(a, pr, R, [5, 4]);
+    // 夹角弧 / angle arc
+    const okAng = La > 1e-6 && Lb > 1e-6, cosT = okAng ? Math.max(-1, Math.min(1, d / (La * Lb))) : NaN, th = Math.acos(cosT);
+    if (okAng){ const ga = Math.atan2(a.y, a.x), gb = Math.atan2(b.y, b.x); let delta = ga - gb;
+      while (delta > Math.PI) delta -= 2 * Math.PI; while (delta < -Math.PI) delta += 2 * Math.PI;
+      const o = O(); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(o.x, o.y, 30, -gb, -(gb + delta), delta > 0); ctx.stroke();
+      const gm = gb + delta / 2; ctx.fillStyle = css("--ink"); ctx.font = "600 14px " + css("--f-mono"); ctx.fillText("θ", o.x + 42 * Math.cos(gm) - 4, o.y - 42 * Math.sin(gm) + 5); }
+    arrow(Z, a, A); arrow(Z, b, B); if (len(pr) > 0.02) arrow(Z, pr, R, 5, null, 0.9);
+    label(a, "a", A); label(b, "b", B, 8, 20);
+    [[a, A], [b, B]].forEach(([v, c]) => { const p = P(v); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill(); });
+    const f = v => `(${v.x.toFixed(2)}, ${v.y.toFixed(2)})`, n2 = x => x.toFixed(2);
+    out.innerHTML = [["a", f(a) + `   ${t.len} ${n2(La)}`], ["b", f(b) + `   ${t.len} ${n2(Lb)}`],
+      [t.dot, `${n2(a.x)}×${n2(b.x)} + ${n2(a.y)}×${n2(b.y)} = <b>${n2(d)}</b>`],
+      [t.geo, okAng ? `${n2(La)} × ${n2(Lb)} × ${n2(cosT)} = ${n2(La * Lb * cosT)}` : "—"],
+      [t.ang, okAng ? `${(th * 180 / Math.PI).toFixed(1)}°   cos θ = ${n2(cosT)}` : "—"],
+      [t.proj, Lb > 1e-6 ? n2(d / Lb) : "—"]].map(([x, y]) => `<dt>${x}</dt><dd>${y}</dd>`).join("");
+    note.textContent = !okAng ? t.zero : (Math.abs(cosT) < 0.02 ? t.perp : d > 0 ? t.same : t.opp) + " " + (Math.abs(Lb - 1) < 1e-6 ? t.unit : t.notUnit);
+  }
+  function pos(e){ const rc = cv.getBoundingClientRect(); return { x: (e.clientX - rc.left) * cv.width / rc.width, y: (e.clientY - rc.top) * cv.height / rc.height }; }
+  cv.addEventListener("pointerdown", e => { const p = pos(e);
+    const da = Math.hypot(P(a).x - p.x, P(a).y - p.y), db = Math.hypot(P(b).x - p.x, P(b).y - p.y);
+    drag = da < 28 && da <= db ? "a" : db < 28 ? "b" : null;
+    if (drag) { cv.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const p = pos(e), w = W(p.x, p.y);
+    w.x = Math.max(-7, Math.min(7, w.x)); w.y = Math.max(-4.3, Math.min(4.3, w.y));
+    if (drag === "a") a = w; else b = unitIn.checked ? unitOf({ x: (p.x - O().x) / U, y: (O().y - p.y) / U }) : w; draw(); });
+  cv.addEventListener("pointerup", () => drag = null);
+  unitIn.addEventListener("change", () => { if (!unitIn.checked) b = mul(b, 3); draw(); });
+
+  // ---- 演示 2：球的 n · l / demo 2: n · l on a sphere ----
+  const lc = document.getElementById("lc"), lx = lc.getContext("2d"), lNote = document.getElementById("lNote");
+  const angIn = document.getElementById("lAng"), clampIn = document.getElementById("clamp");
+  const img = lx.createImageData(lc.width, lc.height);
+  function hex(c){ const m = c.match(/^#([0-9a-f]{6})$/i); const n = m ? parseInt(m[1], 16) : 0xffffff; return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function drawLit(){
+    const t = S_[lang()], deg = +angIn.value, rad = deg * Math.PI / 180;
+    document.getElementById("lAngOut").textContent = deg + "°";
+    let l = [Math.sin(rad), 0.35, Math.cos(rad)]; const ll = Math.hypot(...l); l = l.map(v => v / ll);
+    const bg = hex(css("--surface")), mg = hex(css("--accent-2")), te = hex(css("--accent"));
+    const cx = 240, cy = 240, Rr = 200, d = img.data, clamp = clampIn.checked;
+    let anyNeg = false;
+    for (let y = 0; y < lc.height; y++) for (let x = 0; x < lc.width; x++){
+      const i = (y * lc.width + x) * 4, nx = (x + 0.5 - cx) / Rr, ny = -(y + 0.5 - cy) / Rr, r2 = nx * nx + ny * ny;
+      let c = bg;
+      if (r2 <= 1){
+        const nz = Math.sqrt(1 - r2), k = nx * l[0] + ny * l[1] + nz * l[2];
+        if (Math.abs(k) < 0.008) c = te;
+        else if (k > 0) c = [235 * k + 12, 228 * k + 12, 214 * k + 12];
+        else if (clamp) c = [12, 12, 12];
+        else { anyNeg = true; c = mg.map(v => v * -k + 12 * (1 + k)); }
+      }
+      d[i] = c[0]; d[i + 1] = c[1]; d[i + 2] = c[2]; d[i + 3] = 255;
+    }
+    lx.putImageData(img, 0, 0);
+    // 俯视小图：光从哪边来 / top view inset: where the light comes from
+    const ox = 580, oy = 240, rr = 96, ink = css("--ink"), mu = css("--muted");
+    lx.strokeStyle = mu; lx.lineWidth = 3; lx.beginPath(); lx.arc(ox, oy, 32, 0, 7); lx.stroke();
+    lx.fillStyle = mu; lx.font = "24px " + css("--f-mono"); lx.textAlign = "center";
+    lx.fillText(lang() === "zh" ? "俯视" : "top view", ox, oy - rr - 30); lx.fillText(lang() === "zh" ? "你在这边" : "you", ox, oy + rr + 44);
+    const sx = ox + rr * Math.sin(rad), sy = oy + rr * Math.cos(rad);
+    lx.strokeStyle = lx.fillStyle = "#e0a400"; lx.lineWidth = 4; lx.beginPath(); lx.moveTo(sx, sy); lx.lineTo(ox + 40 * Math.sin(rad), oy + 40 * Math.cos(rad)); lx.stroke();
+    lx.beginPath(); lx.arc(sx, sy, 14, 0, 7); lx.fill(); lx.textAlign = "start";
+    lx.fillStyle = ink;
+    lNote.textContent = `${t.light} = (${l.map(v => v.toFixed(2)).join(", ")}). ` + (Math.abs(deg) > 110 ? t.back + " " : "") + (anyNeg ? t.neg : t.lit);
+  }
+  angIn.addEventListener("input", drawLit); clampIn.addEventListener("change", drawLit);
+
+  const redraw = () => { draw(); drawLit(); };
+  onLangChange.push(redraw);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  redraw();
+
+  // ---- 练习：自动测试 / exercise: auto-tests ----
+  const PI = Math.PI;
+  const TESTS = [
+    { zh: "dot：(1,2,3) · (4,5,6) = 32，返回的是数", en: "dot: (1,2,3) · (4,5,6) = 32, and it returns a number",
+      f: ({ V }) => near(new V(1,2,3).dot(new V(4,5,6)), 32) },
+    { zh: "dot 的符号：垂直 (1,2,0) · (−2,1,0) = 0，相反 (1,0,0) · (−1,0.5,0) = −1", en: "dot sign: perpendicular (1,2,0) · (−2,1,0) = 0, opposite (1,0,0) · (−1,0.5,0) = −1",
+      f: ({ V }) => near(new V(1,2,0).dot(new V(-2,1,0)), 0) && near(new V(1,0,0).dot(new V(-1,0.5,0)), -1) },
+    { zh: "angleTo：(1,0,0) 和 (0,2,0) 是 π/2，和 (−3,0,0) 是 π", en: "angleTo: (1,0,0) to (0,2,0) is π/2, to (−3,0,0) is π",
+      f: ({ V }) => near(new V(1,0,0).angleTo(new V(0,2,0)), PI / 2) && near(new V(1,0,0).angleTo(new V(-3,0,0)), PI) },
+    { zh: "angleTo 不出 NaN：(1,1,1) 和 (2,2,2)、(1,2,3) 和 (3,6,9) 的夹角是 0", en: "angleTo never gives NaN: (1,1,1) to (2,2,2) and (1,2,3) to (3,6,9) are 0",
+      f: ({ V }) => close(new V(1,1,1).angleTo(new V(2,2,2)), 0, 1e-6) && close(new V(1,2,3).angleTo(new V(3,6,9)), 0, 1e-6) && close(new V(1,1,1).angleTo(new V(-2,-2,-2)), PI, 1e-6) },
+    { zh: "projectOnto：(3,4,0) 投到 (10,0,0) 上是 (3,0,0)；(2,2,0) 投到 (0,0,5) 上是 (0,0,0)", en: "projectOnto: (3,4,0) onto (10,0,0) is (3,0,0); (2,2,0) onto (0,0,5) is (0,0,0)",
+      f: ({ V }) => eq(new V(3,4,0).projectOnto(new V(10,0,0)), 3,0,0) && eq(new V(2,2,0).projectOnto(new V(0,0,5)), 0,0,0) },
+    { zh: "projectOnto 零向量返回 (0,0,0)，没有 NaN", en: "projectOnto the zero vector returns (0,0,0), no NaN",
+      f: ({ V }) => eq(new V(3,4,5).projectOnto(new V(0,0,0)), 0,0,0) },
+    { zh: "isInFront：在 (1,0,1) 朝 (0,0,3) 看，(1,5,4) 在前面，(1,0,−2) 在后面", en: "isInFront: standing at (1,0,1) facing (0,0,3), (1,5,4) is in front and (1,0,−2) behind",
+      f: ({ V, inF }) => { const e = new V(1,0,1), f = new V(0,0,3);
+        return inF(e, f, new V(1,5,4)) === true && inF(e, f, new V(1,0,-2)) === false && inF(e, f, new V(9,9,0.5)) === false; } },
+    { zh: "canSee（90° 视野）：在 (0,0,0) 朝 (0,0,2) 看，(1,0,2) 看得见，(3,0,1) 和 (0,0,−4) 看不见", en: "canSee (90° fov): at (0,0,0) facing (0,0,2), (1,0,2) is visible; (3,0,1) and (0,0,−4) are not",
+      f: ({ V, see }) => { const e = new V(0,0,0), f = new V(0,0,2);
+        return see(e, f, new V(1,0,2), 90) === true && see(e, f, new V(3,0,1), 90) === false && see(e, f, new V(0,0,-4), 90) === false; } }
+  ];
+  function close(p, q, tol){ return typeof p === "number" && Math.abs(p - q) < tol; }
+  function near(p, q){ return close(p, q, 1e-9); }
+  function eq(v, x, y, z){ return !!v && near(v.x, x) && near(v.y, y) && near(v.z, z); }
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  let results = null;
+  function show(){
+    const t = S_[lang()];
+    if (!results) { list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length;
+    err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`;
+    err.classList.toggle("allok", n === results.length);
+  }
+  function run(){
+    err.classList.remove("allok");
+    let M;
+    try { M = new Function(document.getElementById("code").value +
+      "\nreturn { V: typeof Vec3 === 'undefined' ? undefined : Vec3, inF: typeof isInFront === 'undefined' ? undefined : isInFront, see: typeof canSee === 'undefined' ? undefined : canSee };")(); }
+    catch (e) { results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    if (!M.V) { results = null; show(); err.textContent = S_[lang()].missing; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(M); } catch { return false; } });
+    show();
+  }
+  document.getElementById("run").onclick = run;
+  onLangChange.push(show);
+  run();
+})();
+</script>

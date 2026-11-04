@@ -163,8 +163,8 @@
         "长度",
         "归一化"
       ],
-      "status": "in-progress",
-      "completedAt": null,
+      "status": "done",
+      "completedAt": "2026-11-04",
       "artifactUrl": "https://claude.ai/artifact/37zfocXy29T5bfKGgYSXEW",
       "videos": {
         "UCD": [],

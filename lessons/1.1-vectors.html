@@ -195,6 +195,22 @@ k · a = (k·aₓ, k·a_y)
 }</textarea>
     <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
     <ul class="tests" id="tests"></ul>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-04，7/7 通过）</span><span class="en">My solution (2026-11-04, 7/7 pass)</span></p>
+      <pre class="formula">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+}</pre>
+      <p class="zh"><b>评审时学到的：</b>相机朝向是 <code>T.sub(C).normalize()</code>：从 C 指向 T 就是"终点 − 起点"。如果 <code>add</code> 修改了自己，被多个三角形共用的顶点会被悄悄改掉，模型会变形，而且每一帧都在累积偏移。长度为 <code>1e-20</code> 的向量归一化后其实能得到正常的单位向量，不会是无穷大；只有长度小到 1/len 溢出（约 1e-308 以下）时才会出现 Infinity 和 NaN。真正的问题是：这么短的向量通常来自两个几乎重合的点相减，方向几乎全是浮点误差，没有意义。所以实际代码里常用一个很小的阈值（比如 <code>len &lt; 1e-12</code>）代替 <code>=== 0</code>。</p>
+      <p class="en"><b>What the review taught me:</b> the camera direction is <code>T.sub(C).normalize()</code>: from C to T is "end − start". If <code>add</code> modified itself, a vertex shared by several triangles would be silently changed, so the model deforms and the error builds up every frame. Normalizing a vector of length <code>1e-20</code> actually gives a proper unit vector, not infinity; Infinity and NaN only appear when 1/len overflows (lengths below about 1e-308). The real problem is that such a short vector usually comes from subtracting two nearly identical points, so its direction is mostly floating-point noise. Real code therefore compares against a small threshold (such as <code>len &lt; 1e-12</code>) instead of <code>=== 0</code>.</p>
+    </div>
     <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
       <pre class="formula">class Vec3 {
   constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }

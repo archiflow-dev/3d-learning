@@ -156,8 +156,8 @@ const LESSON = {
   </div>
 
   <h2 style="margin-top:20px"><span class="tag">Demo</span><span class="zh">交互演示 2：光照里的 n · l</span><span class="en">Demo 2: n · l in lighting</span></h2>
-  <p class="meta zh">一个球，每个像素的亮度 = 该点法线 n 和光照方向 l（都是单位向量）的点积。转动光源，看亮暗交界线在哪里：那里 n · l = 0。关掉 max(0, …)，背光的一面会显示成玫红，表示点积是负数。</p>
-  <p class="meta en">A sphere where each pixel's brightness is the dot product of its normal n and the light direction l (both unit vectors). Turn the light and watch the line between lit and dark: there n · l = 0. Switch off max(0, …) and the side facing away turns magenta, which marks a negative dot product.</p>
+  <p class="meta zh">一个球，每个像素的亮度 = 该点法线 n 和光照方向 l（都是单位向量）的点积。转动光源，看亮暗交界线在哪里：那里 n · l = 0。关掉 max(0, …)，背光的一面会显示成玫红，表示点积是负数。青色箭头是几根典型的法线 n，旁边的数字是那一点的亮度，中间的 ◎ 表示法线正对着你。黄色箭头是光照方向 l 在屏幕上的投影，下面的 z 是 l 朝向你的分量。</p>
+  <p class="meta en">A sphere where each pixel's brightness is the dot product of its normal n and the light direction l (both unit vectors). Turn the light and watch the line between lit and dark: there n · l = 0. Switch off max(0, …) and the side facing away turns magenta, which marks a negative dot product. Teal arrows are a few typical normals n, each labeled with the brightness at that point; the ◎ in the middle is a normal pointing straight at you. The yellow arrow is the light direction l projected onto the screen, and the z below it is how much l points toward you.</p>
   <div class="panel">
     <div class="row">
       <label for="lAng" class="meta"><span class="zh">光源角度</span><span class="en">Light angle</span> <output id="lAngOut">40°</output></label>
@@ -502,7 +502,7 @@ const onLangChange = [];
     document.getElementById("lAngOut").textContent = deg + "°";
     let l = [Math.sin(rad), 0.35, Math.cos(rad)]; const ll = Math.hypot(...l); l = l.map(v => v / ll);
     const bg = hex(css("--surface")), mg = hex(css("--accent-2")), te = hex(css("--accent"));
-    const cx = 240, cy = 240, Rr = 200, d = img.data, clamp = clampIn.checked;
+    const cx = 250, cy = 240, Rr = 170, d = img.data, clamp = clampIn.checked;
     let anyNeg = false;
     for (let y = 0; y < lc.height; y++) for (let x = 0; x < lc.width; x++){
       const i = (y * lc.width + x) * 4, nx = (x + 0.5 - cx) / Rr, ny = -(y + 0.5 - cy) / Rr, r2 = nx * nx + ny * ny;
@@ -525,6 +525,25 @@ const onLangChange = [];
     const sx = ox + rr * Math.sin(rad), sy = oy + rr * Math.cos(rad);
     lx.strokeStyle = lx.fillStyle = "#e0a400"; lx.lineWidth = 4; lx.beginPath(); lx.moveTo(sx, sy); lx.lineTo(ox + 40 * Math.sin(rad), oy + 40 * Math.cos(rad)); lx.stroke();
     lx.beginPath(); lx.arc(sx, sy, 14, 0, 7); lx.fill(); lx.textAlign = "start";
+    // 典型法线 + 光照方向 / typical normals + light direction
+    const arr = (x0, y0, x1, y1, col, w) => { lx.strokeStyle = lx.fillStyle = col; lx.lineWidth = w; lx.beginPath(); lx.moveTo(x0, y0); lx.lineTo(x1, y1); lx.stroke();
+      const g = Math.atan2(y1 - y0, x1 - x0), h = 6 + w * 2.5; lx.beginPath(); lx.moveTo(x1, y1);
+      lx.lineTo(x1 - h * Math.cos(g - 0.4), y1 - h * Math.sin(g - 0.4)); lx.lineTo(x1 - h * Math.cos(g + 0.4), y1 - h * Math.sin(g + 0.4)); lx.fill(); };
+    const tag = (s, x, y, col) => { lx.font = "600 20px " + css("--f-mono"); const w = lx.measureText(s).width;
+      lx.fillStyle = css("--surface"); lx.globalAlpha = 0.85; lx.fillRect(x - w / 2 - 4, y - 17, w + 8, 24); lx.globalAlpha = 1; lx.fillStyle = col; lx.textAlign = "center"; lx.fillText(s, x, y); lx.textAlign = "start"; };
+    const NA = css("--accent"), LA = "#e0a400", AL = 55;
+    [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7], [0.5, 0.5]].forEach(([sx, sy]) => {
+      const nz = Math.sqrt(Math.max(0, 1 - sx * sx - sy * sy)), k = sx * l[0] + sy * l[1] + nz * l[2];
+      const px = cx + sx * Rr, py = cy - sy * Rr;
+      lx.fillStyle = NA; lx.beginPath(); lx.arc(px, py, 5, 0, 7); lx.fill();
+      if (sx === 0 && sy === 0){ lx.strokeStyle = NA; lx.lineWidth = 3; lx.beginPath(); lx.arc(px, py, 11, 0, 7); lx.stroke(); }
+      else arr(px, py, px + sx * AL, py - sy * AL, NA, 3);
+      const v = clamp ? Math.max(0, k) : k;
+      tag(v.toFixed(2), px + sx * (AL + 30) + (sx === 0 && sy === 0 ? 0 : 0), py - sy * (AL + 24) + (sx === 0 && sy === 0 ? 34 : 6), k < 0 && !clamp ? css("--accent-2") : ink);
+    });
+    const lxy = Math.hypot(l[0], l[1]);
+    if (lxy > 0.05) arr(cx, cy, cx + l[0] / lxy * Rr * 1.08 * Math.max(lxy, 0.3), cy - l[1] / lxy * Rr * 1.08 * Math.max(lxy, 0.3), LA, 5);
+    tag(`l: z = ${l[2].toFixed(2)}`, 580, 440, LA);
     lx.fillStyle = ink;
     lNote.textContent = `${t.light} = (${l.map(v => v.toFixed(2)).join(", ")}). ` + (Math.abs(deg) > 110 ? t.back + " " : "") + (anyNeg ? t.neg : t.lit);
   }

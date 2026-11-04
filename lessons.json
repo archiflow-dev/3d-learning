@@ -170,6 +170,31 @@
         "UCD": [],
         "MIT": []
       }
+    },
+    {
+      "id": "1.2",
+      "stage": 1,
+      "title": {
+        "zh": "点积",
+        "en": "The Dot Product"
+      },
+      "file": "lessons/1.2-dot-product.html",
+      "prereqs": [
+        "1.1"
+      ],
+      "concepts": [
+        "点积",
+        "夹角",
+        "投影",
+        "前后判断",
+        "n·l 光照"
+      ],
+      "status": "in-progress",
+      "artifactUrl": "https://claude.ai/artifact/3rNBbHpDhHfGwjGhCzs4uT",
+      "videos": {
+        "UCD": [],
+        "MIT": []
+      }
     }
   ],
   "videoRefs": {

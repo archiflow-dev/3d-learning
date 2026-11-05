@@ -189,12 +189,13 @@
         "前后判断",
         "n·l 光照"
       ],
-      "status": "in-progress",
+      "status": "done",
       "artifactUrl": "https://claude.ai/artifact/3rNBbHpDhHfGwjGhCzs4uT",
       "videos": {
         "UCD": [],
         "MIT": []
-      }
+      },
+      "completedAt": "2026-11-05"
     }
   ],
   "videoRefs": {

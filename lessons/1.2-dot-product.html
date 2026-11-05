@@ -326,6 +326,35 @@ function isInFront(eye, facing, target) { /* TODO */ }
 function canSee(eye, facing, target, fovDeg) { /* TODO */ }</textarea>
     <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
     <ul class="tests" id="tests"></ul>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-05，8/8 通过）</span><span class="en">My solution (2026-11-05, 8/8 pass)</span></p>
+      <pre class="formula">  // ---- 1.2 新增 / new in 1.2 ----
+  dot(v)         { return this.x * v.x + this.y * v.y + this.z * v.z;  }
+  angleTo(v)     { 
+      const d = this.length() * v.length();
+      if (d === 0) return Math.PI / 2;   
+      const cos = Math.max(-1, Math.min(1, this.dot(v) / d));
+      return Math.acos(cos);
+      }
+  projectOnto(b) { 
+      if (b.length() === 0) return new Vec3(0, 0, 0);
+      const s = this.dot(b)/ b.length();
+      return b.scale(s/b.length());
+      }
+}
+
+// eye, target: 点 / points;  facing: 朝向 / direction
+function isInFront(eye, facing, target) { return facing.dot(target.sub(eye)) &gt; 0; }
+
+function canSee(eye, facing, target, fovDeg) { 
+      const v1= target.sub(eye);
+      const d = facing.length() * v1.length();
+      const cos = facing.dot(v1)/d;
+      return cos &gt;= Math.cos(fovDeg / 2 * Math.PI / 180);
+      }</pre>
+      <p class="zh"><b>评审时学到的：</b>canSee 第一版把 <code>Math.acos</code> 返回的弧度直接和 <code>fovDeg / 2</code> 的角度比较，单位不一致，弧度最大只有 π ≈ 3.14，所以连正后方的目标都被判成看得见。改成比较余弦 <code>cos ≥ cos(fov / 2)</code> 后，既不用 acos，也避开了浮点误差带来的 NaN。projectOnto 里第一次除以 |b| 得到带正负的影子长度 s，第二次除以 |b| 是把 b 变成单位方向 b̂，再乘以 s，得到长度为 s 的投影向量。最重要的一条：<b>长度只缩放点积的大小，不改变它的正负。</b>所以 isInFront 不用归一化；canSee 要和 cos(fov / 2) 比大小，必须除以 |f||d|；法线长度为 2 会让亮度翻倍、过曝，l 长度为 0.5 会让所有地方亮度减半，但明暗交界线（n · l = 0）都不会动。（第 2、3 个理解题由 AI 讲解，补充题"l 长度为 0.5"由我自己答对。）</p>
+      <p class="en"><b>What the review taught me:</b> my first canSee compared the radians from <code>Math.acos</code> with <code>fovDeg / 2</code> in degrees. The units did not match, and since radians top out at π ≈ 3.14, even a target straight behind counted as visible. Comparing cosines, <code>cos ≥ cos(fov / 2)</code>, needs no acos and also avoids NaN from rounding. In projectOnto, the first division by |b| gives the signed shadow length s; the second turns b into the unit direction b̂, which is then scaled by s to give a projection of length s. The key rule: <b>length scales the size of a dot product but never its sign.</b> So isInFront needs no normalizing; canSee compares against cos(fov / 2) and must divide by |f||d|; a normal of length 2 doubles the brightness and blows it out, and an l of length 0.5 halves it everywhere, but the light/dark boundary (n · l = 0) never moves. (The AI explained understanding questions 2 and 3; I answered the follow-up about an l of length 0.5 myself.)</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">angleTo 的 NaN 从哪里来：浮点误差可能让 cos θ 算出 1.0000000000000002，而 <code>Math.acos</code> 只接受 −1 到 1。canSee 可以完全不调用 acos，比较余弦值就行。</p>
       <p class="en">Where angleTo's NaN comes from: rounding can make cos θ come out as 1.0000000000000002, and <code>Math.acos</code> only accepts −1 to 1. canSee can skip acos entirely and compare cosines instead.</p>

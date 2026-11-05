@@ -1,0 +1,766 @@
+<title>叉积 · The Cross Product</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.3", slug: "cross-product",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "叉积", en: "The Cross Product" },
+  minutes: 75, prereqs: ["1.2"],
+  prev: "1.2-dot-product.html", next: null,
+  concepts: ["cross product", "normal", "parallelogram area", "right-hand rule", "winding order"],
+  videos: { UCD: [], MIT: [] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+<style>
+.stage3d{position:relative;aspect-ratio:16/10;max-width:100%;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.stage3d canvas{width:100%;height:100%;image-rendering:auto;cursor:grab;display:block}
+.stage3d .err{position:absolute;inset:auto 12px 12px 12px;background:var(--surface);padding:8px 10px;border-radius:4px;border:1px solid var(--line)}
+#why h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+.chip{display:inline-block;width:.9em;height:.9em;border-radius:50%;vertical-align:-1px;margin-right:4px}
+</style>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 75 分钟 · 前置：1.2 · 视频：两套课都没有单独讲叉积；看 3Blue1Brown《线性代数的本质》第 10 集和 GAMES101 第 2 讲</div>
+  <div class="meta en">About 75 min · Prerequisite: 1.2 · Video: neither course has a lecture on it; watch 3Blue1Brown's Essence of Linear Algebra ch. 10 and GAMES101 lecture 2</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li><b>方向和顺序：</b>知道 a × b 是一个同时垂直于 a 和 b 的<b>向量</b>，会用右手定则判断它朝哪边，知道 b × a = −(a × b)。</li>
+    <li><b>大小：</b>知道 |a × b| = |a| |b| sin θ，等于 a、b 张成的平行四边形面积；平行时为 0。</li>
+    <li><b>用途：</b>会用 (B − A) × (C − A) 求三角形的法线和面积，知道顶点顺序（绕序）决定法线朝外还是朝里。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Direction and order:</b> know that a × b is a <b>vector</b> perpendicular to both a and b, find its direction with the right-hand rule, and know that b × a = −(a × b).</li>
+    <li><b>Size:</b> know that |a × b| = |a| |b| sin θ, the area of the parallelogram spanned by a and b, and 0 when they are parallel.</li>
+    <li><b>Use:</b> get a triangle's normal and area from (B − A) × (C − A), and know that the vertex order (winding) decides whether the normal points out or in.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">点积回答"两支箭头有多同向"，给出一个数。叉积回答另一个问题：<b>两支箭头张开了多大一块面，这块面朝哪边？</b>它给出一个向量：方向垂直于那块面，长度等于面积。</p>
+  <p class="en">The dot product answers "how much do two arrows agree" with a number. The cross product answers a different question: <b>how big a patch do two arrows span, and which way does that patch face?</b> It gives a vector whose direction is perpendicular to the patch and whose length is its area.</p>
+  <p class="zh"><b>右手定则：</b>伸出右手，四指指向 a，再朝 b 的方向弯过去，大拇指指的就是 a × b。反过来从 b 弯向 a，拇指就朝相反方向，所以 b × a = −(a × b)。</p>
+  <p class="en"><b>Right-hand rule:</b> point the fingers of your right hand along a, curl them toward b, and your thumb points along a × b. Curl from b to a instead and your thumb flips, so b × a = −(a × b).</p>
+  <p class="zh">图形学里最常见的用途是<b>三角形的法线</b>：模型由成千上万个三角形组成，光照（1.2 的 n · l）需要知道每个面朝哪边，这个方向就是用两条边的叉积算出来的。</p>
+  <p class="en">Its most common use in graphics is the <b>triangle normal</b>: models are made of thousands of triangles, lighting (the n · l of lesson 1.2) needs to know which way each one faces, and that direction comes from the cross product of two edges.</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：3D 里的叉积</span><span class="en">Demo: the cross product in 3D</span></h2>
+  <p class="meta zh">拖动 a（玫红）和 b（青）的箭头尖，它们在一块平面上移动；拖动空白处可以旋转视角。绿色箭头是 a × b，浅绿色的平行四边形是 a、b 张成的面：它的面积等于绿色箭头的长度。用滑块把这块平面立起来，叉积依然垂直于它。</p>
+  <p class="meta en">Drag the tips of a (magenta) and b (teal); they move within a plane. Drag empty space to orbit. The green arrow is a × b and the light green parallelogram is the patch spanned by a and b: its area equals the green arrow's length. Tilt the plane with the slider and the cross product stays perpendicular to it.</p>
+  <div class="panel">
+    <div class="row">
+      <label for="tilt" class="meta"><span class="zh">平面倾斜</span><span class="en">Tilt the plane</span> <output id="tiltOut">0°</output></label>
+      <input type="range" id="tilt" min="0" max="90" step="1" value="0" style="flex:1;min-width:0">
+      <label class="meta"><input type="checkbox" id="swap"> <span class="zh">改成 b × a</span><span class="en">Show b × a instead</span></label>
+    </div>
+    <div class="stage3d"><canvas id="view" aria-label="cross product scene"></canvas><p class="err" id="glErr" hidden></p></div>
+    <dl class="readout" id="cOut"></dl>
+    <p class="meta" id="cNote"></p>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <pre class="formula">a × b = (a_y b_z − a_z b_y,
+         a_z bₓ − aₓ b_z,
+         aₓ b_y − a_y bₓ)
+
+|a × b| = |a| |b| sin θ            ← 平行四边形面积 / parallelogram area
+a × b ⟂ a,  a × b ⟂ b              ← 垂直于两者 / perpendicular to both
+b × a = −(a × b)                   ← 交换顺序，方向反过来 / swap the order, flip the direction
+a × a = 0                          ← 平行时为零 / zero when parallel</pre>
+  <p class="zh"><b>记分量的办法：</b>x 分量只用 y、z（"yz − zy"），y 分量用 z、x（"zx − xz"），z 分量用 x、y（"xy − yx"），下标按 x → y → z → x 循环。2D 里只有 z 分量 aₓ b_y − a_y bₓ：它的正负告诉你 b 在 a 的左边（正，逆时针）还是右边（负，顺时针）。</p>
+  <p class="en"><b>How to remember the components:</b> the x component uses only y and z ("yz − zy"), y uses z and x ("zx − xz"), z uses x and y ("xy − yx"); the indices cycle x → y → z → x. In 2D only the z component aₓ b_y − a_y bₓ remains, and its sign tells you whether b is to the left of a (positive, counter-clockwise) or to the right (negative, clockwise).</p>
+  <p class="zh"><b>三角形：</b>顶点 A、B、C 的法线方向是 n = (B − A) × (C − A)，面积是 |n| / 2（三角形是平行四边形的一半）。单位法线是 n / |n|。顶点按逆时针排列时（从外面看），法线朝外；three.js 和 WebGL 默认把逆时针的那一面当作正面。</p>
+  <p class="en"><b>Triangles:</b> for vertices A, B, C the normal direction is n = (B − A) × (C − A) and the area is |n| / 2 (a triangle is half a parallelogram). The unit normal is n / |n|. When the vertices run counter-clockwise as seen from outside, the normal points out; three.js and WebGL treat the counter-clockwise side as the front face by default.</p>
+</section>
+
+<section id="why">
+  <h2><span class="tag">Why</span><span class="zh">为什么这个公式垂直于 a 和 b，长度又是面积？</span><span class="en">Why is this formula perpendicular, with the area as its length?</span></h2>
+  <h3 class="zh">1. 垂直：直接用点积验证</h3><h3 class="en">1. Perpendicular: check with the dot product</h3>
+  <p class="zh">把 a 和 a × b 点乘：aₓ(a_y b_z − a_z b_y) + a_y(a_z bₓ − aₓ b_z) + a_z(aₓ b_y − a_y bₓ)。展开后六项两两抵消，结果是 0。由 1.2 课，点积为 0 就是垂直。对 b 同理。公式里那些"交叉"的下标，正是为了让这些项能互相抵消。</p>
+  <p class="en">Dot a with a × b: aₓ(a_y b_z − a_z b_y) + a_y(a_z bₓ − aₓ b_z) + a_z(aₓ b_y − a_y bₓ). Expand it and the six terms cancel in pairs, leaving 0. By lesson 1.2, a zero dot product means perpendicular. The same holds for b. The "crossed" indices in the formula are exactly what makes those terms cancel.</p>
+  <h3 class="zh">2. 长度：和点积是一对</h3><h3 class="en">2. Length: a partner of the dot product</h3>
+  <p class="zh">展开可以验证一个恒等式：|a × b|² + (a · b)² = |a|² |b|²。点积是 |a||b|cos θ，代进去得 |a × b|² = |a|²|b|²(1 − cos²θ) = |a|²|b|² sin²θ。所以 |a × b| = |a||b| sin θ。<b>点积量"沿着"的部分，叉积量"垂直"的部分</b>，两者的平方加起来正好是 |a|²|b|²。</p>
+  <p class="en">Expanding verifies an identity: |a × b|² + (a · b)² = |a|² |b|². The dot product is |a||b|cos θ, so |a × b|² = |a|²|b|²(1 − cos²θ) = |a|²|b|² sin²θ, and |a × b| = |a||b| sin θ. <b>The dot product measures the "along" part and the cross product the "across" part</b>; their squares add up to exactly |a|²|b|².</p>
+  <h3 class="zh">3. 为什么 |a||b| sin θ 是面积</h3><h3 class="en">3. Why |a||b| sin θ is an area</h3>
+  <p class="zh">平行四边形的面积 = 底 × 高。底是 |a|，高是 b 垂直于 a 的那部分，也就是 |b| sin θ。把 b 沿着 a 的方向推来推去，高不变，面积就不变（游戏第 2 关会让你亲手验证）。</p>
+  <p class="en">A parallelogram's area is base × height. The base is |a|; the height is the part of b perpendicular to a, which is |b| sin θ. Slide b along a's direction and the height, hence the area, stays the same (level 2 of the game has you check this yourself).</p>
+  <h3 class="zh">4. 物理：力矩</h3><h3 class="en">4. Physics: torque</h3>
+  <p class="zh">用扳手拧螺丝，力矩 τ = r × F：r 是从螺丝指向手的向量，F 是你用的力。只有垂直于扳手的那部分力（|F| sin θ）在拧，力臂越长越省力；力矩的方向沿着螺丝的轴，用右手定则判断是拧紧还是拧松。</p>
+  <p class="en">Turning a bolt with a wrench, the torque is τ = r × F, with r from the bolt to your hand and F your force. Only the part of the force perpendicular to the wrench (|F| sin θ) turns it, and a longer handle helps; the torque points along the bolt's axis, and the right-hand rule tells you whether it tightens or loosens.</p>
+</section>
+
+<section id="game">
+  <h2><span class="tag">Game</span><span class="zh">小游戏：三关，对应三个学习目标</span><span class="en">Game: three levels for three learning goals</span></h2>
+  <p class="meta zh">每一关只练一个学习目标。完成一关的全部任务后，会出现这一关要你记住的那句话。进度保存在你的浏览器里。</p>
+  <p class="meta en">Each level trains one learning goal. Finish all of a level's missions to unlock the one sentence it wants you to keep. Progress is saved in your browser.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="level">
+        <input type="radio" name="glv" id="gl1" value="0" checked><label for="gl1"><span class="zh">1 方向</span><span class="en">1 Direction</span><span id="gd0"></span></label>
+        <input type="radio" name="glv" id="gl2" value="1"><label for="gl2"><span class="zh">2 面积</span><span class="en">2 Area</span><span id="gd1"></span></label>
+        <input type="radio" name="glv" id="gl3" value="2"><label for="gl3"><span class="zh">3 三角形</span><span class="en">3 Triangles</span><span id="gd2"></span></label>
+      </span>
+    </div>
+    <p id="gTitle" style="margin:0;font-weight:600"></p>
+    <p class="meta" id="gIntro" style="margin:0"></p>
+    <p id="gAsk" style="margin:0;font-weight:600"></p>
+    <div class="row" data-lv="0">
+      <button type="button" id="g1A"><span class="chip" style="background:#e0a400"></span><span class="zh">黄色</span><span class="en">Yellow</span></button>
+      <button type="button" id="g1B"><span class="chip" style="background:#4b7bd8"></span><span class="zh">蓝色</span><span class="en">Blue</span></button>
+      <button type="button" id="g1Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+      <span class="meta" id="g1Info"></span>
+    </div>
+    <div class="row" data-lv="1">
+      <button type="button" id="g2Check"><span class="zh">检查</span><span class="en">Check</span></button>
+      <span class="meta" id="g2Info"></span>
+    </div>
+    <div class="row" data-lv="2">
+      <span class="seg" role="radiogroup" aria-label="mesh">
+        <input type="radio" name="mesh" id="mT" value="tet" checked><label for="mT"><span class="zh">四面体</span><span class="en">Tetrahedron</span></label>
+        <input type="radio" name="mesh" id="mC" value="cube"><label for="mC"><span class="zh">立方体</span><span class="en">Cube</span></label>
+        <input type="radio" name="mesh" id="mQ" value="quiz"><label for="mQ"><span class="zh">预测</span><span class="en">Predict</span></label>
+      </span>
+      <label class="meta" id="g3NRow"><input type="checkbox" id="g3N" checked> <span class="zh">显示法线</span><span class="en">Show normals</span></label>
+      <button type="button" id="g3Out"><span class="zh">朝向我</span><span class="en">Toward me</span></button>
+      <button type="button" id="g3In"><span class="zh">背离我</span><span class="en">Away from me</span></button>
+      <button type="button" id="g3Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+    </div>
+    <div class="stage3d" id="g3dWrap"><canvas id="g3d" aria-label="3D game board"></canvas></div>
+    <canvas id="g2d" width="720" height="440" aria-label="2D game board" hidden></canvas>
+    <p id="gFb" style="margin:0"></p>
+    <ul class="tests" id="gMissions"></ul>
+    <p id="gTake" hidden style="margin:0;padding:10px 12px;border-left:3px solid var(--good);background:var(--code);border-radius:4px"></p>
+  </div>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>在你的 <code>Vec3</code> 上加 <code>cross(v)</code>，再写三个三角形函数（A、B、C 都是 Vec3 的点）：</p>
+    <p class="en"><b>Task:</b> add <code>cross(v)</code> to your <code>Vec3</code>, then write three triangle functions (A, B, C are Vec3 points):</p>
+    <ul class="zh">
+      <li><code>cross(v)</code>：返回新的 Vec3，不修改自己。</li>
+      <li><code>triangleArea(A, B, C)</code>：返回面积。三点共线时返回 0。</li>
+      <li><code>triangleNormal(A, B, C)</code>：返回<b>单位</b>法线，方向按 (B − A) × (C − A)。三点共线（退化三角形）时返回 (0, 0, 0)，不能有 NaN。</li>
+      <li><code>isFrontFacing(A, B, C, eye)</code>：从 eye 这个点看过去，三角形的正面（法线那一面）朝向 eye 时返回 <code>true</code>。提示：用 1.2 课的点积。</li>
+    </ul>
+    <ul class="en">
+      <li><code>cross(v)</code>: returns a new Vec3 and leaves the original unchanged.</li>
+      <li><code>triangleArea(A, B, C)</code>: returns the area; 0 when the points are collinear.</li>
+      <li><code>triangleNormal(A, B, C)</code>: returns the <b>unit</b> normal in the direction of (B − A) × (C − A). For collinear points (a degenerate triangle) return (0, 0, 0), never NaN.</li>
+      <li><code>isFrontFacing(A, B, C, eye)</code>: returns <code>true</code> when the front (normal) side of the triangle faces the point eye. Hint: use the dot product from lesson 1.2.</li>
+    </ul>
+    <label for="code" class="meta"><span class="zh">你的代码（已填好你 1.2 的 Vec3）</span><span class="en">Your code (pre-filled with your Vec3 from 1.2)</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:440px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  angleTo(v) {
+    const d = this.length() * v.length();
+    if (d === 0) return Math.PI / 2;
+    const cos = Math.max(-1, Math.min(1, this.dot(v) / d));
+    return Math.acos(cos);
+  }
+  projectOnto(b) {
+    if (b.length() === 0) return new Vec3(0, 0, 0);
+    const s = this.dot(b) / b.length();
+    return b.scale(s / b.length());
+  }
+
+  // ---- 1.3 新增 / new in 1.3 ----
+  cross(v) { /* TODO */ }
+}
+
+function triangleArea(A, B, C)        { /* TODO */ }
+function triangleNormal(A, B, C)      { /* TODO */ }
+function isFrontFacing(A, B, C, eye)  { /* TODO */ }</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
+      <p class="zh">isFrontFacing：先求法线 n，再求从三角形指向眼睛的向量 eye − A。两者同向（点积 &gt; 0）就是正面朝着眼睛。法线需要归一化吗？想想 1.2 课"只看正负"的结论。</p>
+      <p class="en">isFrontFacing: get the normal n, then the vector from the triangle to the eye, eye − A. If they point the same way (dot product &gt; 0) the front faces the eye. Does the normal need normalizing? Recall lesson 1.2's "sign only" rule.</p>
+    </details>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">  cross(v) {
+    return new Vec3(this.y * v.z - this.z * v.y,
+                    this.z * v.x - this.x * v.z,
+                    this.x * v.y - this.y * v.x);
+  }
+
+function triangleArea(A, B, C) {
+  return B.sub(A).cross(C.sub(A)).length() / 2;
+}
+function triangleNormal(A, B, C) {
+  return B.sub(A).cross(C.sub(A)).normalize();   // 零向量时 normalize 返回 (0,0,0)
+}
+function isFrontFacing(A, B, C, eye) {
+  const n = B.sub(A).cross(C.sub(A));             // 只看正负，不用归一化
+  return n.dot(eye.sub(A)) > 0;
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>顺序写反。</b>a × b 和 b × a 方向相反。三角形法线写成 (C − A) × (B − A)，所有面都会朝里，光照全黑，或者被背面剔除后整个模型看不见。</li>
+    <li><b>以为叉积是数。</b>3D 的叉积是向量。2D 里常说的"叉积"其实是它的 z 分量，一个带正负的数。</li>
+    <li><b>忘了归一化。</b>(B − A) × (C − A) 的长度是面积的 2 倍，不是 1。直接拿去做光照，大三角形会比小三角形亮。</li>
+    <li><b>退化三角形。</b>三点共线时叉积是零向量，归一化会得到 NaN。真实模型里经常有这种"细长到没有面积"的三角形。</li>
+    <li><b>左手系和右手系。</b>three.js、OpenGL 用右手坐标系；Unity 用左手坐标系。公式一样，但同样的数字在两种坐标系里画出来方向相反，在引擎之间搬数据时要小心。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Swapping the order.</b> a × b and b × a point in opposite directions. Write a triangle normal as (C − A) × (B − A) and every face points inward: lighting goes black, or back-face culling makes the whole model vanish.</li>
+    <li><b>Treating it as a number.</b> The 3D cross product is a vector. The "2D cross product" people mention is really its z component, a signed number.</li>
+    <li><b>Forgetting to normalize.</b> (B − A) × (C − A) has length twice the area, not 1. Use it directly for lighting and large triangles come out brighter than small ones.</li>
+    <li><b>Degenerate triangles.</b> With collinear points the cross product is the zero vector and normalizing gives NaN. Real meshes often contain such sliver triangles with no area.</li>
+    <li><b>Left- vs right-handed.</b> three.js and OpenGL use right-handed coordinates; Unity uses left-handed. The formula is the same, but the same numbers point in opposite drawn directions, so take care when moving data between engines.</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. (1, 0, 0) × (0, 1, 0) 是什么？(0, 1, 0) × (1, 0, 0) 呢？</span><span class="en">1. What is (1, 0, 0) × (0, 1, 0)? And (0, 1, 0) × (1, 0, 0)?</span></summary>
+    <p class="zh">x × y = z，即 (0, 0, 1)；反过来是 (0, 0, −1)。</p><p class="en">x × y = z, that is (0, 0, 1); reversed it is (0, 0, −1).</p></details>
+  <details><summary><span class="zh">2. 三角形 A(0,0,0)、B(4,0,0)、C(0,3,0) 的面积和单位法线是什么？</span><span class="en">2. What are the area and unit normal of A(0,0,0), B(4,0,0), C(0,3,0)?</span></summary>
+    <p class="zh">(4,0,0) × (0,3,0) = (0,0,12)，面积 12 / 2 = 6，单位法线 (0,0,1)。</p><p class="en">(4,0,0) × (0,3,0) = (0,0,12), area 12 / 2 = 6, unit normal (0,0,1).</p></details>
+  <details><summary><span class="zh">3. 两个非零向量的叉积是零向量，说明什么？</span><span class="en">3. Two non-zero vectors have a zero cross product. What does that tell you?</span></summary>
+    <p class="zh">sin θ = 0，它们平行（同向或反向），张不出面积。</p><p class="en">sin θ = 0: they are parallel (same or opposite direction) and span no area.</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><a href="https://www.3blue1brown.com/lessons/cross-products" target="_blank" rel="noopener"><span class="zh">3Blue1Brown《线性代数的本质》第 10 集：叉积</span><span class="en">3Blue1Brown, Essence of Linear Algebra, ch. 10: Cross products</span></a></li>
+    <li><span class="zh">GAMES101 第 2 讲：线性代数回顾（叉积部分，B 站官方视频）</span><span class="en">GAMES101 lecture 2: Review of Linear Algebra, cross product part (in Chinese, official Bilibili video)</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 2 章向量部分：叉积</span><span class="en">chapter 2, vectors: the cross product</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+// 本课的 3D 演示和小游戏 / this lesson's 3D demo and game
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const $ = id => document.getElementById(id);
+const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const f2 = x => (Math.abs(x) < 0.005 ? 0 : x).toFixed(2);
+const fv = v => `(${f2(v.x)}, ${f2(v.y)}, ${f2(v.z)})`;
+const isZh = () => lang() === "zh";
+const onTheme = [];
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => onTheme.forEach(f => f()));
+new MutationObserver(() => onTheme.forEach(f => f())).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---- 粗箭头 / a thick arrow ----
+function makeArrow(color, r = 0.04){
+  const g = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ color });
+  const shaftGeo = new THREE.CylinderGeometry(r, r, 1, 12); shaftGeo.translate(0, 0.5, 0);
+  const headGeo = new THREE.ConeGeometry(r * 2.8, 1, 16); headGeo.translate(0, 0.5, 0);
+  const shaft = new THREE.Mesh(shaftGeo, mat), head = new THREE.Mesh(headGeo, mat); g.add(shaft, head);
+  g.userData.set = (origin, v) => {
+    const L = v.length(); g.visible = L > 1e-4; if (!g.visible) return;
+    const hl = Math.min(0.28, L * 0.45);
+    g.position.copy(origin); g.quaternion.setFromUnitVectors(V3(0, 1, 0), v.clone().normalize());
+    shaft.scale.set(1, Math.max(L - hl, 1e-4), 1); head.scale.set(1, hl, 1); head.position.y = L - hl;
+  };
+  g.userData.mat = mat;
+  return g;
+}
+// ---- 渲染器 / renderer on a canvas, rendered on demand ----
+function makeView(canvas, camPos){
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(45, 16 / 10, 0.1, 100);
+  camera.position.copy(camPos); camera.lookAt(0, 0, 0);
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.8); dl.position.set(3, 6, 5); scene.add(dl);
+  const view = { renderer, scene, camera, canvas, controls: null, draw: () => {} };
+  view.render = () => { view.draw(); renderer.render(scene, camera); };
+  const fit = () => { const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); view.render(); };
+  new ResizeObserver(fit).observe(canvas);
+  const bg = () => { scene.background = new THREE.Color(css("--surface")); view.render(); }; bg(); onTheme.push(bg);
+  view.attachControls = () => { const c = new OrbitControls(camera, canvas); c.enableDamping = false; c.enablePan = false; c.addEventListener("change", view.render); view.controls = c; return c; };
+  view.screen = p => { const q = p.clone().project(camera), r = canvas.getBoundingClientRect(); return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height }; };
+  view.ray = e => { const r = canvas.getBoundingClientRect(), rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera); return rc; };
+  return view;
+}
+function quad(color, opacity){ const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12), 3)); g.setIndex([0, 1, 2, 0, 2, 3]);
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false })); }
+function setQuad(m, pts){ const a = m.geometry.attributes.position; pts.forEach((p, i) => a.setXYZ(i, p.x, p.y, p.z)); a.needsUpdate = true; m.geometry.computeBoundingSphere(); }
+
+// ==================== 演示 / demo ====================
+(function(){
+  const S = {
+    zh: { a: "a", b: "b", c: "a × b", cs: "b × a", len: "|a × b|", sin: "|a| |b| sin θ", area: "平行四边形面积", tri: "三角形面积", perp: "垂直检查",
+          par: "a 和 b 几乎平行：张不出面积，叉积是零向量。", rh: "右手定则：四指指向 a，朝 b 弯过去，大拇指就是绿色箭头的方向。", rhs: "现在算的是 b × a：四指从 b 弯向 a，大拇指反过来了，长度不变。" },
+    en: { a: "a", b: "b", c: "a × b", cs: "b × a", len: "|a × b|", sin: "|a| |b| sin θ", area: "parallelogram area", tri: "triangle area", perp: "perpendicular check",
+          par: "a and b are almost parallel: they span no area, so the cross product is the zero vector.", rh: "Right-hand rule: fingers along a, curl toward b, and your thumb points along the green arrow.", rhs: "This is b × a: curl from b to a and the thumb flips; the length stays the same." }
+  };
+  const view = makeView($("view"), V3(5, 5.5, 8));
+  const { scene } = view;
+  const grid = new THREE.GridHelper(10, 10); scene.add(grid);
+  const pgrid = new THREE.GridHelper(6, 12); pgrid.material.transparent = true; pgrid.material.opacity = 0.5; scene.add(pgrid);
+  const A = makeArrow(0xb8336a), B = makeArrow(0x0f7c74), C = makeArrow(0x2f9e44, 0.055); scene.add(A, B, C);
+  const par = quad(0x2f9e44, 0.25); scene.add(par);
+  const tipA = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), new THREE.MeshBasicMaterial({ color: 0xb8336a })), tipB = tipA.clone(); tipB.material = new THREE.MeshBasicMaterial({ color: 0x0f7c74 }); scene.add(tipA, tipB);
+  let ua = { u: 2, v: 0.4 }, ub = { u: 0.6, v: 2 }, drag = null;
+  const tilt = () => +$("tilt").value * Math.PI / 180;
+  const basis = () => { const t = tilt(); return { e1: V3(1, 0, 0), e2: V3(0, Math.sin(t), -Math.cos(t)), n: V3(0, Math.cos(t), Math.sin(t)) }; };
+  const world = (p, bs) => bs.e1.clone().multiplyScalar(p.u).add(bs.e2.clone().multiplyScalar(p.v));
+  const recolor = () => { const l = new THREE.Color(css("--line")), m = new THREE.Color(css("--muted"));
+    [grid, pgrid].forEach(g => { const c = g.geometry.attributes.color; for (let i = 0; i < c.count; i++) c.setXYZ(i, ...(g === grid ? l : m).toArray()); c.needsUpdate = true; }); view.render(); };
+  view.draw = () => {
+    const bs = basis(), a = world(ua, bs), b = world(ub, bs), sw = $("swap").checked, c = sw ? b.clone().cross(a) : a.clone().cross(b), O = V3();
+    pgrid.rotation.x = tilt();
+    A.userData.set(O, a); B.userData.set(O, b); C.userData.set(O, c); tipA.position.copy(a); tipB.position.copy(b);
+    setQuad(par, [O, a, a.clone().add(b), b]);
+    const t = S[lang()], La = a.length(), Lb = b.length(), th = a.angleTo(b);
+    $("tiltOut").textContent = $("tilt").value + "°";
+    $("cOut").innerHTML = [["a", fv(a)], ["b", fv(b)], [sw ? t.cs : t.c, `<b>${fv(c)}</b>`], [t.len, `<b>${f2(c.length())}</b>`],
+      [t.sin, `${f2(La)} × ${f2(Lb)} × ${f2(Math.sin(th))} = ${f2(La * Lb * Math.sin(th))}`], [t.area, f2(c.length())], [t.tri, f2(c.length() / 2)],
+      [t.perp, `a · c = ${f2(a.dot(c))},  b · c = ${f2(b.dot(c))}`]].map(([x, y]) => `<dt>${x}</dt><dd>${y}</dd>`).join("");
+    $("cNote").textContent = c.length() < 0.05 ? t.par : sw ? t.rhs : t.rh;
+  };
+  const canvas = $("view");
+  canvas.addEventListener("pointerdown", e => { const bs = basis();
+    for (const [k, p] of [["a", world(ua, bs)], ["b", world(ub, bs)]]){ const s = view.screen(p); if (Math.hypot(s.x - e.clientX, s.y - e.clientY) < 24){ drag = k; break; } }
+    if (drag){ view.controls.enabled = false; canvas.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  canvas.addEventListener("pointermove", e => { if (!drag) return; const bs = basis(), hit = V3();
+    if (!view.ray(e).ray.intersectPlane(new THREE.Plane(bs.n, 0), hit)) return;
+    let u = hit.dot(bs.e1), v = hit.dot(bs.e2); const L = Math.hypot(u, v); if (L < 0.3) return; if (L > 2.5){ u *= 2.5 / L; v *= 2.5 / L; }
+    const p = { u: Math.round(u * 10) / 10, v: Math.round(v * 10) / 10 }; if (drag === "a") ua = p; else ub = p; view.render(); });
+  canvas.addEventListener("pointerup", () => { drag = null; view.controls.enabled = true; });
+  view.attachControls();
+  $("tilt").addEventListener("input", view.render); $("swap").addEventListener("change", view.render);
+  onLangChange.push(view.render); onTheme.push(recolor); recolor();
+})();
+
+// ==================== 小游戏 / game ====================
+(function(){
+  const KEY = "3dl-game-1.3";
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+  let lv = 0, fb = null;
+  function done(l, i){ saved[l] = saved[l] || []; if (saved[l][i]) return; saved[l][i] = true; save(); fb = LV[l].missions[i].note; }
+  const isDone = (l, i) => !!(saved[l] || [])[i];
+
+  const view = makeView($("g3d"), V3(2.8, 2.6, 4.6));
+  view.attachControls();
+  const groups = [new THREE.Group(), new THREE.Group()]; view.scene.add(...groups); // 第 1、3 关的内容 / content of levels 1 and 3
+  const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+  const randUnit = () => { const z = rand(-1, 1), t = rand(0, 2 * Math.PI), r = Math.sqrt(1 - z * z); return V3(r * Math.cos(t), z, r * Math.sin(t)); };
+
+  // ---------- 第 1 关：哪边是 a × b / level 1: which way is a × b ----------
+  const L1 = {
+    title: { zh: "第 1 关 · 拇指朝哪边（目标：方向和顺序）", en: "Level 1 · Where does the thumb point? (goal: direction and order)" },
+    intro: { zh: "a（玫红）和 b（青）在空间里随机摆放，黄色和蓝色是两个候选方向，都垂直于 a 和 b。用右手定则判断哪一个是题目问的叉积。可以拖动画面换个角度看。", en: "a (magenta) and b (teal) are placed at random. The yellow and blue arrows are two candidates, both perpendicular to a and b. Use the right-hand rule to pick the one the question asks for. Drag the view to look from another angle." },
+    missions: [
+      { zh: "答对 3 道「a × b」题", en: "Answer 3 \"a × b\" questions correctly", note: { zh: "四指从第一个向量弯向第二个向量，拇指就是叉积的方向。", en: "Curl from the first vector toward the second; the thumb is the cross product." } },
+      { zh: "答对 2 道「b × a」题", en: "Answer 2 \"b × a\" questions correctly", note: { zh: "顺序一换，弯的方向反了，拇指也反了：b × a = −(a × b)。", en: "Swap the order and the curl reverses, so the thumb flips: b × a = −(a × b)." } },
+      { zh: "连续答对 6 题", en: "Get 6 in a row", note: { zh: "瞎猜连对 6 题的概率只有 1/64，你已经掌握右手定则了。", en: "Guessing 6 in a row has a 1 in 64 chance; you have the right-hand rule down." } }
+    ],
+    take: { zh: "a × b 同时垂直于 a 和 b，方向由右手定则决定：四指从 a 弯向 b，拇指所指。顺序很重要，b × a = −(a × b)，三角形法线写反了顺序，整个面就朝里了。", en: "a × b is perpendicular to both a and b, and its direction follows the right-hand rule: curl from a toward b and follow the thumb. Order matters: b × a = −(a × b), and a triangle normal with the order reversed points inward." },
+    s: { count: { ab: 0, ba: 0 }, streak: 0, round: null },
+    A: makeArrow(0xb8336a), B: makeArrow(0x0f7c74), Y: makeArrow(0xe0a400, 0.05), Bl: makeArrow(0x4b7bd8, 0.05), P: quad(0x888888, 0.18),
+    init(){ groups[0].add(this.A, this.B, this.Y, this.Bl, this.P); this.newRound(); },
+    newRound(){
+      const vd = view.camera.position.clone().normalize(), side = v => Math.abs(v.clone().normalize().dot(vd));
+      let a, b, n; do { a = randUnit().multiplyScalar(rand(1.4, 2.2)); b = randUnit().multiplyScalar(rand(1.4, 2.2)); n = a.clone().cross(b); }
+      while (Math.abs(a.clone().normalize().dot(b.clone().normalize())) > 0.6 || side(a) > 0.8 || side(b) > 0.8 || side(n) > 0.85);   // 避开正对镜头的方向 / avoid directions pointing at the camera
+      const ba = Math.random() < 0.35, c = (ba ? b.clone().cross(a) : a.clone().cross(b)).normalize().multiplyScalar(1.8), yellowRight = Math.random() < 0.5;
+      this.s.round = { a, b, ba, c, yellowRight, answered: false };
+      fb = null; this.sync();
+    },
+    sync(){ const r = this.s.round, O = V3();
+      this.A.userData.set(O, r.a); this.B.userData.set(O, r.b);
+      this.Y.userData.set(O, r.yellowRight ? r.c : r.c.clone().negate()); this.Bl.userData.set(O, r.yellowRight ? r.c.clone().negate() : r.c);
+      setQuad(this.P, [O, r.a, r.a.clone().add(r.b), r.b]);
+      const right = r.yellowRight ? this.Y : this.Bl, wrong = r.yellowRight ? this.Bl : this.Y;
+      [this.Y, this.Bl].forEach(x => { x.userData.mat.transparent = false; x.userData.mat.opacity = 1; });
+      right.userData.mat.color.set(r.answered ? 0x2f9e44 : (r.yellowRight ? 0xe0a400 : 0x4b7bd8));
+      wrong.userData.mat.transparent = true; wrong.userData.mat.opacity = r.answered ? 0.2 : 1; wrong.userData.mat.color.set(r.yellowRight ? 0x4b7bd8 : 0xe0a400);
+      view.render(); },
+    answer(yellow){ const r = this.s.round; if (r.answered) return; r.answered = true; const ok = yellow === r.yellowRight, s = this.s;
+      if (ok){ s.streak++; if (r.ba) s.count.ba++; else s.count.ab++; } else s.streak = 0;
+      if (s.count.ab >= 3) done(0, 0); if (s.count.ba >= 2) done(0, 1); if (s.streak >= 6) done(0, 2);
+      if (!fb || ok === false) fb = ok ? { zh: "答对了。", en: "Correct." } : { zh: `不对。${r.ba ? "这题是 b × a：四指从 b 弯向 a。" : "这题是 a × b：四指从 a 弯向 b。"}正确答案已变成绿色，转动视角对照一下右手。`, en: `Not quite. ${r.ba ? "This one is b × a: curl from b toward a." : "This one is a × b: curl from a toward b."} The right answer is now green; orbit the view and check it with your hand.` };
+      this.sync(); render(); },
+    ask(){ const r = this.s.round; return r ? (isZh() ? `哪个是 ${r.ba ? "b × a" : "a × b"}？` : `Which one is ${r.ba ? "b × a" : "a × b"}?`) : ""; },
+    controls(){ const r = this.s.round; $("g1A").hidden = $("g1B").hidden = r.answered; $("g1Next").hidden = !r.answered;
+      const s = this.s; $("g1Info").textContent = isZh() ? `a × b 答对 ${s.count.ab} · b × a 答对 ${s.count.ba} · 连对 ${s.streak}` : `a × b right: ${s.count.ab} · b × a right: ${s.count.ba} · streak ${s.streak}`; }
+  };
+
+  // ---------- 第 2 关：面积 / level 2: area (2D) ----------
+  const cv = $("g2d"), ctx = cv.getContext("2d"), U = 50, O2 = { x: 220, y: 300 }, a2 = { x: 3, y: 0 };
+  const L2 = {
+    title: { zh: "第 2 关 · 张出指定的面积（目标：|a × b| = 面积）", en: "Level 2 · Span the target area (goal: |a × b| = area)" },
+    intro: { zh: "a 固定为 (3, 0)。拖动 b 的箭头尖，按\"检查\"。在 2D 里 a × b 只剩 z 分量 aₓb_y − a_ybₓ：它的大小是平行四边形面积，正负表示 b 在 a 的左边还是右边。画面上不显示数值，数网格来判断。", en: "a is fixed at (3, 0). Drag the tip of b, then press Check. In 2D, a × b keeps only its z component aₓb_y − a_ybₓ: its size is the parallelogram's area and its sign says whether b is left or right of a. No numbers are shown; count grid squares." },
+    missions: [
+      { zh: "让 a × b 的 z 分量 = +6", en: "Make the z component of a × b equal +6", t: v => Math.abs(3 * v.y - 6) < 0.16,
+        note: { zh: "面积 = 底 × 高 = 3 × 2。高就是 b 垂直于 a 的那部分，|b| sin θ。", en: "Area = base × height = 3 × 2. The height is the part of b perpendicular to a, |b| sin θ." } },
+      { zh: "还是 +6，但 b 的长度至少是 5", en: "+6 again, but with b at least 5 long", t: v => Math.abs(3 * v.y - 6) < 0.16 && Math.hypot(v.x, v.y) >= 5,
+        note: { zh: "把 b 沿 a 的方向推远，高不变，面积就不变：|b| 变大了，sin θ 等比例变小。", en: "Slide b along a: the height stays, so the area stays. |b| grew and sin θ shrank in proportion." } },
+      { zh: "让 z 分量 = −4.5", en: "Make the z component −4.5", t: v => Math.abs(3 * v.y + 4.5) < 0.16,
+        note: { zh: "负号表示 b 在 a 的右边（顺时针）。3D 里就是叉积指向屏幕里面。", en: "Negative means b is to the right of a (clockwise); in 3D the cross product points into the screen." } },
+      { zh: "让 z 分量 = 0，但 b 的长度至少是 2", en: "Make the z component 0 with b at least 2 long", t: v => Math.abs(v.y) < 0.05 && Math.hypot(v.x, v.y) >= 2,
+        note: { zh: "平行（sin θ = 0）张不出面积。这就是退化三角形：法线归一化会得到 NaN。", en: "Parallel vectors (sin θ = 0) span no area. That is a degenerate triangle, whose normal becomes NaN when normalized." } },
+      { zh: "让三角形 O、a、b 的面积 = 3（正负不论）", en: "Make the triangle O, a, b have area 3 (either sign)", t: v => Math.abs(Math.abs(3 * v.y) / 2 - 3) < 0.08,
+        note: { zh: "三角形是平行四边形的一半：|a × b| = 6，面积 = 3。所以三角形面积公式要除以 2。", en: "A triangle is half the parallelogram: |a × b| = 6 gives area 3, which is why the triangle formula divides by 2." } }
+    ],
+    take: { zh: "|a × b| = |a| |b| sin θ = 底 × 高，就是 a、b 张成的平行四边形面积；三角形是它的一半。沿 a 推 b 不改变面积，平行时面积为 0。2D 里 z 分量的正负告诉你 b 在 a 的左边还是右边。", en: "|a × b| = |a| |b| sin θ = base × height, the area of the parallelogram spanned by a and b; a triangle is half of it. Sliding b along a keeps the area, and parallel vectors give 0. In 2D the sign of the z component tells left from right." },
+    b: { x: 1, y: 1 }, drag: false,
+    cur(){ return this.missions.findIndex((_, i) => !isDone(1, i)); },
+    P(v){ return { x: O2.x + v.x * U, y: O2.y - v.y * U }; },
+    draw(){
+      const P = v => this.P(v), b = this.b, A = css("--accent-2"), B = css("--accent"), G = css("--good");
+      ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+      for (let x = O2.x % U; x < cv.width; x += U){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, cv.height); ctx.stroke(); }
+      for (let y = O2.y % U; y < cv.height; y += U){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(cv.width, y + .5); ctx.stroke(); }
+      ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, O2.y + .5); ctx.lineTo(cv.width, O2.y + .5); ctx.moveTo(O2.x + .5, 0); ctx.lineTo(O2.x + .5, cv.height); ctx.stroke();
+      const z = 3 * b.y; ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = z >= 0 ? G : A; ctx.beginPath(); [{ x: 0, y: 0 }, a2, { x: 3 + b.x, y: b.y }, b].map(P).forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.fill(); ctx.restore();
+      const arrow = (v, col, from = { x: 0, y: 0 }, w = 3, dash) => { const p0 = P(from), p1 = P({ x: from.x + v.x, y: from.y + v.y }); ctx.save(); ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w; if (dash) ctx.setLineDash(dash);
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]); const g = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p1.x - 12 * Math.cos(g - .4), p1.y - 12 * Math.sin(g - .4)); ctx.lineTo(p1.x - 12 * Math.cos(g + .4), p1.y - 12 * Math.sin(g + .4)); ctx.fill(); ctx.restore(); };
+      arrow(b, B, a2, 1.5, [5, 4]); arrow(a2, A, b, 1.5, [5, 4]); arrow(a2, A); arrow(b, B);
+      ctx.font = "600 16px " + css("--f-mono"); ctx.fillStyle = A; const pa = P(a2); ctx.fillText("a", pa.x + 6, pa.y + 20); ctx.fillStyle = B; const pb = P(b); ctx.fillText("b", pb.x + 8, pb.y - 8);
+      ctx.fillStyle = B; ctx.beginPath(); ctx.arc(pb.x, pb.y, 6, 0, 7); ctx.fill();
+    },
+    check(){ const i = this.cur(); if (i < 0) return; const z = 3 * this.b.y, m = this.missions[i];
+      if (m.t(this.b)) done(1, i);
+      else fb = { zh: `还差一点：现在 z = ${f2(z)}（底 3 × 高 ${f2(this.b.y)}），|b| = ${f2(Math.hypot(this.b.x, this.b.y))}，三角形面积 ${f2(Math.abs(z) / 2)}。`, en: `Not yet: z = ${f2(z)} now (base 3 × height ${f2(this.b.y)}), |b| = ${f2(Math.hypot(this.b.x, this.b.y))}, triangle area ${f2(Math.abs(z) / 2)}.` };
+      render(); },
+    ask(){ const i = this.cur(); return i < 0 ? (isZh() ? "全部完成，可以继续随意拖动。" : "All done; feel free to keep dragging.") : (isZh() ? "当前任务：" : "Current mission: ") + this.missions[i][lang()]; }
+  };
+  const pos2 = e => { const r = cv.getBoundingClientRect(); return { x: ((e.clientX - r.left) * cv.width / r.width - O2.x) / U, y: (O2.y - (e.clientY - r.top) * cv.height / r.height) / U }; };
+  cv.addEventListener("pointerdown", e => { const p = pos2(e); if (Math.hypot(p.x - L2.b.x, p.y - L2.b.y) < 0.6){ L2.drag = true; cv.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  cv.addEventListener("pointermove", e => { if (!L2.drag) return; const p = pos2(e);
+    L2.b = { x: Math.max(-4, Math.min(9.5, Math.round(p.x * 10) / 10)), y: Math.max(-2.8, Math.min(2.8, Math.round(p.y * 10) / 10)) }; L2.draw(); });
+  cv.addEventListener("pointerup", () => L2.drag = false);
+
+  // ---------- 第 3 关：三角形的绕序 / level 3: triangle winding ----------
+  const FRONT = 0x9fd8cf, BACK = 0xd84a86;
+  const L3 = {
+    title: { zh: "第 3 关 · 修好翻面的三角形（目标：绕序决定法线）", en: "Level 3 · Fix the flipped triangles (goal: winding decides the normal)" },
+    intro: { zh: "每个三角形的法线按 (B − A) × (C − A) 计算（绿色短箭头）。法线朝外的面显示为浅青色；朝里的面你看到的是它的背面，显示为玫红色。点击一个三角形会交换它的 B 和 C，绕序反过来，法线也反过来。", en: "Each triangle's normal is (B − A) × (C − A) (short green arrows). Faces whose normal points out are light teal; for faces pointing in you see their back, shown in magenta. Click a triangle to swap its B and C: the winding reverses, and so does the normal." },
+    missions: [
+      { zh: "把四面体修好：所有法线朝外", en: "Fix the tetrahedron: every normal points out", note: { zh: "交换两个顶点，绕序从逆时针变成顺时针，叉积就反向了。", en: "Swapping two vertices turns the winding from counter-clockwise to clockwise, and the cross product reverses." } },
+      { zh: "把立方体修好，而且一下也不多点（只点翻了的）", en: "Fix the cube without a single wasted click (only the flipped ones)", note: { zh: "每点一次，法线就翻一次：点两次等于没点。", en: "Each click flips the normal once: two clicks undo each other." } },
+      { zh: "「预测」：连续答对 3 题，判断 (B − A) × (C − A) 朝向你还是背离你", en: "Predict: 3 in a row, saying whether (B − A) × (C − A) points toward you or away", note: { zh: "从你的视角看，A → B → C 是逆时针，法线就朝向你；顺时针就背离你。three.js 默认把逆时针那面当正面。", en: "Seen from where you are, A → B → C counter-clockwise means the normal points at you; clockwise means away. three.js treats the counter-clockwise side as the front by default." } }
+    ],
+    take: { zh: "三角形的法线是 (B − A) × (C − A)，方向由顶点顺序（绕序）决定：从外面看逆时针，法线就朝外。交换任意两个顶点，法线就反向。模型的绕序弄错了，光照会变黑，开了背面剔除的面还会直接消失。", en: "A triangle's normal is (B − A) × (C − A), and its direction is set by the vertex order (winding): counter-clockwise seen from outside means the normal points out. Swap any two vertices and the normal reverses. Get a mesh's winding wrong and its lighting goes black, and with back-face culling the faces simply vanish." },
+    s: { mode: "tet", tris: [], clicks: 0, flipped0: 0, quiz: null, streak: 0 },
+    group: groups[1],
+    build(kind){
+      this.group.clear(); const s = this.s; s.mode = kind; s.tris = []; s.clicks = 0;
+      if (kind === "quiz"){ this.newQuiz(); return; }
+      let verts, faces = [];
+      if (kind === "tet"){ verts = [V3(1, 1, 1), V3(1, -1, -1), V3(-1, 1, -1), V3(-1, -1, 1)].map(v => v.multiplyScalar(1.2)); faces = [[0, 1, 2], [0, 1, 3], [0, 2, 3], [1, 2, 3]]; }
+      else { verts = []; for (let i = 0; i < 8; i++) verts.push(V3(i & 1 ? 1.2 : -1.2, i & 2 ? 1.2 : -1.2, i & 4 ? 1.2 : -1.2));
+        [[0, 1, 3, 2], [4, 5, 7, 6], [0, 1, 5, 4], [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5]].forEach(([p, q, r, t]) => { faces.push([p, q, r], [p, r, t]); }); }
+      faces = faces.map(f => { const [A, B, C] = f.map(i => verts[i]), n = B.clone().sub(A).cross(C.clone().sub(A)), cen = A.clone().add(B).add(C);
+        return n.dot(cen) > 0 ? f : [f[0], f[2], f[1]]; });          // 先全部摆成朝外 / start all outward
+      const nFlip = kind === "tet" ? 2 : 5, idx = faces.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, nFlip);
+      idx.forEach(i => { const f = faces[i]; faces[i] = [f[0], f[2], f[1]]; }); s.flipped0 = nFlip;
+      faces.forEach(f => this.addTri(f.map(i => verts[i].clone())));
+      fb = null; view.render();
+    },
+    addTri(P){
+      const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+      const front = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: FRONT, side: THREE.FrontSide })), back = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: BACK, side: THREE.BackSide }));
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0, 0, 0)), new THREE.LineBasicMaterial({ color: 0x334444 }));
+      const n = makeArrow(0x2f9e44, 0.025); const t = { P, geo, front, back, n, edges }; front.userData.tri = back.userData.tri = t;
+      this.group.add(front, back, n, edges); this.s.tris.push(t); this.updTri(t); return t;
+    },
+    updTri(t){ const a = t.geo.attributes.position; t.P.forEach((p, i) => a.setXYZ(i, p.x, p.y, p.z)); a.needsUpdate = true; t.geo.computeVertexNormals(); t.geo.computeBoundingSphere();
+      t.edges.geometry.dispose(); t.edges.geometry = new THREE.EdgesGeometry(t.geo);
+      const [A, B, C] = t.P, nn = B.clone().sub(A).cross(C.clone().sub(A)).normalize(), cen = A.clone().add(B).add(C).multiplyScalar(1 / 3);
+      t.n.userData.set(cen, nn.multiplyScalar(0.55)); t.n.visible = $("g3N").checked; },
+    outward(t){ const [A, B, C] = t.P; return B.clone().sub(A).cross(C.clone().sub(A)).dot(A.clone().add(B).add(C)) > 0; },
+    click(t){ const s = this.s; if (s.mode === "quiz") return; [t.P[1], t.P[2]] = [t.P[2], t.P[1]]; s.clicks++; this.updTri(t);
+      const ok = s.tris.every(x => this.outward(x));
+      if (ok && s.mode === "tet") done(2, 0);
+      if (ok && s.mode === "cube"){ if (s.clicks === s.flipped0) done(2, 1); else fb = { zh: `修好了，但点了 ${s.clicks} 下（需要 ${s.flipped0} 下）。再来一次：只点玫红色的面。`, en: `Fixed, but with ${s.clicks} clicks (${s.flipped0} needed). Try again, clicking only magenta faces.` }; }
+      view.render(); render(); },
+    newQuiz(){ this.group.clear(); const s = this.s; s.tris = [];
+      let n; do { n = randUnit(); } while (Math.abs(n.dot(view.camera.position.clone().normalize())) < 0.5);   // 别让三角形侧对镜头 / keep the triangle from being edge-on
+      const u = V3(1, 0, 0).cross(n).lengthSq() > 0.1 ? V3(1, 0, 0).cross(n).normalize() : V3(0, 1, 0).cross(n).normalize(), w = n.clone().cross(u);
+      const ang = [0, 2.1, 4.2].map(x => x + rand(-0.35, 0.35)), cw = Math.random() < 0.5;
+      const P = ang.map(g => u.clone().multiplyScalar(Math.cos(g) * 1.6).add(w.clone().multiplyScalar(Math.sin(g) * 1.6)));
+      if (cw) [P[1], P[2]] = [P[2], P[1]];
+      const geo = new THREE.BufferGeometry().setFromPoints(P); geo.computeVertexNormals();
+      this.group.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xbfbfbf, side: THREE.DoubleSide })));
+      const ln = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(P), new THREE.LineBasicMaterial({ color: 0x333333 })); this.group.add(ln);
+      [0xe04848, 0x2f9e44, 0x4b7bd8].forEach((c, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), new THREE.MeshBasicMaterial({ color: c })); m.position.copy(P[i]); this.group.add(m); });
+      const nn = P[1].clone().sub(P[0]).cross(P[2].clone().sub(P[0])).normalize(), arr = makeArrow(0x2f9e44, 0.04); arr.visible = false; this.group.add(arr);
+      s.quiz = { P, nn, arr, answered: false }; fb = null; view.render(); },
+    answerQuiz(toward){ const q = this.s.quiz, s = this.s; if (!q || q.answered) return; q.answered = true;
+      const cen = q.P[0].clone().add(q.P[1]).add(q.P[2]).multiplyScalar(1 / 3), real = q.nn.dot(view.camera.position.clone().sub(cen)) > 0, ok = real === toward;
+      q.arr.userData.set(cen, q.nn.clone().multiplyScalar(1.4));
+      s.streak = ok ? s.streak + 1 : 0; if (s.streak >= 3) done(2, 2);
+      if (!isDone(2, 2) || !ok) fb = ok ? { zh: `答对了（连对 ${s.streak}）。绿色箭头就是法线。`, en: `Correct (streak ${s.streak}). The green arrow is the normal.` }
+        : { zh: "不对。从你的视角看 红 → 绿 → 蓝 是" + (real ? "逆时针，所以法线朝向你。" : "顺时针，所以法线背离你。"), en: "Not quite. From where you are, red → green → blue runs " + (real ? "counter-clockwise, so the normal points at you." : "clockwise, so the normal points away.") };
+      view.render(); render(); },
+    ask(){ const m = this.s.mode; if (m === "quiz") return isZh() ? "A 红、B 绿、C 蓝：从你现在的视角看，n = (B − A) × (C − A) 朝向你还是背离你？" : "A red, B green, C blue: from where you are now, does n = (B − A) × (C − A) point toward you or away?";
+      const bad = this.s.tris.filter(t => !this.outward(t)).length;
+      return isZh() ? `还有 ${bad} 个面朝里 · 已点击 ${this.s.clicks} 次` : `${bad} faces still point in · ${this.s.clicks} clicks`; },
+    controls(){ const q = this.s.mode === "quiz"; $("g3Out").hidden = $("g3In").hidden = !q || !this.s.quiz || this.s.quiz.answered; $("g3Next").hidden = !q || !this.s.quiz || !this.s.quiz.answered; $("g3NRow").hidden = q; }
+  };
+  let down = null;
+  $("g3d").addEventListener("pointerdown", e => down = { x: e.clientX, y: e.clientY });
+  $("g3d").addEventListener("pointerup", e => { if (lv !== 2 || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+    const hits = view.ray(e).intersectObjects(L3.group.children.filter(o => o.isMesh && o.userData.tri)); if (hits.length) L3.click(hits[0].object.userData.tri); });
+
+  const LV = [L1, L2, L3];
+  function render(){
+    const lvl = LV[lv], z = lang();
+    document.querySelectorAll("#game [data-lv]").forEach(el => el.hidden = +el.dataset.lv !== lv);
+    $("g3dWrap").hidden = lv === 1; $("g2d").hidden = lv !== 1;
+    groups[0].visible = lv === 0; groups[1].visible = lv === 2;
+    $("gTitle").textContent = lvl.title[z]; $("gIntro").textContent = lvl.intro[z]; $("gAsk").textContent = lvl.ask();
+    if (lv === 0) L1.controls(); if (lv === 2) L3.controls(); if (lv === 1) L2.draw(); else view.render();
+    const st = saved[lv] || [];
+    $("gMissions").innerHTML = lvl.missions.map((m, i) => `<li class="${st[i] ? "ok" : "no"}"><span class="mark">${st[i] ? "✓" : "○"}</span>${m[z]}</li>`).join("");
+    $("gFb").textContent = fb ? fb[z] : "";
+    const all = lvl.missions.every((_, i) => st[i]); $("gTake").hidden = !all; $("gTake").textContent = all ? (z === "zh" ? "这一关要记住的：" : "Keep this: ") + lvl.take[z] : "";
+    LV.forEach((x, i) => $("gd" + i).textContent = x.missions.every((_, j) => isDone(i, j)) ? " ✓" : "");
+  }
+  document.querySelectorAll('input[name="glv"]').forEach(r => r.addEventListener("change", () => { lv = +document.querySelector('input[name="glv"]:checked').value; fb = null; render(); }));
+  document.querySelectorAll('input[name="mesh"]').forEach(r => r.addEventListener("change", () => { L3.build(document.querySelector('input[name="mesh"]:checked').value); render(); }));
+  $("g3N").addEventListener("change", () => { L3.s.tris.forEach(t => t.n.visible = $("g3N").checked); view.render(); });
+  $("g1A").onclick = () => L1.answer(true); $("g1B").onclick = () => L1.answer(false); $("g1Next").onclick = () => { L1.newRound(); render(); };
+  $("g2Check").onclick = () => L2.check();
+  $("g3Out").onclick = () => L3.answerQuiz(true); $("g3In").onclick = () => L3.answerQuiz(false); $("g3Next").onclick = () => { L3.newQuiz(); render(); };
+  L1.init(); L3.build("tet");
+  onLangChange.push(render); onTheme.push(() => { if (lv === 1) L2.draw(); });
+  render();
+  window.__demoReady = true;
+})();
+</script>
+<script>
+// 3D 库没加载成功时给出提示 / show a clear message when three.js fails to load
+(function(){
+  const msg = { zh: "3D 演示和小游戏没有加载成功：three.js 没能从 CDN（cdn.jsdelivr.net）下载下来。请刷新页面，或换一个网络/浏览器再试。下面的练习不受影响。",
+                en: "The 3D demo and game did not load: three.js could not be downloaded from the CDN (cdn.jsdelivr.net). Reload the page or try another network or browser. The exercise below still works." };
+  window.addEventListener("load", () => setTimeout(() => { if (window.__demoReady) return; const g = document.getElementById("glErr"); g.hidden = false; g.textContent = msg[lang()]; }, 3000));
+})();
+</script>
+<script>
+// ---- 练习：自动测试 / exercise: auto-tests ----
+(function(){
+  const S_ = { zh: { err: "代码出错：", all: "全部通过！", some: "通过", missing: "没有找到 Vec3 类" }, en: { err: "Code error: ", all: "All tests pass!", some: "passed", missing: "No Vec3 class found" } };
+  const near = (p, q) => typeof p === "number" && Math.abs(p - q) < 1e-9;
+  const eq = (v, x, y, z) => !!v && near(v.x, x) && near(v.y, y) && near(v.z, z);
+  const r3 = 1 / Math.sqrt(3);
+  const TESTS = [
+    { zh: "cross：(1,0,0) × (0,1,0) = (0,0,1)，且不修改自己", en: "cross: (1,0,0) × (0,1,0) = (0,0,1), without changing the original",
+      f: ({ V }) => { const a = new V(1,0,0), c = a.cross(new V(0,1,0)); return eq(c, 0,0,1) && eq(a, 1,0,0) && c !== a; } },
+    { zh: "顺序：(0,1,0) × (1,0,0) = (0,0,−1)；(2,3,4) × (2,3,4) = (0,0,0)", en: "Order: (0,1,0) × (1,0,0) = (0,0,−1); (2,3,4) × (2,3,4) = (0,0,0)",
+      f: ({ V }) => eq(new V(0,1,0).cross(new V(1,0,0)), 0,0,-1) && eq(new V(2,3,4).cross(new V(2,3,4)), 0,0,0) },
+    { zh: "(1,2,3) × (4,5,6) = (−3,6,−3)，并且和两个输入都垂直", en: "(1,2,3) × (4,5,6) = (−3,6,−3), perpendicular to both inputs",
+      f: ({ V }) => { const a = new V(1,2,3), b = new V(4,5,6), c = a.cross(b); return eq(c, -3,6,-3) && near(c.dot(a), 0) && near(c.dot(b), 0); } },
+    { zh: "长度 = 平行四边形面积：|(3,0,0) × (1,2,0)| = 6", en: "Length = parallelogram area: |(3,0,0) × (1,2,0)| = 6",
+      f: ({ V }) => near(new V(3,0,0).cross(new V(1,2,0)).length(), 6) },
+    { zh: "triangleArea：(0,0,0)、(4,0,0)、(0,3,0) → 6；(1,0,0)、(0,1,0)、(0,0,1) → √3/2；共线 → 0", en: "triangleArea: (0,0,0), (4,0,0), (0,3,0) → 6; (1,0,0), (0,1,0), (0,0,1) → √3/2; collinear → 0",
+      f: ({ V, area }) => near(area(new V(0,0,0), new V(4,0,0), new V(0,3,0)), 6) && near(area(new V(1,0,0), new V(0,1,0), new V(0,0,1)), Math.sqrt(3) / 2) && near(area(new V(0,0,0), new V(1,1,1), new V(3,3,3)), 0) },
+    { zh: "triangleNormal：(0,0,0)、(2,0,0)、(0,2,0) → (0,0,1)，交换 B、C → (0,0,−1)；斜三角形 → (1,1,1)/√3", en: "triangleNormal: (0,0,0), (2,0,0), (0,2,0) → (0,0,1); swap B and C → (0,0,−1); slanted triangle → (1,1,1)/√3",
+      f: ({ V, normal }) => eq(normal(new V(0,0,0), new V(2,0,0), new V(0,2,0)), 0,0,1) && eq(normal(new V(0,0,0), new V(0,2,0), new V(2,0,0)), 0,0,-1)
+        && eq(normal(new V(1,0,0), new V(0,1,0), new V(0,0,1)), r3, r3, r3) },
+    { zh: "退化三角形（共线）的法线是 (0,0,0)，没有 NaN", en: "A degenerate (collinear) triangle has normal (0,0,0), no NaN",
+      f: ({ V, normal }) => eq(normal(new V(0,0,0), new V(1,1,1), new V(3,3,3)), 0,0,0) },
+    { zh: "isFrontFacing：三角形 (5,5,5)、(7,5,5)、(5,7,5)，眼睛在 (5,5,10) 看到正面，在 (5,5,3) 和 (0,0,0) 看到背面", en: "isFrontFacing: triangle (5,5,5), (7,5,5), (5,7,5) shows its front to an eye at (5,5,10) and its back to (5,5,3) and (0,0,0)",
+      f: ({ V, front }) => { const A = new V(5,5,5), B = new V(7,5,5), C = new V(5,7,5);
+        return front(A, B, C, new V(5,5,10)) === true && front(A, B, C, new V(5,5,3)) === false && front(A, B, C, new V(0,0,0)) === false; } }
+  ];
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  let results = null;
+  function show(){ const t = S_[lang()]; if (!results){ list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length; err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`; err.classList.toggle("allok", n === results.length); }
+  function run(){ err.classList.remove("allok"); let M;
+    try { M = new Function(document.getElementById("code").value + "\nconst u = n => typeof n === 'undefined';\nreturn { V: typeof Vec3 === 'undefined' ? undefined : Vec3, area: typeof triangleArea === 'undefined' ? undefined : triangleArea, normal: typeof triangleNormal === 'undefined' ? undefined : triangleNormal, front: typeof isFrontFacing === 'undefined' ? undefined : isFrontFacing };")(); }
+    catch (e){ results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    if (!M.V){ results = null; show(); err.textContent = S_[lang()].missing; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(M); } catch { return false; } }); show(); }
+  document.getElementById("run").onclick = run; onLangChange.push(show); run();
+})();
+</script>

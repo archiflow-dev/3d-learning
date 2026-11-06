@@ -109,7 +109,8 @@ function render(){
   }).join("");
 }
 document.getElementById("langBtn").onclick=()=>{ const n=lang()==="en"?"zh":"en"; document.documentElement.dataset.lang=n; try{localStorage.setItem("3dl-lang",n);}catch{} render(); };
-fetch("lessons.json", { cache: "no-cache" }) // 每次都向服务器确认最新课程清单 / always revalidate the lesson list.then(r=>r.json()).then(j=>{DATA=j; render();}).catch(()=>{ const e=document.getElementById("loadErr"); e.hidden=false; e.textContent=T[lang()].err; });
+// 每次都向服务器确认最新课程清单 / always revalidate the lesson list
+fetch("lessons.json", { cache: "no-cache" }).then(r=>r.json()).then(j=>{DATA=j; render();}).catch(()=>{ const e=document.getElementById("loadErr"); e.hidden=false; e.textContent=T[lang()].err; });
 render();
 </script>
 </body>

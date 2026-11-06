@@ -1,0 +1,954 @@
+<title>平面中的曲线 · Curves in the Plane</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.4", slug: "plane-curves",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "平面中的曲线：显式、隐式、参数式", en: "Curves in the Plane: Explicit, Implicit, Parametric" },
+  minutes: 75, prereqs: ["1.3"],
+  prev: "1.3-cross-product.html", next: null,
+  concepts: ["explicit curve", "implicit curve", "parametric curve", "inside/outside test", "line equations"],
+  videos: { UCD: ["02"], MIT: [] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+<style>
+#why h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 75 分钟 · 前置：1.3 · 视频：UC Davis ECS 175 第 02 讲 Curves in the Plane（Ken Joy）；MIT 6.837 没有单独一讲</div>
+  <div class="meta en">About 75 min · Prerequisite: 1.3 · Video: UC Davis ECS 175 lecture 02, Curves in the Plane (Ken Joy); MIT 6.837 has no matching lecture</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li><b>隐式：</b>会用 f(x, y) 的正负判断一个点在曲线的里面、外面还是上面；知道直线的隐式方程就是 1.2 课的点积 n · (P − P₀) = 0。</li>
+    <li><b>参数式：</b>会写 P(t)，知道 t 像时间：改变 t 的范围和"速度"能控制画出哪一段、从哪里出发、往哪个方向走。</li>
+    <li><b>选对表示：</b>知道三种表示各自擅长什么、做不到什么：显式 y = f(x) 一个 x 只有一个 y；隐式擅长判断里外，不擅长造点；参数式擅长造点，不擅长判断里外。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Implicit:</b> use the sign of f(x, y) to tell whether a point is inside, outside or on a curve, and see that a line's implicit equation is lesson 1.2's dot product n · (P − P₀) = 0.</li>
+    <li><b>Parametric:</b> write P(t) and treat t like time: changing its range and "speed" controls which piece gets drawn, where it starts and which way it goes.</li>
+    <li><b>Pick the right one:</b> know what each form is good and bad at: explicit y = f(x) allows one y per x; implicit is great for inside/outside tests but poor at producing points; parametric produces points easily but is poor at inside/outside tests.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">同一个圆，可以用三种方式"告诉"电脑：</p>
+  <p class="en">You can "tell" a computer about the same circle in three ways:</p>
+  <ul class="zh">
+    <li><b>显式</b>像一张查询表：给我 x，我告诉你 y。y = √(r² − x²) 只给出上半圆，因为一个 x 只能查出一个 y。</li>
+    <li><b>隐式</b>像一个检查员：给我一个点，我告诉你它在哪一侧。f(x, y) = x² + y² − r²，负数在里面，正数在外面，0 正好在圆上。但它不会主动告诉你圆上有哪些点。</li>
+    <li><b>参数式</b>像一个画笔的动作：随着时间 t 走，笔尖在 P(t) = (r cos 2πt, r sin 2πt)。要多少点就取多少个 t，但它不能直接回答"这个点在不在里面"。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Explicit</b> is a lookup table: give me x and I give you y. y = √(r² − x²) only covers the top half, because each x can look up just one y.</li>
+    <li><b>Implicit</b> is an inspector: give me a point and I tell you which side it is on. With f(x, y) = x² + y² − r², negative is inside, positive outside, and 0 exactly on the circle. But it never volunteers which points lie on the circle.</li>
+    <li><b>Parametric</b> is the motion of a pen: as time t runs, the tip is at P(t) = (r cos 2πt, r sin 2πt). Take as many t values as you want points, but it cannot directly answer "is this point inside?".</li>
+  </ul>
+  <p class="zh">图形学两大渲染方法正好对应后两种：光栅化要"造点"去填像素，用参数式；光线追踪要"判断打没打中"，常用隐式。</p>
+  <p class="en">The two big rendering methods line up with the last two: rasterization needs to produce points to fill pixels (parametric); ray tracing needs to test whether a ray hits (often implicit).</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：同一条曲线，三种表示</span><span class="en">Demo: one curve, three forms</span></h2>
+  <p class="meta zh">选曲线和表示方式。圆可以拖动圆心，直线可以拖动 A、B 两点。隐式模式下把鼠标移到画布上，会显示那一点的 f 值。</p>
+  <p class="meta en">Pick a curve and a form. Drag the circle's center, or the line's points A and B. In implicit mode, hover over the board to read f at that point.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="curve">
+        <input type="radio" name="shape" id="shC" value="circle" checked><label for="shC"><span class="zh">圆</span><span class="en">Circle</span></label>
+        <input type="radio" name="shape" id="shL" value="line"><label for="shL"><span class="zh">直线</span><span class="en">Line</span></label>
+      </span>
+      <span class="seg" role="radiogroup" aria-label="form">
+        <input type="radio" name="form" id="fmE" value="exp" checked><label for="fmE"><span class="zh">显式</span><span class="en">Explicit</span></label>
+        <input type="radio" name="form" id="fmI" value="imp"><label for="fmI"><span class="zh">隐式</span><span class="en">Implicit</span></label>
+        <input type="radio" name="form" id="fmP" value="par"><label for="fmP"><span class="zh">参数式</span><span class="en">Parametric</span></label>
+      </span>
+    </div>
+    <div class="row" id="rRow">
+      <label for="rad" class="meta">r = <output id="radOut">3</output></label>
+      <input type="range" id="rad" min="0.5" max="4" step="0.1" value="3" style="flex:1;min-width:0">
+    </div>
+    <div class="row" id="tRow">
+      <label for="tt" class="meta">t = <output id="ttOut">0.30</output></label>
+      <input type="range" id="tt" min="0" max="1" step="0.005" value="0.3" style="flex:1;min-width:0">
+      <button type="button" id="play"><span class="zh">播放</span><span class="en">Play</span></button>
+      <label class="meta"><input type="checkbox" id="uneven"> <span class="zh">换一种参数化（t²）</span><span class="en">Another parametrization (t²)</span></label>
+    </div>
+    <canvas id="dc" width="720" height="440" aria-label="curve board"></canvas>
+    <dl class="readout" id="dOut"></dl>
+    <p class="meta" id="dNote"></p>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <pre class="formula">              圆（圆心 C，半径 r）/ circle            直线（过 A、B）/ line through A, B
+显式 explicit   y = C_y ± √(r² − (x − Cₓ)²)          y = m x + b      （竖直线写不出 / no vertical lines）
+隐式 implicit   f = (x − Cₓ)² + (y − C_y)² − r² = 0    f = n · (P − A) = 0,  n ⟂ (B − A)
+参数 param.     P(t) = C + r (cos 2πt, sin 2πt)       P(t) = A + t (B − A)</pre>
+  <p class="zh"><b>隐式的正负：</b>f &lt; 0 在里面（或直线的一侧），f &gt; 0 在外面（另一侧），f = 0 在曲线上。直线的 f = n · (P − A) 就是 1.2 课的点积，n 是法线；在 2D 里也可以写成 1.3 课叉积的 z 分量 ((B − A) × (P − A))_z，正数表示 P 在 A→B 的左边。</p>
+  <p class="en"><b>Sign of an implicit f:</b> f &lt; 0 is inside (or one side of a line), f &gt; 0 outside (the other side), f = 0 on the curve. A line's f = n · (P − A) is lesson 1.2's dot product with normal n; in 2D it is also the z component of lesson 1.3's cross product ((B − A) × (P − A))_z, positive when P is left of A→B.</p>
+  <p class="zh"><b>参数式的 t：</b>直线 P(t) = A + t(B − A) 中，t = 0 在 A，t = 1 在 B，0 到 1 之间是线段，t &gt; 1 或 t &lt; 0 是延长线。圆的 P(t) 中 t 从 0 到 1 正好一圈；把 2πt 换成 2πkt + φ，k 控制圈数和方向（负数顺时针），φ 控制起点。</p>
+  <p class="en"><b>The t of a parametric curve:</b> for the line P(t) = A + t(B − A), t = 0 is A, t = 1 is B, values between give the segment, and t &gt; 1 or t &lt; 0 extend it. For the circle, t from 0 to 1 is exactly one turn; replace 2πt with 2πkt + φ and k sets the number of turns and direction (negative is clockwise) while φ sets the start.</p>
+</section>
+
+<section id="why">
+  <h2><span class="tag">Why</span><span class="zh">为什么三种写法说的是同一个圆？</span><span class="en">Why do the three forms describe the same circle?</span></h2>
+  <h3 class="zh">1. 隐式 → 显式：解出 y</h3><h3 class="en">1. Implicit → explicit: solve for y</h3>
+  <p class="zh">从 x² + y² = r² 解 y，得到 y = ±√(r² − x²)。开平方有正负两个根，所以显式必须拆成上下两个函数。这就是"一个 x 只能有一个 y"的代价：显式只能表示"竖直线最多穿过一次"的曲线。</p>
+  <p class="en">Solving x² + y² = r² for y gives y = ±√(r² − x²). A square root has two signs, so the explicit form must split into top and bottom functions. That is the price of "one y per x": explicit form only covers curves that any vertical line crosses at most once.</p>
+  <h3 class="zh">2. 参数式 → 隐式：代进去验证</h3><h3 class="en">2. Parametric → implicit: substitute and check</h3>
+  <p class="zh">把 x = r cos θ、y = r sin θ 代进 x² + y² − r²，得到 r²(cos²θ + sin²θ) − r² = 0，因为 cos²θ + sin²θ = 1。所以参数式造出来的每个点，都满足隐式方程。反过来，从参数式消去 t 就得到隐式。练习的第 4 条测试就是在检查这件事。</p>
+  <p class="en">Substitute x = r cos θ, y = r sin θ into x² + y² − r² and you get r²(cos²θ + sin²θ) − r² = 0, because cos²θ + sin²θ = 1. So every point the parametric form produces satisfies the implicit equation; eliminating t from the parametric form gives the implicit one. Test 4 in the exercise checks exactly this.</p>
+  <h3 class="zh">3. 直线的隐式就是点积</h3><h3 class="en">3. A line's implicit form is a dot product</h3>
+  <p class="zh">点 P 在直线上，等价于 P − A 和直线方向平行，也就是和法线 n 垂直：n · (P − A) = 0。展开成 aₓx + a_y y + c = 0，其中 (a, b) 就是法线。1.2 课"点积的符号把平面切成两半"，在这里就变成了"直线把平面切成两侧"。</p>
+  <p class="en">P lies on the line exactly when P − A is parallel to the line, i.e. perpendicular to its normal n: n · (P − A) = 0. Expanded, that is a x + b y + c = 0 with (a, b) the normal. Lesson 1.2's "the sign of a dot product splits the plane in two" becomes "a line splits the plane into two sides".</p>
+  <h3 class="zh">4. 物理：抛体运动</h3><h3 class="en">4. Physics: a thrown ball</h3>
+  <p class="zh">斜抛一个球，位置随时间是参数式：x = vₓ t，y = v_y t − ½ g t²。消去时间 t = x / vₓ，就得到显式 y = (v_y / vₓ) x − g x² / (2vₓ²)，一条抛物线。参数式多告诉你一件事：球在什么时候到哪里。显式只剩下形状，时间信息丢了。</p>
+  <p class="en">Throw a ball and its position over time is parametric: x = vₓ t, y = v_y t − ½ g t². Eliminate time with t = x / vₓ and you get the explicit y = (v_y / vₓ) x − g x² / (2vₓ²), a parabola. The parametric form says one more thing, when the ball is where; the explicit form keeps only the shape and loses the timing.</p>
+</section>
+
+<section id="game">
+  <h2><span class="tag">Game</span><span class="zh">小游戏：三关，对应三个学习目标</span><span class="en">Game: three levels for three learning goals</span></h2>
+  <p class="meta zh">每一关只练一个学习目标。完成一关的全部任务后，会出现这一关要你记住的那句话。进度保存在你的浏览器里。</p>
+  <p class="meta en">Each level trains one learning goal. Finish all of a level's missions to unlock the one sentence it wants you to keep. Progress is saved in your browser.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="level">
+        <input type="radio" name="glv" id="gl1" value="0" checked><label for="gl1"><span class="zh">1 隐式</span><span class="en">1 Implicit</span><span id="gd0"></span></label>
+        <input type="radio" name="glv" id="gl2" value="1"><label for="gl2"><span class="zh">2 参数式</span><span class="en">2 Parametric</span><span id="gd1"></span></label>
+        <input type="radio" name="glv" id="gl3" value="2"><label for="gl3"><span class="zh">3 选表示</span><span class="en">3 Pick one</span><span id="gd2"></span></label>
+      </span>
+    </div>
+    <p id="gTitle" style="margin:0;font-weight:600"></p>
+    <p class="meta" id="gIntro" style="margin:0"></p>
+    <p id="gAsk" style="margin:0;font-weight:600;font-family:var(--f-mono);overflow-wrap:anywhere"></p>
+    <div class="row" data-lv="0">
+      <button type="button" id="g1Check"><span class="zh">检查</span><span class="en">Check</span></button>
+      <button type="button" id="g1Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+    </div>
+    <div data-lv="1" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row">
+        <span class="seg" role="radiogroup" aria-label="curve">
+          <input type="radio" name="pcurve" id="pcC" value="circle" checked><label for="pcC"><span class="zh">圆</span><span class="en">Circle</span></label>
+          <input type="radio" name="pcurve" id="pcL" value="line"><label for="pcL"><span class="zh">直线</span><span class="en">Line</span></label>
+        </span>
+        <button type="button" id="g2Play"><span class="zh">播放</span><span class="en">Play</span></button>
+      </div>
+      <div class="row" id="g2CircRow">
+        <label for="g2k" class="meta">k = <output id="g2kOut">1</output></label><input type="range" id="g2k" min="-3" max="3" step="0.25" value="1" style="flex:1;min-width:120px">
+        <label for="g2p" class="meta">φ = <output id="g2pOut">0°</output></label><input type="range" id="g2p" min="0" max="345" step="15" value="0" style="flex:1;min-width:120px">
+      </div>
+      <div class="row" id="g2LineRow">
+        <label for="g2a" class="meta">t₀ = <output id="g2aOut">0</output></label><input type="range" id="g2a" min="-1" max="2" step="0.05" value="0" style="flex:1;min-width:120px">
+        <label for="g2b" class="meta">t₁ = <output id="g2bOut">1</output></label><input type="range" id="g2b" min="-1" max="2" step="0.05" value="1" style="flex:1;min-width:120px">
+      </div>
+    </div>
+    <canvas id="gc" width="720" height="440" aria-label="game board"></canvas>
+    <div data-lv="2" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row">
+        <span class="seg" role="radiogroup" aria-label="mode">
+          <input type="radio" name="g3m" id="g3mS" value="scan" checked><label for="g3mS"><span class="zh">竖线测试</span><span class="en">Vertical-line test</span></label>
+          <input type="radio" name="g3m" id="g3mC" value="card"><label for="g3mC"><span class="zh">场景卡</span><span class="en">Scenario cards</span></label>
+        </span>
+      </div>
+      <div class="row" id="g3ScanRow">
+        <button type="button" id="g3Yes"><span class="zh">能写成 y = f(x)</span><span class="en">Can be y = f(x)</span></button>
+        <button type="button" id="g3No"><span class="zh">不能</span><span class="en">Cannot</span></button>
+        <button type="button" id="g3SNext"><span class="zh">换一条曲线</span><span class="en">Next curve</span></button>
+      </div>
+      <div class="cards" id="g3CardRow">
+        <button type="button" data-ans="exp"><span class="zh">显式 y = f(x)</span><span class="en">Explicit y = f(x)</span></button>
+        <button type="button" data-ans="imp"><span class="zh">隐式 f(x, y) = 0</span><span class="en">Implicit f(x, y) = 0</span></button>
+        <button type="button" data-ans="par"><span class="zh">参数式 P(t)</span><span class="en">Parametric P(t)</span></button>
+        <button type="button" id="g3CNext"><span class="zh">下一张</span><span class="en">Next card</span></button>
+      </div>
+    </div>
+    <p id="gFb" style="margin:0"></p>
+    <ul class="tests" id="gMissions"></ul>
+    <p id="gTake" hidden style="margin:0;padding:10px 12px;border-left:3px solid var(--good);background:var(--code);border-radius:4px"></p>
+  </div>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>用你的 <code>Vec3</code>（z 都取 0）写五个函数。圆的参数用 t ∈ [0, 1] 表示一整圈，t = 0 在圆心正右边，逆时针走。运行后，下面的画布会把你算出的点画出来。</p>
+    <p class="en"><b>Task:</b> write five functions with your <code>Vec3</code> (z is always 0). For the circle, t ∈ [0, 1] is one full turn, starting right of the center at t = 0 and going counter-clockwise. After running, the canvas below plots the points you computed.</p>
+    <ul class="zh">
+      <li><code>circleF(c, r, P)</code>：隐式，返回 |P − c|² − r²。</li>
+      <li><code>circlePoint(c, r, t)</code>：参数式，返回圆上的点。</li>
+      <li><code>linePoint(A, B, t)</code>：参数式，返回 A + t(B − A)。</li>
+      <li><code>lineSide(A, B, P)</code>：隐式，返回一个数：P 在 A→B 左边为正，右边为负，在直线上为 0。提示：1.3 课的叉积。</li>
+      <li><code>sampleCircle(c, r, n)</code>：返回 n 个均匀分布在圆上的点（数组），第一个在 t = 0，最后一个<b>不要</b>和第一个重复。</li>
+    </ul>
+    <ul class="en">
+      <li><code>circleF(c, r, P)</code>: implicit, returns |P − c|² − r².</li>
+      <li><code>circlePoint(c, r, t)</code>: parametric, returns the point on the circle.</li>
+      <li><code>linePoint(A, B, t)</code>: parametric, returns A + t(B − A).</li>
+      <li><code>lineSide(A, B, P)</code>: implicit, returns a number: positive when P is left of A→B, negative when right, 0 on the line. Hint: lesson 1.3's cross product.</li>
+      <li><code>sampleCircle(c, r, n)</code>: returns an array of n points evenly spread on the circle, the first at t = 0, and the last must <b>not</b> repeat the first.</li>
+    </ul>
+    <label for="code" class="meta"><span class="zh">你的代码（已填好你 1.3 的 Vec3）</span><span class="en">Your code (pre-filled with your Vec3 from 1.3)</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:440px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  cross(v) {
+    return new Vec3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
+  }
+}
+
+// ---- 1.4 新增 / new in 1.4 ----
+function circleF(c, r, P)      { /* TODO */ }
+function circlePoint(c, r, t)  { /* TODO */ }
+function linePoint(A, B, t)    { /* TODO */ }
+function lineSide(A, B, P)     { /* TODO */ }
+function sampleCircle(c, r, n) { /* TODO */ }</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <canvas id="pc" width="720" height="300" aria-label="your points"></canvas>
+    <p class="meta" id="pcNote"></p>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-06，8/8 通过）</span><span class="en">My solution (2026-11-06, 8/8 pass)</span></p>
+      <pre class="formula">// ---- 1.4 新增 / new in 1.4 ----
+function circleF(c, r, P)      { const d = P.sub(c); return d.dot(d) - r*r; }
+function circlePoint(c, r, t)  {
+    const angle = 2 * Math.PI * t;
+    const v1 = new Vec3( Math.cos(angle), Math.sin(angle), 0);
+    return c.add(v1.scale(r));
+ }
+function linePoint(A, B, t)    { return A.add(B.sub(A).scale(t));}
+function lineSide(A, B, P)     {
+    const v1 = B.sub(A);
+    const v2 = P.sub(A);
+    const c = v1.cross(v2);
+    return c.z;
+ }
+function sampleCircle(c, r, n) {
+    const points = [];
+    for (let i = 0; i &lt; n; i++)
+    {
+        t = i/n;          // 评审：应写 const t，见下 / review: should be const t, see below
+        const p = circlePoint(c, r, t);
+        points.push(p);
+    }
+    return points;
+ }</pre>
+      <p class="zh"><b>评审时学到的：</b><code>t = i/n</code> 漏了 <code>const</code>，在非严格模式下会悄悄变成全局变量，所以测试能过；放进 ES module 或 "use strict" 代码里会直接报 ReferenceError。用 i / (n − 1) 取样时最后一个点和第一个点重合：n = 4 只得到 3 个不同的点，画出来是三角形，还多一条零长度的边。lineSide 的大小是 AB 和 AP 张成的平行四边形面积（三角形 ABP 面积的两倍），等于 |AB| × P 到直线的距离，所以 lineSide / |AB| 就是有向距离（例：A (0,0)、B (4,0)、P (1,3) 得 12 = 4 × 3）。circleF 的值不是距离：圆心 (0,0)、r = 2、P = (4,0) 时 f = 12，真实距离是 2。想要值等于距离，要写 d(P) = |P − c| − r：零点和符号都不变，只是数值变成真实的有向距离，也就是 SDF，光线步进要用它。（「lineSide 的大小 = 底 × 高」和 SDF 的写法是 AI 讲的；补充题我都答对了。）</p>
+      <p class="en"><b>What the review taught me:</b> <code>t = i/n</code> was missing <code>const</code>; in sloppy mode it silently becomes a global, so the tests passed, but inside an ES module or "use strict" code it throws a ReferenceError. Sampling with i / (n − 1) makes the last point land on the first: n = 4 gives only 3 distinct points, a triangle plus a zero-length edge. lineSide's magnitude is the area of the parallelogram spanned by AB and AP (twice triangle ABP), which equals |AB| × the distance from P to the line, so lineSide / |AB| is the signed distance (e.g. A (0,0), B (4,0), P (1,3) gives 12 = 4 × 3). circleF is not a distance: with center (0,0), r = 2, P = (4,0), f = 12 while the true distance is 2. To get the distance itself, write d(P) = |P − c| − r: same zero set and signs, but the value is the real signed distance, an SDF, which ray marching needs. (The AI explained the "magnitude = base × height" link and the SDF form; I answered both follow-up questions correctly.)</p>
+    </div>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">function circleF(c, r, P) { const d = P.sub(c); return d.dot(d) - r * r; }
+function circlePoint(c, r, t) {
+  const a = 2 * Math.PI * t;
+  return c.add(new Vec3(Math.cos(a), Math.sin(a), 0).scale(r));
+}
+function linePoint(A, B, t) { return A.add(B.sub(A).scale(t)); }
+function lineSide(A, B, P)  { return B.sub(A).cross(P.sub(A)).z; }
+function sampleCircle(c, r, n) {
+  const pts = [];
+  for (let i = 0; i &lt; n; i++) pts.push(circlePoint(c, r, i / n));   // i / n，不是 i / (n − 1)
+  return pts;
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>用显式画圆。</b>y = √(r² − x²) 只有上半圆；而且越靠近左右两端，x 每走一步 y 变化越大，均匀取 x 画出来的点在两端会很稀疏。</li>
+    <li><b>sampleCircle 首尾重复。</b>用 i / (n − 1) 取 t，最后一个点 t = 1 和第一个点 t = 0 是同一个位置，画闭合曲线时会多出一条零长度的边。</li>
+    <li><b>以为隐式的 f 值就是距离。</b>x² + y² − r² 的大小不是到圆的距离（它是"距离的平方差"）。只有特别构造的"有向距离场"（SDF）才等于距离，后面光线步进会用到。</li>
+    <li><b>直线方程用 y = mx + b。</b>竖直线斜率无穷大写不出来，接近竖直时数值也不稳定。图形学里几乎都用隐式 n · P + c = 0 或参数式。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Drawing a circle explicitly.</b> y = √(r² − x²) is only the top half, and near the left and right ends y changes faster per step of x, so evenly spaced x values leave sparse points there.</li>
+    <li><b>sampleCircle repeating its first point.</b> With t = i / (n − 1), the last point at t = 1 lands on the first at t = 0, adding a zero-length edge to a closed curve.</li>
+    <li><b>Treating the implicit f as a distance.</b> x² + y² − r² is not the distance to the circle (it is a difference of squares). Only a specially built signed distance field (SDF) equals the distance; ray marching uses those later.</li>
+    <li><b>Writing lines as y = mx + b.</b> Vertical lines have infinite slope and cannot be written, and nearly vertical ones are numerically unstable. Graphics almost always uses the implicit n · P + c = 0 or the parametric form.</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. 圆 f = (x − 1)² + y² − 4。点 (2, 1)、(3, 0)、(4, 4) 分别在里面、上面还是外面？</span><span class="en">1. For f = (x − 1)² + y² − 4, are (2, 1), (3, 0), (4, 4) inside, on, or outside?</span></summary>
+    <p class="zh">f = −2（里面）、0（上面）、21（外面）。</p><p class="en">f = −2 (inside), 0 (on), 21 (outside).</p></details>
+  <details><summary><span class="zh">2. 直线 P(t) = (1, 2) + t (4, −2)，t = 0.5 和 t = −1 分别在哪？</span><span class="en">2. For P(t) = (1, 2) + t (4, −2), where are t = 0.5 and t = −1?</span></summary>
+    <p class="zh">(3, 1)，是 A、B 的中点；(−3, 4)，在 A 的反方向延长线上。</p><p class="en">(3, 1), the midpoint of A and B; (−3, 4), on the extension behind A.</p></details>
+  <details><summary><span class="zh">3. 要判断游戏里的子弹有没有打进一个圆形区域，用哪种表示最方便？</span><span class="en">3. To test whether a bullet lands inside a circular zone in a game, which form is easiest?</span></summary>
+    <p class="zh">隐式：算 f = (x − Cₓ)² + (y − C_y)² − r²，看正负，一次乘加就行。</p><p class="en">Implicit: compute f = (x − Cₓ)² + (y − C_y)² − r² and check its sign, a few multiply-adds.</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><span class="zh">UC Davis ECS 175（2009，Ken Joy）第 02 讲：Curves in the Plane</span><span class="en">UC Davis ECS 175 (2009, Ken Joy), lecture 02: Curves in the Plane</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 2 章：2D 隐式曲线和参数曲线</span><span class="en">chapter 2: 2D implicit and parametric curves</span></li>
+    <li><span class="zh">GAMES101 第 10 讲：几何（隐式与显式表示）</span><span class="en">GAMES101 lecture 10: Geometry (implicit and explicit representations; in Chinese)</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+<script>
+// ==================== 公共绘图工具 / shared drawing helpers ====================
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const onTheme = [];
+(function(){ const fire = () => onTheme.forEach(f => f());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", fire);
+  new MutationObserver(fire).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); })();
+const GOLD = "#d39b1c";
+const num = v => { const r = Math.round(v * 100) / 100; return (Object.is(r, -0) ? 0 : r).toString().replace("-", "−"); };
+const shift = (n, a) => a === 0 ? n : a > 0 ? `(${n} − ${num(a)})` : `(${n} + ${num(-a)})`;
+const plus = (c, t) => c === 0 ? t : `${num(c)} + ${t}`, minus = (c, t) => c === 0 ? "−" + t : `${num(c)} − ${t}`;
+const sq = (n, a) => a === 0 ? n + "²" : shift(n, a) + "²";
+// a x + b y + c 的写法 / pretty a x + b y + c
+function lin(a, b, c){
+  const parts = []; const term = (k, n) => { if (!k) return; const s = Math.abs(k) === 1 && n ? n : num(Math.abs(k)) + n;
+    parts.push(parts.length ? (k < 0 ? "− " : "+ ") + s : (k < 0 ? "−" : "") + s); };
+  term(a, "x"); term(b, "y"); term(c, ""); return parts.length ? parts.join(" ") : "0";
+}
+const arcPts = (cx, cy, r, a0, a1, n = 200) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+function makeBoard(cv, U){
+  const ctx = cv.getContext("2d"), ox = cv.width / 2, oy = cv.height / 2;
+  const B = { cv, ctx, U, xr: ox / U, yr: oy / U };
+  B.px = (x, y) => [ox + x * U, oy - y * U];
+  B.world = e => { const rc = cv.getBoundingClientRect(); const px = (e.clientX - rc.left) * cv.width / rc.width, py = (e.clientY - rc.top) * cv.height / rc.height; return { x: (px - ox) / U, y: (oy - py) / U }; };
+  // 窄屏时画布被缩小，文字、点和线按比例放大 / on narrow screens the canvas is shrunk, so scale text, dots and lines up
+  B.k = 1;
+  B.clear = () => {
+    const cw = cv.getBoundingClientRect().width; B.k = cw ? Math.max(1, Math.min(1.8, cv.width / cw * 0.75)) : 1;
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.lineWidth = 1; ctx.strokeStyle = css("--line"); ctx.beginPath();
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++){ const [p] = B.px(x, 0); ctx.moveTo(p + .5, 0); ctx.lineTo(p + .5, cv.height); }
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++){ const [, q] = B.px(0, y); ctx.moveTo(0, q + .5); ctx.lineTo(cv.width, q + .5); }
+    ctx.stroke();
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(cv.width, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, cv.height); ctx.stroke();
+    ctx.fillStyle = css("--muted"); ctx.font = 12 * B.k + "px " + css("--f-mono"); ctx.textAlign = "center";
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++) if (x && x % 2 === 0){ const [p] = B.px(x, 0); ctx.fillText(num(x), p, oy + 15 * B.k); }
+    ctx.textAlign = "right";
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++) if (y && y % 2 === 0){ const [, q] = B.px(0, y); ctx.fillText(num(y), ox - 5, q + 4); }
+    ctx.textAlign = "left";
+  };
+  B.path = (pts, col, w = 3, dash = null, alpha = 1, close = false) => { if (pts.length < 2) return; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w * B.k; ctx.lineJoin = ctx.lineCap = "round"; if (dash) ctx.setLineDash(dash.map(d => d * B.k));
+    ctx.beginPath(); pts.forEach(([x, y], i) => { const [p, q] = B.px(x, y); i ? ctx.lineTo(p, q) : ctx.moveTo(p, q); }); if (close) ctx.closePath(); ctx.stroke(); ctx.restore(); };
+  B.dot = (x, y, col, r = 5, ring = null) => { const [p, q] = B.px(x, y); ctx.beginPath(); ctx.arc(p, q, r * B.k, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill(); if (ring){ ctx.lineWidth = 3; ctx.strokeStyle = ring; ctx.stroke(); } };
+  B.text = (s, x, y, col, dx = 8, dy = -8, size = 14, align = "left") => { const [p, q] = B.px(x, y); dx *= B.k; dy *= B.k; size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.textAlign = align;
+    ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.lineJoin = "round"; ctx.strokeText(s, p + dx, q + dy); ctx.fillStyle = col; ctx.fillText(s, p + dx, q + dy); ctx.restore(); };
+  B.label = (s, col, size = 15) => { size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.strokeText(s, 12, size + 8); ctx.fillStyle = col; ctx.fillText(s, 12, size + 8); ctx.restore(); };
+  B.head = (pts, col, size = 13) => { size *= B.k; const n = pts.length; if (n < 2) return; const [x1, y1] = B.px(...pts[n - 1]); let k = n - 2, x0, y0;
+    do { [x0, y0] = B.px(...pts[k]); k--; } while (k >= 0 && Math.hypot(x1 - x0, y1 - y0) < 8);
+    const g = Math.atan2(y1 - y0, x1 - x0); ctx.save(); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - size * Math.cos(g - .45), y1 - size * Math.sin(g - .45)); ctx.lineTo(x1 - size * Math.cos(g + .45), y1 - size * Math.sin(g + .45)); ctx.fill(); ctx.restore(); };
+  // 按 f 的正负给整个画布上色 / tint the board by the sign of f
+  B.heat = f => { const s = 8, inC = css("--accent-2"), outC = css("--accent"); ctx.save();
+    for (let py = 0; py < cv.height; py += s) for (let px = 0; px < cv.width; px += s){ const v = f((px + s / 2 - ox) / U, (oy - py - s / 2) / U);
+      ctx.globalAlpha = v < 0 ? .22 : .08; ctx.fillStyle = v < 0 ? inC : outC; ctx.fillRect(px, py, s, s); } ctx.restore(); };
+  // 整条直线 a x + b y + c = 0 在画布里的两端 / the two ends of the line a x + b y + c = 0 on the board
+  B.lineEnds = (a, b, c) => Math.abs(b) > Math.abs(a) ? [[-B.xr, (a * B.xr - c) / b], [B.xr, (-a * B.xr - c) / b]] : [[(b * B.yr - c) / a, -B.yr], [(-b * B.yr - c) / a, B.yr]];
+  return B;
+}
+</script>
+<script>
+// ==================== 交互演示 / demo ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const S = {
+    zh: { expC: "显式只能写出上半圆（实线），下半圆要另写一个函数（虚线）。小点是均匀取 x 得到的：越靠近左右两端越稀。",
+          expL: "y = m x + b：一个 x 对应一个 y。拖动 A 或 B，把直线立起来试试。", vert: "A、B 的 x 一样：这是竖直线，斜率无穷大，写不出 y = m x + b。隐式和参数式都没问题。",
+          steep: "已经接近竖直：斜率 m 很大，一点点误差就会让直线偏很多。",
+          impC: "玫红色 f < 0（里面），青色 f > 0（外面），f = 0 正好是圆。把鼠标移到画布上看 f 的值。",
+          impL: "n = (−Δy, Δx) 是法线（箭头）。f = n · (P − A)：n 指向的一侧 f > 0（青色），另一侧 f < 0（玫红）。",
+          parC: "t 从 0 到 1，笔尖从圆心右边出发，逆时针走一圈。小点是 t = 0, 1/16, 2/16, …，在圆上均匀分布。",
+          parL: "t = 0 在 A，t = 1 在 B；0 到 1 之间是线段，虚线是 t < 0 或 t > 1 的延长线。小点是 t = 0, 0.1, 0.2, …",
+          uneven: "换成 t² 以后，画出来的形状完全一样，但同样间隔的 t 不再对应同样间隔的点：开头挤在一起，后面越来越稀。同一条曲线可以有很多种参数化。",
+          at: "鼠标处 P", inside: "f < 0：里面", outside: "f > 0：外面", on: "f = 0：在圆上", sideP: "f > 0：n 指向的一侧", sideN: "f < 0：另一侧", onL: "f = 0：在直线上",
+          form: "公式", pt: "P(t)", top: "上半", bot: "下半", nope: "写不出" },
+    en: { expC: "Explicit form only gives the top half (solid); the bottom half needs a second function (dashed). The dots come from evenly spaced x values and thin out toward the left and right ends.",
+          expL: "y = m x + b: one y for each x. Drag A or B and try to stand the line up.", vert: "A and B share the same x: this is a vertical line with infinite slope, so y = m x + b cannot describe it. Implicit and parametric forms handle it fine.",
+          steep: "Nearly vertical: the slope m is huge, and a tiny error moves the line a lot.",
+          impC: "Magenta is f < 0 (inside), teal is f > 0 (outside), and f = 0 is exactly the circle. Hover over the board to read f.",
+          impL: "n = (−Δy, Δx) is the normal (arrow). f = n · (P − A): the side n points to has f > 0 (teal), the other side f < 0 (magenta).",
+          parC: "As t goes from 0 to 1, the pen starts right of the center and goes once around counter-clockwise. The dots are t = 0, 1/16, 2/16, …, evenly spread on the circle.",
+          parL: "t = 0 is A and t = 1 is B; values between give the segment, and the dashed parts are the extensions for t < 0 or t > 1. The dots are t = 0, 0.1, 0.2, …",
+          uneven: "With t² the drawn shape is exactly the same, but equal steps in t no longer give equally spaced points: they bunch up at the start and spread out later. One curve can have many parametrizations.",
+          at: "P under the mouse", inside: "f < 0: inside", outside: "f > 0: outside", on: "f = 0: on the circle", sideP: "f > 0: the side n points to", sideN: "f < 0: the other side", onL: "f = 0: on the line",
+          form: "formula", pt: "P(t)", top: "top", bot: "bottom", nope: "impossible" }
+  };
+  const B = makeBoard($("dc"), 36);
+  let C = { x: 0, y: 0 }, A = { x: -4, y: -2 }, Bp = { x: 4, y: 1 }, drag = null, hover = null, anim = null;
+  const shape = () => document.querySelector('input[name="shape"]:checked').value;
+  const form = () => document.querySelector('input[name="form"]:checked').value;
+  const warp = s => $("uneven").checked ? s * s : s;
+  function draw(){
+    const s = S[lang()], sh = shape(), fm = form(), R = +$("rad").value, t = +$("tt").value;
+    const ink = css("--ink"), acc = css("--accent"), acc2 = css("--accent-2"), mut = css("--muted");
+    $("rRow").hidden = sh !== "circle"; $("tRow").hidden = fm !== "par";
+    $("radOut").textContent = R.toFixed(1); $("ttOut").textContent = t.toFixed(2);
+    B.clear();
+    const rows = []; let note = "";
+    if (sh === "circle"){
+      const f = (x, y) => (x - C.x) ** 2 + (y - C.y) ** 2 - R * R;
+      if (fm === "exp"){
+        const half = sg => Array.from({ length: 401 }, (_, i) => { const x = C.x - R + 2 * R * i / 400; return [x, C.y + sg * Math.sqrt(Math.max(0, R * R - (x - C.x) ** 2))]; });
+        B.path(half(-1), mut, 2, [6, 6]); B.path(half(1), acc, 3);
+        for (let i = 0; i <= 16; i++){ const x = C.x - R + 2 * R * i / 16; B.dot(x, C.y + Math.sqrt(Math.max(0, R * R - (x - C.x) ** 2)), acc, 4); }
+        const rt = `√(${num(R * R)} − ${sq("x", C.x)})`; rows.push([s.top, "y = " + plus(C.y, rt)], [s.bot, "y = " + minus(C.y, rt)]);
+        note = s.expC;
+      } else if (fm === "imp"){
+        B.heat(f); B.path(arcPts(C.x, C.y, R, 0, 2 * Math.PI), ink, 3);
+        rows.push([s.form, `f(x, y) = ${sq("x", C.x)} + ${sq("y", C.y)} − ${num(R * R)}`]);
+        note = s.impC;
+      } else {
+        const P = u => { const a = 2 * Math.PI * warp(u); return [C.x + R * Math.cos(a), C.y + R * Math.sin(a)]; };
+        B.path(arcPts(C.x, C.y, R, 0, 2 * Math.PI), css("--line"), 3);
+        for (let i = 0; i < 16; i++) B.dot(...P(i / 16), mut, 3.5);
+        const tr = Array.from({ length: 201 }, (_, i) => P(t * i / 200)); B.path(tr, acc, 4); if (t > 0.02) B.head(tr, acc);
+        B.dot(...P(0), acc, 5); B.text("t = 0", ...P(0), mut, 8, 18, 13); B.dot(...P(t), acc2, 7);
+        const now = P(t);
+        rows.push([s.form, `P(t) = (${plus(C.x, num(R) + " cos 2π" + ($("uneven").checked ? "t²" : "t"))}, ${plus(C.y, num(R) + " sin 2π" + ($("uneven").checked ? "t²" : "t"))})`], [`P(${t.toFixed(2)})`, `(${num(now[0])}, ${num(now[1])})`]);
+        note = $("uneven").checked ? s.uneven : s.parC;
+      }
+      B.dot(C.x, C.y, ink, 5); B.text("C", C.x, C.y, ink);
+      if (hover && fm === "imp"){ const v = f(hover.x, hover.y); B.dot(hover.x, hover.y, acc2, 4);
+        rows.push([s.at, `(${num(hover.x)}, ${num(hover.y)})`], ["f(P)", `${num(v)}  (${Math.abs(v) < 0.05 ? s.on : v < 0 ? s.inside : s.outside})`]); }
+    } else {
+      const dx = Bp.x - A.x, dy = Bp.y - A.y, a = -dy, b = dx, c = -(a * A.x + b * A.y); // f = a x + b y + c = n · (P − A)
+      if (fm === "exp"){
+        if (Math.abs(dx) < 1e-9){ B.path(B.lineEnds(a, b, c), mut, 2, [6, 6]); rows.push(["y = m x + b", s.nope]); note = s.vert; }
+        else { const m = dy / dx, k = A.y - m * A.x; B.path(B.lineEnds(a, b, c), acc, 3);
+          for (let i = -9; i <= 9; i++) if (Math.abs(m * i + k) <= B.yr) B.dot(i, m * i + k, acc, 3.5);
+          rows.push(["m = Δy / Δx", `${num(dy)} / ${num(dx)} = ${num(m)}`], [s.form, `y = ${lin(m, 0, k)}`]);
+          note = Math.abs(m) > 6 ? s.steep : s.expL; }
+      } else if (fm === "imp"){
+        B.heat((x, y) => a * x + b * y + c); B.path(B.lineEnds(a, b, c), ink, 3);
+        const L = Math.hypot(a, b) || 1, mx = (A.x + Bp.x) / 2, my = (A.y + Bp.y) / 2, tip = [mx + 1.6 * a / L, my + 1.6 * b / L];
+        B.path([[mx, my], tip], acc, 3); B.head([[mx, my], tip], acc); B.text("n", ...tip, acc, 6, -6);
+        rows.push(["n = (−Δy, Δx)", `(${num(a)}, ${num(b)})`], [s.form, `f = n · (P − A) = ${lin(a, b, c)}`]);
+        note = s.impL;
+        if (hover){ const v = a * hover.x + b * hover.y + c; B.dot(hover.x, hover.y, acc2, 4);
+          rows.push([s.at, `(${num(hover.x)}, ${num(hover.y)})`], ["f(P)", `${num(v)}  (${Math.abs(v) < 0.05 ? s.onL : v > 0 ? s.sideP : s.sideN})`]); }
+      } else {
+        const P = u => [A.x + u * dx, A.y + u * dy];
+        B.path(B.lineEnds(a, b, c), mut, 2, [6, 6]); B.path([P(0), P(1)], css("--line"), 5);
+        for (let i = 0; i <= 10; i++) B.dot(...P(warp(i / 10)), mut, 3.5);
+        const tr = [P(0), P(warp(t))]; B.path(tr, acc, 4); if (t > 0.03) B.head(tr, acc); B.dot(...P(warp(t)), acc2, 7);
+        B.text("t = 0", ...P(0), mut, 8, 20, 13); B.text("t = 1", ...P(1), mut, 8, 20, 13);
+        const now = P(warp(t));
+        rows.push([s.form, `P(t) = A + ${$("uneven").checked ? "t²" : "t"} (B − A) = (${lin(0, 0, A.x)} + ${num(dx)}${$("uneven").checked ? "t²" : "t"}, ${lin(0, 0, A.y)} + ${num(dy)}${$("uneven").checked ? "t²" : "t"})`], [`P(${t.toFixed(2)})`, `(${num(now[0])}, ${num(now[1])})`]);
+        note = $("uneven").checked ? s.uneven : s.parL;
+      }
+      B.dot(A.x, A.y, ink, 5); B.text("A", A.x, A.y, ink); B.dot(Bp.x, Bp.y, ink, 5); B.text("B", Bp.x, Bp.y, ink);
+    }
+    $("dOut").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("dNote").textContent = note;
+  }
+  const cv = $("dc");
+  cv.addEventListener("pointerdown", e => { const w = B.world(e), cand = shape() === "circle" ? [["C", C]] : [["A", A], ["B", Bp]];
+    let best = null, bd = 0.7; cand.forEach(([k, p]) => { const d = Math.hypot(p.x - w.x, p.y - w.y); if (d < bd){ bd = d; best = k; } });
+    if (best){ drag = best; cv.setPointerCapture(e.pointerId); } });
+  cv.addEventListener("pointermove", e => { const w = B.world(e);
+    if (drag){ const p = { x: Math.max(-9.5, Math.min(9.5, Math.round(w.x * 10) / 10)), y: Math.max(-5.8, Math.min(5.8, Math.round(w.y * 10) / 10)) };
+      if (drag === "C") C = p; else if (drag === "A") A = p; else Bp = p; }
+    hover = form() === "imp" ? w : null; draw(); });
+  cv.addEventListener("pointerup", () => { drag = null; });
+  cv.addEventListener("pointerleave", () => { hover = null; draw(); });
+  document.querySelectorAll('input[name="shape"], input[name="form"]').forEach(r => r.addEventListener("change", draw));
+  ["rad", "tt", "uneven"].forEach(id => $(id).addEventListener("input", draw));
+  $("play").onclick = () => { if (anim) cancelAnimationFrame(anim); let t0 = null, start = +$("tt").value >= 1 ? 0 : +$("tt").value;
+    const step = ts => { if (t0 === null) t0 = ts; const t = Math.min(1, start + (ts - t0) / 2500); $("tt").value = t; draw(); anim = t < 1 ? requestAnimationFrame(step) : null; };
+    anim = requestAnimationFrame(step); };
+  onLangChange.push(draw); onTheme.push(draw); draw();
+})();
+</script>
+<script>
+// ==================== 小游戏 / game ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const KEY = "3dl-game-1.4";
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+  let lv = 0, fb = null;
+  const isDone = (l, i) => !!(saved[l] || [])[i];
+  // 完成任务，返回这条任务的讲解 / complete a mission and return its note
+  function done(l, i){ saved[l] = saved[l] || []; if (saved[l][i]) return null; saved[l][i] = true; save(); return LV[l].missions[i].note; }
+  const join = (a, b) => b ? { zh: a.zh + " " + b.zh, en: a.en + " " + b.en } : a;
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+  const B = makeBoard($("gc"), 36);
+  const sgn = v => v < 0 ? "−" : v > 0 ? "+" : "0";
+
+  // ---------- 第 1 关：只看公式判断里外 / level 1: inside or outside from the formula alone ----------
+  const L1 = {
+    title: { zh: "第 1 关 · 曲线藏起来了（目标：用隐式 f 的正负判断位置）", en: "Level 1 · The curve is hidden (goal: use the sign of an implicit f)" },
+    intro: { zh: "曲线被藏起来了，你只能看到它的隐式方程。点击每个点给它标上 f 的符号（再点一次换一个）：− 在里面（或直线的一侧），0 正好在曲线上，+ 在外面。都标好后点「检查」，曲线才会出现。",
+             en: "The curve is hidden; you only see its implicit equation. Click each point to label the sign of f (click again to change it): − is inside (or one side of a line), 0 is exactly on the curve, + is outside. When all are labeled, press Check to reveal the curve." },
+    missions: [
+      { zh: "圆：答对 2 题（每题 5 个点全对）", en: "Circle: solve 2 rounds (all 5 points right)", note: { zh: "圆的 f 是「到圆心距离的平方 − r²」：比 r 近就是负数，比 r 远就是正数。", en: "A circle's f is (squared distance to the center) − r²: closer than r gives a negative, farther gives a positive." } },
+      { zh: "直线：答对 2 题", en: "Line: solve 2 rounds", note: { zh: "直线的 f = a x + b y + c 就是法线 (a, b) 和 P 的点积再加一个常数：符号告诉你 P 在法线指向的那一侧还是另一侧。", en: "A line's f = a x + b y + c is the dot product of the normal (a, b) with P plus a constant: its sign says whether P is on the side the normal points to." } },
+      { zh: "两个圆的公共部分：答对 1 题", en: "Overlap of two circles: solve 1 round", note: { zh: "公共部分 = f₁ < 0 并且 f₂ < 0，也就是 max(f₁, f₂) < 0。隐式表示用 max 做交集、用 min 做并集，这正是 CSG 和 SDF 建模的思路。", en: "The overlap is f₁ < 0 and f₂ < 0, which is max(f₁, f₂) < 0. Implicit forms build intersections with max and unions with min, the idea behind CSG and SDF modeling." } }
+    ],
+    take: { zh: "隐式 f(x, y) 是一个检查员：把点代进去，看正负就知道它在哪一侧，根本不需要画出曲线。", en: "An implicit f(x, y) is an inspector: plug a point in and the sign tells you which side it is on, without drawing the curve at all." },
+    need: [2, 2, 1], wins: [0, 0, 0], r: null,
+    newRound(){
+      let type = [0, 1, 2].find(i => !isDone(0, i)); if (type === undefined) type = ri(0, 2);
+      const r = { type, pts: [], shown: false };
+      const grid = []; for (let x = -9; x <= 9; x++) for (let y = -5; y <= 5; y++) grid.push([x, y]);
+      let groups;
+      if (type === 0){ r.cx = ri(-3, 3); r.cy = ri(-1, 1); r.R2 = pick([25, 13, 10, 20, 17]); r.f = (x, y) => (x - r.cx) ** 2 + (y - r.cy) ** 2 - r.R2;
+        const g = grid.map(([x, y]) => [x, y, r.f(x, y)]); groups = [[g.filter(p => p[2] === 0), 1], [g.filter(p => p[2] < 0 && p[2] >= -6), 2], [g.filter(p => p[2] > 0 && p[2] <= 7), 2]];
+      } else if (type === 1){ do { r.a = ri(-3, 3); r.b = ri(-3, 3); } while (!r.a && !r.b); r.c = ri(-5, 5); r.f = (x, y) => r.a * x + r.b * y + r.c;
+        const g = grid.map(([x, y]) => [x, y, r.f(x, y)]); groups = [[g.filter(p => p[2] === 0), ri(1, 2)], [g.filter(p => p[2] < 0 && p[2] >= -5), 2], [g.filter(p => p[2] > 0 && p[2] <= 5), 2]];
+      } else { r.c1 = [ri(-3, -1), ri(-1, 1)]; r.c2 = [r.c1[0] + pick([3, 4, 5]), r.c1[1] + ri(-1, 1)]; r.R2 = pick([9, 13, 16]);
+        r.f1 = (x, y) => (x - r.c1[0]) ** 2 + (y - r.c1[1]) ** 2 - r.R2; r.f2 = (x, y) => (x - r.c2[0]) ** 2 + (y - r.c2[1]) ** 2 - r.R2; r.f = (x, y) => Math.max(r.f1(x, y), r.f2(x, y));
+        const g = grid.map(([x, y]) => [x, y, r.f1(x, y), r.f2(x, y)]).filter(p => p[2] && p[3]);
+        groups = [[g.filter(p => p[2] < 0 && p[3] < 0), 2], [g.filter(p => (p[2] < 0) !== (p[3] < 0)), 2], [g.filter(p => p[2] > 0 && p[3] > 0 && Math.min(p[2], p[3]) <= 8), 1]]; }
+      groups.forEach(([cands, n]) => { for (const p of shuffle(cands)){ if (!n) break; if (r.pts.every(q => Math.hypot(q.x - p[0], q.y - p[1]) >= 2.2)){ r.pts.push({ x: p[0], y: p[1], g: null }); n--; } } });
+      // 不够 5 个点时放宽间距补齐 / fill up to 5 points with a looser spacing
+      const all = shuffle(groups.flatMap(([c]) => c));
+      for (const gap of [1.6, 1.1]) for (const p of all){ if (r.pts.length >= 5) break; if (r.pts.every(q => Math.hypot(q.x - p[0], q.y - p[1]) >= gap)) r.pts.push({ x: p[0], y: p[1], g: null }); }
+      r.pts = shuffle(r.pts); this.r = r;
+    },
+    ask(){ const r = this.r;
+      if (r.type === 0) return `f(x, y) = ${sq("x", r.cx)} + ${sq("y", r.cy)} − ${r.R2}`;
+      if (r.type === 1) return `f(x, y) = ${lin(r.a, r.b, r.c)}`;
+      const z = lang(), e = (c) => `${sq("x", c[0])} + ${sq("y", c[1])} − ${r.R2}`;
+      return `f₁ = ${e(r.c1)}，f₂ = ${e(r.c2)}` + (z === "zh" ? "。标出哪些点在两个圆的公共部分里（−），哪些不在（+）。" : ". Mark the points inside the overlap of both circles (−) and the rest (+).");
+    },
+    click(w){ const r = this.r; if (r.shown) return;
+      let best = null, bd = 0.8; r.pts.forEach(p => { const d = Math.hypot(p.x - w.x, p.y - w.y); if (d < bd){ bd = d; best = p; } });
+      if (!best) return; const cyc = r.type === 2 ? ["−", "+"] : ["−", "0", "+"]; best.g = cyc[(cyc.indexOf(best.g) + 1) % cyc.length]; fb = null; render(); },
+    check(){ const r = this.r; if (r.shown) return;
+      if (r.pts.some(p => !p.g)){ fb = { zh: "先点每个点，给它标上符号。", en: "Label every point first." }; render(); return; }
+      r.shown = true; const bad = r.pts.filter(p => sgn(r.f(p.x, p.y)) !== p.g).length;
+      if (!bad){ this.wins[r.type]++; const res = { zh: "全对！", en: "All correct!" };
+        fb = this.wins[r.type] >= this.need[r.type] ? join(res, done(0, r.type)) : res; }
+      else fb = { zh: `有 ${bad} 个点标错了（红圈），看看它们旁边的 f 值。点「下一题」再来。`, en: `${bad} point${bad > 1 ? "s are" : " is"} wrong (red rings); check the f values next to them. Press Next to try again.` };
+      render(); },
+    draw(){ const r = this.r, ink = css("--ink"), mut = css("--muted"); B.clear();
+      if (r.shown){ B.heat(r.f);
+        if (r.type === 0) B.path(arcPts(r.cx, r.cy, Math.sqrt(r.R2), 0, 2 * Math.PI), ink, 3);
+        else if (r.type === 1) B.path(B.lineEnds(r.a, r.b, r.c), ink, 3);
+        else { const R = Math.sqrt(r.R2); B.path(arcPts(...r.c1, R, 0, 2 * Math.PI), mut, 2, [6, 5]); B.path(arcPts(...r.c2, R, 0, 2 * Math.PI), mut, 2, [6, 5]); } }
+      const zh = lang() === "zh";
+      r.pts.forEach((p, i) => { const v = r.f(p.x, p.y), ok = sgn(v) === p.g;
+        B.dot(p.x, p.y, p.g ? css("--accent") : mut, 7, r.shown ? (ok ? css("--good") : css("--accent-2")) : null);
+        const gl = !p.g ? "?" : r.type === 2 ? (p.g === "−" ? (zh ? "里" : "in") : (zh ? "外" : "out")) : p.g;
+        B.text(gl, p.x, p.y, p.g ? css("--accent") : mut, 0, -13, 18, "center");
+        B.text(`(${num(p.x)}, ${num(p.y)})`, p.x, p.y, ink, 0, 24, 13, "center");
+        if (r.shown) B.text(`f = ${r.type === 2 ? num(v) + (zh ? "（max）" : " (max)") : num(v)}`, p.x, p.y, ok ? css("--good") : css("--accent-2"), 0, 40, 12, "center"); });
+    },
+    controls(){ $("g1Check").disabled = this.r.shown; }
+  };
+
+  // ---------- 第 2 关：调参数让笔画出目标 / level 2: tune the parameters so the pen draws the target ----------
+  const RC = 4.5, LA = [-2, -1], LB = [2, 1];
+  const TG = [
+    { c: 1, k: 1, p: 90, zh: "从圆的最上方出发，逆时针走一整圈", en: "Start at the top of the circle and go once around counter-clockwise" },
+    { c: 1, k: -1, p: 180, zh: "从最左边出发，顺时针走一整圈", en: "Start at the far left and go once around clockwise" },
+    { c: 1, k: 0.5, p: 0, zh: "只画上半圆，从右往左", en: "Draw only the top half, from right to left" },
+    { c: 0, a: 0.5, b: 1, zh: "只画从中点 M 到 B 这一段", en: "Draw only the piece from the midpoint M to B" },
+    { c: 0, a: 1, b: 2, zh: "画 B 后面那段金色的延长线", en: "Draw the gold extension past B" },
+    { c: 0, a: -0.5, b: 0, zh: "画 A 前面那段金色的延长线", en: "Draw the gold extension before A" }
+  ];
+  const circ = () => document.querySelector('input[name="pcurve"]:checked').value === "circle";
+  const L2 = {
+    title: { zh: "第 2 关 · 指挥画笔（目标：参数 t 像时间，参数决定起点、方向和画哪一段）", en: "Level 2 · Steer the pen (goal: t is like time; parameters set the start, direction and piece)" },
+    intro: { zh: "金色虚线是目标路径（画在外圈，金色圆点是起点，箭头是方向）。只改参数式里的参数，让 t 从 0 到 1（直线是从 t₀ 到 t₁）时笔画出的路径和目标完全一样。点「播放」看笔怎么走。",
+             en: "The gold dashes are the target path (drawn on an outer ring; the gold dot is the start, the arrow the direction). Change only the parameters so that as t runs from 0 to 1 (t₀ to t₁ for the line) the pen traces exactly the target. Press Play to watch the pen." },
+    missions: [
+      { zh: "圆：从最上方出发，逆时针一圈", en: "Circle: from the top, once counter-clockwise", note: { zh: "φ 决定 t = 0 时笔在哪：φ = 90° 就从正上方出发。", en: "φ sets where the pen is at t = 0: φ = 90° starts at the top." } },
+      { zh: "圆：从最左边出发，顺时针一圈", en: "Circle: from the far left, once clockwise", note: { zh: "k 是负数时，角度随 t 变小，笔就顺时针走。", en: "With a negative k the angle shrinks as t grows, so the pen turns clockwise." } },
+      { zh: "圆：只画上半圆，从右往左", en: "Circle: only the top half, right to left", note: { zh: "k = 0.5：t 从 0 走到 1，角度只转半圈。k 是「速度」，所以它决定 t ∈ [0, 1] 里能画多少。", en: "k = 0.5: as t goes from 0 to 1 the angle turns only half way. k is the speed, so it decides how much gets drawn in t ∈ [0, 1]." } },
+      { zh: "直线：只画中点 M 到 B", en: "Line: only from the midpoint M to B", note: { zh: "t = 0.5 就是中点：P(0.5) = A + 0.5(B − A) = (A + B) / 2。", en: "t = 0.5 is the midpoint: P(0.5) = A + 0.5(B − A) = (A + B) / 2." } },
+      { zh: "直线：画 B 后面的延长线", en: "Line: the extension past B", note: { zh: "t > 1 就走过了 B。公式没变，只是 t 的范围变了，画出来的就是另一段。", en: "t > 1 goes past B. Same formula, different range of t, different piece." } },
+      { zh: "直线：画 A 前面的延长线", en: "Line: the extension before A", note: { zh: "t < 0 往 B − A 的反方向走。线段是 t ∈ [0, 1]，射线是 t ≥ 0，整条直线是 t 取所有实数。", en: "t < 0 walks opposite to B − A. A segment is t ∈ [0, 1], a ray is t ≥ 0, and the whole line is every real t." } }
+    ],
+    take: { zh: "参数式是一支随时间移动的笔：公式决定路径，t 的范围决定画哪一段，k、φ 这样的参数决定速度、方向和起点。", en: "A parametric curve is a pen moving over time: the formula sets the path, the range of t picks the piece, and parameters like k and φ set speed, direction and start." },
+    u: 1, anim: null,
+    target(){ const c = circ() ? 1 : 0; const i = TG.findIndex((g, j) => g.c === c && !isDone(1, j)); return i < 0 ? null : i; },
+    ask(){ const i = this.target(), z = lang();
+      return i === null ? (z === "zh" ? "这条曲线的目标都完成了，可以自由试试，或者换另一条曲线。" : "All targets for this curve are done. Play freely or switch curves.") : (z === "zh" ? "目标：" : "Target: ") + TG[i][z]; },
+    vals(){ return { k: +$("g2k").value, p: +$("g2p").value, a: +$("g2a").value, b: +$("g2b").value }; },
+    check(){ const i = this.target(); if (i === null) return; const g = TG[i], v = this.vals();
+      const hit = g.c ? v.k === g.k && v.p % 360 === g.p : Math.abs(Math.min(v.a, v.b) - g.a) < 1e-9 && Math.abs(Math.max(v.a, v.b) - g.b) < 1e-9 && v.a < v.b;
+      if (hit){ const n = done(1, i); if (n) fb = n; } },
+    draw(){ const v = this.vals(), i = this.target(), acc = css("--accent"), mut = css("--muted"), ink = css("--ink"); B.clear();
+      $("g2kOut").textContent = num(v.k); $("g2pOut").textContent = v.p + "°"; $("g2aOut").textContent = num(v.a); $("g2bOut").textContent = num(v.b);
+      $("g2CircRow").hidden = !circ(); $("g2LineRow").hidden = circ();
+      if (circ()){
+        const P = (k, p, t, R = RC) => { const ang = 2 * Math.PI * k * t + p * Math.PI / 180; return [R * Math.cos(ang), R * Math.sin(ang)]; };
+        B.path(arcPts(0, 0, RC, 0, 2 * Math.PI), css("--line"), 2);
+        if (i !== null){ const g = TG[i], gp = Array.from({ length: 201 }, (_, j) => P(g.k, g.p, j / 200, RC + 0.7)); // 目标画在外圈，不被你的路径挡住 / target on an outer ring so your path does not hide it
+          B.path(gp, GOLD, 7, [10, 8], 0.75); B.head(gp, GOLD, 18); B.dot(...gp[0], GOLD, 8); }
+        const tr = Array.from({ length: 401 }, (_, j) => P(v.k, v.p, this.u * j / 400));
+        if (v.k !== 0){ B.path(tr, acc, 3); if (this.u > 0.02) B.head(tr, acc); }
+        B.dot(...tr[0], acc, 5); B.text("t = 0", ...tr[0], mut, 10, 18, 13); B.dot(...tr[tr.length - 1], css("--accent-2"), 7);
+        B.label(`P(t) = (${RC} cos(2π·${num(v.k)}·t + ${v.p}°), ${RC} sin(…))`, ink, 14);
+      } else {
+        const P = t => [LA[0] + t * (LB[0] - LA[0]), LA[1] + t * (LB[1] - LA[1])];
+        B.path([P(-3), P(3)], mut, 1.5, [5, 6]);
+        if (i !== null){ const g = TG[i], off = ([x, y]) => [x - 0.2, y + 0.4]; // 目标画在直线上方一点，不被你的路径挡住 / target drawn just above the line
+          B.path([off(P(g.a)), off(P(g.b))], GOLD, 7, [10, 8], 0.8); }
+        const t0 = Math.min(v.a, v.b), t1 = Math.max(v.a, v.b), tu = t0 + (t1 - t0) * this.u;
+        if (t1 > t0){ const tr = [P(t0), P(tu)]; B.path(tr, acc, 4); if (this.u > 0.05) B.head(tr, acc); }
+        B.dot(...P(tu), css("--accent-2"), 7);
+        [["A", 0], ["M", 0.5], ["B", 1]].forEach(([n, t]) => { B.dot(...P(t), ink, 5); B.text(n, ...P(t), ink, -6, -12); });
+        B.label(`P(t) = A + t (B − A),  t ∈ [${num(v.a)}, ${num(v.b)}]` + (v.a >= v.b ? (lang() === "zh" ? "  ← t₀ 要小于 t₁" : "  ← t₀ must be below t₁") : ""), ink, 14);
+      }
+    },
+    play(){ if (this.anim) cancelAnimationFrame(this.anim); let t0 = null;
+      const step = ts => { if (t0 === null) t0 = ts; this.u = Math.min(1, (ts - t0) / 2500); if (lv === 1) this.draw(); this.anim = this.u < 1 ? requestAnimationFrame(step) : null; };
+      this.anim = requestAnimationFrame(step); }
+  };
+
+  // ---------- 第 3 关：选对表示 / level 3: pick the right form ----------
+  const TAU = 2 * Math.PI, fx = (f, x0 = -9.6, x1 = 9.6) => Array.from({ length: 481 }, (_, i) => { const x = x0 + (x1 - x0) * i / 480; return [x, f(x)]; });
+  const SH = [
+    { zh: "圆", en: "a circle", ok: false, pts: arcPts(0, 0, 3.5, 0, TAU, 400) },
+    { zh: "竖直线 x = 2", en: "the vertical line x = 2", ok: false, pts: [[2, -5.8], [2, 5.8]] },
+    { zh: "正弦波 y = 2 sin x", en: "the sine wave y = 2 sin x", ok: true, pts: fx(x => 2 * Math.sin(x)) },
+    { zh: "抛物线 y = x² / 4 − 3", en: "the parabola y = x² / 4 − 3", ok: true, pts: fx(x => x * x / 4 - 3, -6.6, 6.6) },
+    { zh: "横躺的抛物线 x = y² / 2 − 4", en: "the sideways parabola x = y² / 2 − 4", ok: false, pts: Array.from({ length: 401 }, (_, i) => { const y = -5.5 + 11 * i / 400; return [y * y / 2 - 4, y]; }) },
+    { zh: "斜线 y = 0.5x + 1", en: "the slanted line y = 0.5x + 1", ok: true, pts: fx(x => 0.5 * x + 1) },
+    { zh: "8 字形", en: "a figure eight", ok: false, pts: Array.from({ length: 401 }, (_, i) => { const t = TAU * i / 400; return [6 * Math.sin(t), 3 * Math.sin(2 * t)]; }) },
+    { zh: "V 形 y = |x| − 3", en: "the V shape y = |x| − 3", ok: true, pts: fx(x => Math.abs(x) - 3, -8.5, 8.5) },
+    { zh: "斜着的椭圆", en: "a tilted ellipse", ok: false, pts: Array.from({ length: 401 }, (_, i) => { const t = TAU * i / 400, x = 6 * Math.cos(t), y = 2 * Math.sin(t); return [x * 0.87 - y * 0.5, x * 0.5 + y * 0.87]; }) },
+    { zh: "S 形 y = 3 tanh x", en: "the S curve y = 3 tanh x", ok: true, pts: fx(x => 3 * Math.tanh(x)) }
+  ];
+  const ANS = { exp: { zh: "显式", en: "explicit" }, imp: { zh: "隐式", en: "implicit" }, par: { zh: "参数式", en: "parametric" } };
+  const CARDS = [
+    { zh: "光线追踪：判断光线上的某个点 P 有没有进入一个球。", en: "Ray tracing: decide whether a point P on a ray has entered a sphere.", a: "imp",
+      why: { zh: "把 P 代进 f 看正负，一次计算就知道。", en: "Plug P into f and check the sign; one evaluation." } },
+    { zh: "把一个圆画成 64 条小线段（多边形）交给 GPU。", en: "Draw a circle as 64 short segments (a polygon) for the GPU.", a: "par",
+      why: { zh: "取 t = i / 64 直接得到 64 个顶点；隐式不会主动告诉你点在哪。", en: "t = i / 64 hands you the 64 vertices directly; an implicit form never volunteers points." } },
+    { zh: "鼠标点了一下，判断点到的是不是一个圆形按钮。", en: "The mouse clicked; was it on a round button?", a: "imp",
+      why: { zh: "这是「在不在里面」的问题，隐式 f < 0 就是在里面。", en: "This is an inside test, and implicit f < 0 means inside." } },
+    { zh: "让小车沿弯曲的赛道移动，每一帧都要知道它的位置。", en: "Move a car along a winding track and know its position every frame.", a: "par",
+      why: { zh: "t 就是时间，P(t) 就是这一帧的位置。", en: "t is time and P(t) is this frame's position." } },
+    { zh: "画一张气温随时间变化的折线图。", en: "Plot temperature over time.", a: "exp", alt: "par",
+      why: { zh: "每个时刻只有一个气温，y = f(x) 最直接。", en: "Each moment has one temperature, so y = f(x) is the most direct." } },
+    { zh: "3D 地形：每个 (x, z) 位置只有一个高度。", en: "3D terrain: each (x, z) position has exactly one height.", a: "exp",
+      why: { zh: "高度图 h(x, z) 就是显式表示：一个位置一个高度，存成一张灰度图就行。", en: "A heightmap h(x, z) is an explicit form: one height per position, stored as a grayscale image." } },
+    { zh: "光栅化：判断像素中心在三角形某条边的哪一侧。", en: "Rasterization: which side of a triangle edge is a pixel center on?", a: "imp",
+      why: { zh: "边函数就是直线的隐式 f = n · (P − A)，看符号。阶段 2 会用到。", en: "The edge function is a line's implicit f = n · (P − A); check the sign. Stage 2 uses this." } },
+    { zh: "在一条曲线上均匀撒 100 个粒子。", en: "Scatter 100 particles evenly along a curve.", a: "par",
+      why: { zh: "取 100 个 t 就是 100 个点。", en: "100 values of t give 100 points." } },
+    { zh: "判断一个点在不在两个圆的公共区域里。", en: "Is a point inside the overlap of two circles?", a: "imp",
+      why: { zh: "max(f₁, f₂) < 0 就在公共区域，第 1 关做过。", en: "max(f₁, f₂) < 0 means inside the overlap, as in level 1." } },
+    { zh: "画出炮弹的飞行轨迹，并标出第 2 秒时它在哪。", en: "Draw a cannonball's flight and mark where it is at 2 seconds.", a: "par",
+      why: { zh: "参数式 P(t) 同时给出形状和时间；消去 t 得到的显式抛物线就丢了「第几秒在哪」。", en: "P(t) gives both shape and timing; the explicit parabola you get by eliminating t loses the timing." } },
+    { zh: "画函数 y = x³ − x 的图像。", en: "Graph the function y = x³ − x.", a: "exp", alt: "par",
+      why: { zh: "本来就是函数，一个 x 一个 y。", en: "It is already a function: one y per x." } }
+  ];
+  const mode3 = () => document.querySelector('input[name="g3m"]:checked').value;
+  const L3 = {
+    title: { zh: "第 3 关 · 选对表示（目标：知道三种表示各自擅长什么、做不到什么）", en: "Level 3 · Pick the form (goal: what each form can and cannot do)" },
+    intro: { zh: "", en: "" },
+    introS: { zh: "竖线测试：在画布上拖动红色竖线扫过整条曲线，看它和曲线有几个交点，判断这条曲线能不能整条写成显式 y = f(x)。", en: "Vertical-line test: drag the red line across the board, count where it meets the curve, and decide whether the whole curve can be written as an explicit y = f(x)." },
+    introC: { zh: "读场景，选最合适的表示。", en: "Read the scenario and pick the best form." },
+    missions: [
+      { zh: "竖线测试：连续答对 4 条曲线", en: "Vertical-line test: 4 curves right in a row", note: { zh: "规律：只要有一条竖线和曲线交点超过 1 个，一个 x 就有多个 y，显式写不出来。", en: "The rule: if any vertical line meets the curve more than once, some x has several y values, and no explicit form exists." } },
+      { zh: "场景卡：累计答对 6 张", en: "Scenario cards: 6 correct in total", note: { zh: "问自己：这里是要「造点」还是要「判断」？", en: "Ask yourself: do I need to produce points, or to test a point?" } },
+      { zh: "场景卡：连续答对 5 张", en: "Scenario cards: 5 in a row", note: { zh: "瞎猜连对 5 张的概率不到 1%，你已经会选了。", en: "Guessing 5 in a row has under a 1% chance; you know how to choose." } }
+    ],
+    take: { zh: "要「造点」去画就用参数式，要「判断」点在哪一侧就用隐式；显式只适合一个 x 只有一个 y 的情况，比如函数图像和高度图。", en: "Use parametric to produce points, implicit to test which side a point is on; explicit only fits curves with one y per x, such as function graphs and heightmaps." },
+    sh: 0, X: -6, scanStreak: 0, scanDone: false, card: 0, cardDone: false, cardWins: 0, cardStreak: 0,
+    newShape(){ let j; do { j = ri(0, SH.length - 1); } while (j === this.sh); this.sh = j; this.X = -6; this.scanDone = false; fb = null; },
+    newCard(){ let j; do { j = ri(0, CARDS.length - 1); } while (j === this.card); this.card = j; this.cardDone = false; fb = null; },
+    ask(){ const z = lang(); return mode3() === "scan" ? (z === "zh" ? "这条曲线能不能整条写成 y = f(x)？" : "Can this whole curve be written as y = f(x)?") : CARDS[this.card][z]; },
+    count(){ const X = this.X + 1e-7, pts = SH[this.sh].pts; let n = 0; const hits = [];
+      for (let i = 0; i + 1 < pts.length; i++){ const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+        if (Math.abs(x1 - x0) < 1e-9){ if (Math.abs(x0 - this.X) < 0.13) return { n: Infinity, hits: [] }; continue; }
+        if ((x0 - X) * (x1 - X) < 0){ n++; hits.push([X, y0 + (y1 - y0) * (X - x0) / (x1 - x0)]); } }
+      return { n, hits }; },
+    draw(){ const s = SH[this.sh], z = lang(), red = css("--accent-2"); B.clear();
+      B.path(s.pts, css("--accent"), 3);
+      B.path([[this.X, -B.yr], [this.X, B.yr]], red, 2);
+      const c = this.count(); c.hits.forEach(h => B.dot(...h, red, 6));
+      B.label((z === "zh" ? `x = ${num(this.X)} 这条竖线和曲线有 ` : `The line x = ${num(this.X)} meets the curve `) + (c.n === Infinity ? (z === "zh" ? "无数个交点" : "everywhere") : (z === "zh" ? `${c.n} 个交点` : `${c.n} time${c.n === 1 ? "" : "s"}`)), red);
+      if (this.scanDone) B.text(s[z], -B.xr, -B.yr, css("--ink"), 12, -12, 15); },
+    answerScan(yes){ if (this.scanDone) return; this.scanDone = true; const s = SH[this.sh], ok = yes === s.ok;
+      this.scanStreak = ok ? this.scanStreak + 1 : 0;
+      const res = ok ? { zh: `对！这是${s.zh}。`, en: `Right! This is ${s.en}.` } : { zh: `不对，这是${s.zh}。`, en: `Not quite; this is ${s.en}.` };
+      const why = s.ok ? { zh: "任何竖线和它最多交 1 次，所以能写成 y = f(x)。", en: "Every vertical line meets it at most once, so y = f(x) works." }
+                       : { zh: "有的竖线和它交了不止 1 次，一个 x 对应多个 y，显式写不出来。", en: "Some vertical line meets it more than once, so one x has several y values and explicit form fails." };
+      fb = join(join(res, why), this.scanStreak >= 4 ? done(2, 0) : null); render(); },
+    answerCard(a){ if (this.cardDone) return; this.cardDone = true; const c = CARDS[this.card], ok = a === c.a || a === c.alt;
+      if (ok){ this.cardWins++; this.cardStreak++; } else this.cardStreak = 0;
+      let res = ok ? { zh: "对！", en: "Right!" } : { zh: `应该选${ANS[c.a].zh}。`, en: `The best pick is ${ANS[c.a].en}.` };
+      if (ok && a === c.alt) res = { zh: "也可以：任何显式都能写成参数式 (t, f(t))。不过这里显式最直接。", en: "That works too: any explicit curve can be written as (t, f(t)). Explicit is the most direct here, though." };
+      let out = join(res, c.why);
+      if (this.cardWins >= 6) out = join(out, done(2, 1)); if (this.cardStreak >= 5) out = join(out, done(2, 2));
+      fb = out; render(); },
+    controls(){ const sc = mode3() === "scan"; $("g3ScanRow").hidden = !sc; $("g3CardRow").hidden = sc;
+      $("g3Yes").disabled = $("g3No").disabled = this.scanDone; document.querySelectorAll("#g3CardRow [data-ans]").forEach(b => b.disabled = this.cardDone); }
+  };
+
+  const LV = [L1, L2, L3];
+  function render(){
+    const lvl = LV[lv], z = lang();
+    document.querySelectorAll("#game [data-lv]").forEach(el => el.hidden = +el.dataset.lv !== lv);
+    $("gc").hidden = lv === 2 && mode3() === "card";
+    $("gTitle").textContent = lvl.title[z];
+    $("gIntro").textContent = lv === 2 ? (mode3() === "scan" ? L3.introS : L3.introC)[z] : lvl.intro[z];
+    $("gAsk").textContent = lvl.ask();
+    if (lv === 0){ L1.draw(); L1.controls(); } else if (lv === 1) L2.draw(); else { if (mode3() === "scan") L3.draw(); L3.controls(); }
+    const st = saved[lv] || [];
+    $("gMissions").innerHTML = lvl.missions.map((m, i) => `<li class="${st[i] ? "ok" : "no"}"><span class="mark">${st[i] ? "✓" : "○"}</span>${m[z]}</li>`).join("");
+    $("gFb").textContent = fb ? fb[z] : "";
+    const all = lvl.missions.every((_, i) => st[i]); $("gTake").hidden = !all; $("gTake").textContent = all ? (z === "zh" ? "这一关要记住的：" : "Keep this: ") + lvl.take[z] : "";
+    LV.forEach((x, i) => $("gd" + i).textContent = x.missions.every((_, j) => isDone(i, j)) ? " ✓" : "");
+  }
+  document.querySelectorAll('input[name="glv"]').forEach(r => r.addEventListener("change", () => { lv = +document.querySelector('input[name="glv"]:checked').value; fb = null; render(); }));
+  const cv = $("gc"); let scanning = false;
+  cv.addEventListener("pointerdown", e => { const w = B.world(e);
+    if (lv === 0) L1.click(w);
+    else if (lv === 2 && mode3() === "scan"){ scanning = true; cv.setPointerCapture(e.pointerId); L3.X = Math.max(-9.75, Math.min(9.75, Math.round(w.x * 4) / 4)); L3.draw(); } });
+  cv.addEventListener("pointermove", e => { if (lv === 2 && mode3() === "scan" && (scanning || e.pointerType === "mouse")){ const w = B.world(e); L3.X = Math.max(-9.75, Math.min(9.75, Math.round(w.x * 4) / 4)); L3.draw(); } });
+  cv.addEventListener("pointerup", () => { scanning = false; });
+  $("g1Check").onclick = () => L1.check(); $("g1Next").onclick = () => { L1.newRound(); fb = null; render(); };
+  // 拖动时只重画，松手时才判定，免得拖动途中「路过」答案就算完成 / redraw while dragging, judge on release so passing over the answer does not count
+  ["g2k", "g2p", "g2a", "g2b"].forEach(id => { $(id).addEventListener("input", () => { L2.u = 1; L2.draw(); });
+    $(id).addEventListener("change", () => { fb = null; L2.check(); render(); }); });
+  document.querySelectorAll('input[name="pcurve"]').forEach(r => r.addEventListener("change", () => { fb = null; render(); }));
+  $("g2Play").onclick = () => L2.play();
+  document.querySelectorAll('input[name="g3m"]').forEach(r => r.addEventListener("change", () => { fb = null; render(); }));
+  $("g3Yes").onclick = () => L3.answerScan(true); $("g3No").onclick = () => L3.answerScan(false); $("g3SNext").onclick = () => { L3.newShape(); render(); };
+  document.querySelectorAll("#g3CardRow [data-ans]").forEach(b => b.onclick = () => L3.answerCard(b.dataset.ans));
+  $("g3CNext").onclick = () => { L3.newCard(); render(); };
+  L1.newRound(); L3.sh = ri(0, SH.length - 1); L3.card = ri(0, CARDS.length - 1);
+  onLangChange.push(render); onTheme.push(render);
+  render();
+  window.__game14 = { L1, L2, L3, LV, render };   // 给自动测试用 / for automated checks
+})();
+</script>
+<script>
+// ---- 练习：自动测试 / exercise: auto-tests ----
+(function(){
+  const S_ = { zh: { err: "代码出错：", all: "全部通过！", some: "通过", missing: "没有找到 Vec3 类",
+                     pc: "左边：sampleCircle(圆心 (−5, 0), r = 3, n = 12) 的点连成多边形，灰线是 circlePoint 在 t ∈ [0, 1] 画出的圆。右边：linePoint 在 t = 0, 0.1, …, 1 的点；小点按 lineSide 的符号上色（玫红为正，在 A→B 左边）。", pcErr: "画图时出错：" },
+               en: { err: "Code error: ", all: "All tests pass!", some: "passed", missing: "No Vec3 class found",
+                     pc: "Left: sampleCircle(center (−5, 0), r = 3, n = 12) joined into a polygon; the gray curve is circlePoint over t ∈ [0, 1]. Right: linePoint at t = 0, 0.1, …, 1; the small dots are colored by the sign of lineSide (magenta is positive, left of A→B).", pcErr: "Error while plotting: " } };
+  const near = (p, q) => typeof p === "number" && Math.abs(p - q) < 1e-9;
+  const eq = (v, x, y, z = 0) => !!v && near(v.x, x) && near(v.y, y) && near(v.z, z);
+  const TESTS = [
+    { zh: "circleF：圆心 (1,2)、r = 3，点 (4,2) → 0，(1,2) → −9，(5,2) → 7，(1,−1) → 0", en: "circleF: center (1,2), r = 3: (4,2) → 0, (1,2) → −9, (5,2) → 7, (1,−1) → 0",
+      f: ({ V, cF }) => { const c = new V(1,2,0); return near(cF(c, 3, new V(4,2,0)), 0) && near(cF(c, 3, new V(1,2,0)), -9) && near(cF(c, 3, new V(5,2,0)), 7) && near(cF(c, 3, new V(1,-1,0)), 0); } },
+    { zh: "circleF 的符号：(2,3) 在里面得负数，(5,5) 在外面得正数，且不修改输入", en: "circleF sign: (2,3) inside gives a negative, (5,5) outside a positive, inputs unchanged",
+      f: ({ V, cF }) => { const c = new V(1,2,0), P = new V(5,5,0); return cF(c, 3, new V(2,3,0)) < 0 && cF(c, 3, P) > 0 && eq(c, 1,2) && eq(P, 5,5); } },
+    { zh: "circlePoint：圆心 (1,2)、r = 3，t = 0 → (4,2)，t = 0.25 → (1,5)，t = 0.5 → (−2,2)，t = 1 → (4,2)", en: "circlePoint: center (1,2), r = 3: t = 0 → (4,2), t = 0.25 → (1,5), t = 0.5 → (−2,2), t = 1 → (4,2)",
+      f: ({ V, cP }) => { const c = new V(1,2,0); return eq(cP(c, 3, 0), 4,2) && eq(cP(c, 3, 0.25), 1,5) && eq(cP(c, 3, 0.5), -2,2) && eq(cP(c, 3, 1), 4,2) && eq(c, 1,2); } },
+    { zh: "参数式造出的点都满足隐式方程：t = 0, 0.1, …, 1 时 |P − c|² − r² ≈ 0", en: "Points from the parametric form satisfy the implicit one: |P − c|² − r² ≈ 0 for t = 0, 0.1, …, 1",
+      f: ({ V, cP }) => { const c = new V(-2,0.5,0); for (let i = 0; i <= 10; i++){ const P = cP(c, 1.5, i / 10); if (!P || !near((P.x + 2) ** 2 + (P.y - 0.5) ** 2 - 2.25, 0)) return false; } return true; } },
+    { zh: "linePoint：A (1,2)、B (5,0)，t = 0 → A，t = 1 → B，t = 0.5 → (3,1)，t = 2 → (9,−2)，t = −1 → (−3,4)", en: "linePoint: A (1,2), B (5,0): t = 0 → A, t = 1 → B, t = 0.5 → (3,1), t = 2 → (9,−2), t = −1 → (−3,4)",
+      f: ({ V, lP }) => { const A = new V(1,2,0), B = new V(5,0,0); return eq(lP(A, B, 0), 1,2) && eq(lP(A, B, 1), 5,0) && eq(lP(A, B, 0.5), 3,1) && eq(lP(A, B, 2), 9,-2) && eq(lP(A, B, -1), -3,4) && eq(A, 1,2) && eq(B, 5,0); } },
+    { zh: "lineSide：A (0,0)、B (4,0)，(1,1) 为正，(1,−1) 为负，(7,0) 为 0；交换 A、B 后符号反过来", en: "lineSide: A (0,0), B (4,0): (1,1) positive, (1,−1) negative, (7,0) zero; swapping A and B flips the sign",
+      f: ({ V, lS }) => { const A = new V(0,0,0), B = new V(4,0,0), P = new V(1,1,0); const s1 = lS(A, B, P), s2 = lS(B, A, P);
+        return typeof s1 === "number" && s1 > 0 && lS(A, B, new V(1,-1,0)) < 0 && near(lS(A, B, new V(7,0,0)), 0) && s2 < 0 && near(s1, -s2); } },
+    { zh: "sampleCircle：圆心 (0,0)、r = 2、n = 4 → (2,0)、(0,2)、(−2,0)、(0,−2)，正好 4 个", en: "sampleCircle: center (0,0), r = 2, n = 4 → (2,0), (0,2), (−2,0), (0,−2), exactly 4 points",
+      f: ({ V, sC }) => { const p = sC(new V(0,0,0), 2, 4); return Array.isArray(p) && p.length === 4 && eq(p[0], 2,0) && eq(p[1], 0,2) && eq(p[2], -2,0) && eq(p[3], 0,-2); } },
+    { zh: "sampleCircle：n = 7 时 7 个点都在圆上，相邻间距都相等（包括最后一个回到第一个），没有重复点", en: "sampleCircle: with n = 7, all 7 points lie on the circle and every gap is equal, including last back to first, with no repeat",
+      f: ({ V, sC }) => { const p = sC(new V(1,1,0), 1, 7); if (!Array.isArray(p) || p.length !== 7) return false;
+        const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), g = d(p[6], p[0]);
+        return g > 0.1 && p.every((q, i) => near(Math.hypot(q.x - 1, q.y - 1), 1) && near(d(q, p[(i + 1) % 7]), g)); } }
+  ];
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  const pc = document.getElementById("pc"), pcNote = document.getElementById("pcNote");
+  let results = null, M = null, pcErr = "";
+  function plot(){
+    const B = makeBoard(pc, 30); B.clear(); pcErr = "";
+    if (M && M.V){
+      try { const c = new M.V(-5, 0, 0); if (M.cP){ const tr = []; for (let i = 0; i <= 200; i++){ const P = M.cP(c, 3, i / 200); if (P) tr.push([P.x, P.y]); } B.path(tr, css("--muted"), 2); }
+        if (M.sC){ const pts = M.sC(c, 3, 12) || []; B.path(pts.map(p => [p.x, p.y]), css("--accent"), 2.5, null, 1, true); pts.forEach((p, i) => { B.dot(p.x, p.y, css("--accent"), 5); B.text(String(i), p.x, p.y, css("--ink"), 6, -6, 12); }); } }
+      catch (e){ pcErr = e.message; }
+      try { const A = new M.V(2, -3, 0), Bv = new M.V(9, 3, 0);
+        if (M.lS) for (let x = 1; x <= 11; x++) for (let y = -4; y <= 4; y++){ const v = M.lS(A, Bv, new M.V(x, y, 0)); if (typeof v === "number" && Math.abs(v) > 1e-9) B.dot(x, y, v > 0 ? css("--accent-2") : css("--accent"), 2.5); }
+        if (M.lP) for (let i = 0; i <= 10; i++){ const P = M.lP(A, Bv, i / 10); if (P) B.dot(P.x, P.y, css("--ink"), 4.5); }
+        B.text("A", 2, -3, css("--ink")); B.text("B", 9, 3, css("--ink")); }
+      catch (e){ pcErr = e.message; }
+    }
+    const t = S_[lang()]; pcNote.textContent = t.pc + (pcErr ? " " + t.pcErr + pcErr : "");
+  }
+  function show(){ const t = S_[lang()]; plot(); if (!results){ list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length; err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`; err.classList.toggle("allok", n === results.length); }
+  function run(){ err.classList.remove("allok");
+    try { M = new Function(document.getElementById("code").value + "\nconst u = n => typeof n === 'undefined';\nreturn { V: typeof Vec3 === 'undefined' ? undefined : Vec3, cF: typeof circleF === 'undefined' ? undefined : circleF, cP: typeof circlePoint === 'undefined' ? undefined : circlePoint, lP: typeof linePoint === 'undefined' ? undefined : linePoint, lS: typeof lineSide === 'undefined' ? undefined : lineSide, sC: typeof sampleCircle === 'undefined' ? undefined : sampleCircle };")(); }
+    catch (e){ M = null; results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    if (!M.V){ results = null; show(); err.textContent = S_[lang()].missing; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(M); } catch { return false; } }); show(); }
+  document.getElementById("run").onclick = run; onLangChange.push(show); onTheme.push(plot); run();
+})();
+</script>

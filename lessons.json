@@ -241,14 +241,15 @@
         "里外判断",
         "直线方程"
       ],
-      "status": "in-progress",
+      "status": "done",
       "artifactUrl": "https://claude.ai/artifact/KbW3ycQR3ovW8mDt6eayu7",
       "videos": {
         "UCD": [
           "02"
         ],
         "MIT": []
-      }
+      },
+      "completedAt": "2026-11-06"
     }
   ],
   "videoRefs": {

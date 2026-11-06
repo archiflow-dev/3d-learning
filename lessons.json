@@ -222,6 +222,33 @@
         "MIT": []
       },
       "completedAt": "2026-11-06"
+    },
+    {
+      "id": "1.4",
+      "stage": 1,
+      "title": {
+        "zh": "平面中的曲线：显式、隐式、参数式",
+        "en": "Curves in the Plane: Explicit, Implicit, Parametric"
+      },
+      "file": "lessons/1.4-plane-curves.html",
+      "prereqs": [
+        "1.3"
+      ],
+      "concepts": [
+        "显式曲线",
+        "隐式曲线",
+        "参数曲线",
+        "里外判断",
+        "直线方程"
+      ],
+      "status": "in-progress",
+      "artifactUrl": "https://claude.ai/artifact/KbW3ycQR3ovW8mDt6eayu7",
+      "videos": {
+        "UCD": [
+          "02"
+        ],
+        "MIT": []
+      }
     }
   ],
   "videoRefs": {

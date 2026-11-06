@@ -97,7 +97,7 @@ const LESSON = {
   stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
   title: { zh: "点积", en: "The Dot Product" },
   minutes: 60, prereqs: ["1.1"],
-  prev: "1.1-vectors.html", next: null,
+  prev: "1.1-vectors.html", next: "1.3-cross-product.html",
   concepts: ["dot product", "angle", "projection", "front/behind test", "Lambert cosine"],
   videos: { UCD: [], MIT: [] }
 };
@@ -232,6 +232,57 @@ a · a = |a|²                              ← 长度的平方，不用开方 /
   <p class="en"><b>"Is it in front?":</b> an observer stands at E, faces f, and the target is at T. First get the vector from observer to target, d = T − E (lesson 1.1's "end − start"), then check f · d: above 0 is in front, below 0 is behind. For a view cone, normalize both: the target is visible when cos θ = f̂ · d̂ ≥ cos(fov / 2).</p>
 </section>
 
+<style>#why h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}</style>
+<section id="why">
+  <h2><span class="tag">Why</span><span class="zh">为什么 a · b = |a| |b| cos θ</span><span class="en">Why a · b = |a| |b| cos θ</span></h2>
+  <p class="zh">"逐分量相乘再相加"是纯代数，"长度 × 长度 × 夹角余弦"是纯几何，它们为什么会相等？下面用四个角度来看，交互图对应前三个。</p>
+  <p class="en">"Multiply components and add" is pure algebra; "length × length × cosine of the angle" is pure geometry. Why are they equal? Here are four views; the interactive figure covers the first three.</p>
+
+  <h3 class="zh">1. 几何：把坐标轴转到 b 上</h3><h3 class="en">1. Geometry: turn the axes onto b</h3>
+  <p class="zh">旋转坐标系，让 x 轴正好沿着 b。这时 b = (|b|, 0)，于是 a · b = aₓ · |b| + a_y · 0 = aₓ |b|。而 aₓ 就是 a 在 b 那条线上的影子，长度是 |a| cos θ。所以 a · b = |a| |b| cos θ。</p>
+  <p class="en">Rotate the coordinate system until the x axis runs along b. Then b = (|b|, 0), so a · b = aₓ · |b| + a_y · 0 = aₓ |b|. And aₓ is the shadow of a on b's line, of length |a| cos θ. So a · b = |a| |b| cos θ.</p>
+  <p class="zh"><b>凭什么能随便转坐标？</b>因为点积可以只用长度写出来：|a + b|² = |a|² + |b|² + 2 a · b。旋转不改变任何长度，所以也不改变点积。在交互图里拖动"坐标轴旋转"滑块：a 和 b 的分量一直在变，但逐分量算出来的点积一直不变。</p>
+  <p class="en"><b>Why may we rotate freely?</b> Because the dot product can be written with lengths alone: |a + b|² = |a|² + |b|² + 2 a · b. Rotation changes no length, so it cannot change the dot product. In the figure, drag the "rotate axes" slider: the components of a and b keep changing, but the component-wise dot product stays the same.</p>
+
+  <h3 class="zh">2. 数学：余弦定理</h3><h3 class="en">2. Algebra: the law of cosines</h3>
+  <p class="zh">a、b 和 a − b 围成一个三角形。余弦定理说 |a − b|² = |a|² + |b|² − 2 |a| |b| cos θ；按分量展开又有 |a − b|² = |a|² + |b|² − 2 a · b。两式一比，就得到 a · b = |a| |b| cos θ。</p>
+  <p class="en">a, b and a − b form a triangle. The law of cosines says |a − b|² = |a|² + |b|² − 2 |a| |b| cos θ; expanding by components gives |a − b|² = |a|² + |b|² − 2 a · b. Compare the two and a · b = |a| |b| cos θ.</p>
+
+  <h3 class="zh">3. 3Blue1Brown 的"对偶"视角</h3><h3 class="en">3. The 3Blue1Brown "duality" view</h3>
+  <p class="zh">把 b̂ 看成一台机器：输入任何向量，输出它在 b̂ 方向上的影子长度。这台机器是线性的（两个向量相加，影子也相加），所以只要知道它把 î = (1, 0) 和 ĵ = (0, 1) 送到哪里。由对称性，î 在 b̂ 上的影子，等于 b̂ 在 x 轴上的影子，也就是 b̂ₓ；ĵ 同理得到 b̂_y。a = aₓ î + a_y ĵ，所以 a 的影子 = aₓ b̂ₓ + a_y b̂_y，正是逐分量相乘再相加。再乘上 |b|，就是 a · b。</p>
+  <p class="en">Treat b̂ as a machine: feed it any vector and it returns that vector's shadow length along b̂. The machine is linear (add two vectors and their shadows add), so all we need is where it sends î = (1, 0) and ĵ = (0, 1). By symmetry, the shadow of î on b̂ equals the shadow of b̂ on the x axis, which is b̂ₓ; likewise ĵ gives b̂_y. Since a = aₓ î + a_y ĵ, the shadow of a = aₓ b̂ₓ + a_y b̂_y, exactly "multiply components and add". Multiply by |b| and you have a · b.</p>
+
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="view">
+        <input type="radio" name="why" id="wvR" value="rot" checked><label for="wvR"><span class="zh">1 转坐标轴</span><span class="en">1 Rotate axes</span></label>
+        <input type="radio" name="why" id="wvC" value="cos"><label for="wvC"><span class="zh">2 余弦定理</span><span class="en">2 Law of cosines</span></label>
+        <input type="radio" name="why" id="wvD" value="dual"><label for="wvD"><span class="zh">3 î、ĵ 的影子</span><span class="en">3 Shadows of î, ĵ</span></label>
+      </span>
+    </div>
+    <div class="row" id="wRotRow">
+      <label for="wRot" class="meta"><span class="zh">坐标轴旋转</span><span class="en">Rotate axes</span> <output id="wRotOut">0°</output></label>
+      <input type="range" id="wRot" min="0" max="1000" step="1" value="0" style="flex:1;min-width:0">
+      <button type="button" id="wSnap"><span class="zh">转到 b 上</span><span class="en">Snap to b</span></button>
+    </div>
+    <canvas id="wc" width="720" height="440" aria-label="why figure"></canvas>
+    <dl class="readout" id="wOut"></dl>
+    <p class="meta" id="wNote"></p>
+  </div>
+
+  <h3 class="zh">4. 物理：功和光照</h3><h3 class="en">4. Physics: work and light</h3>
+  <ul class="zh">
+    <li><b>功：</b>用绳子斜着拉车，只有沿前进方向的那部分力在做功：W = F · s = |F| |s| cos θ。垂直于运动方向的力（比如车平着走时的重力）做功为 0。</li>
+    <li><b>光照：</b>手电筒斜照桌面，同一束光摊到了更大的面积上，每单位面积收到的能量按 cos θ 变少。这就是演示 2 里球越靠边越暗、第 3 关里斜面只剩一半亮度的原因。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Work:</b> pull a cart with a slanted rope and only the part of the force along the motion does work: W = F · s = |F| |s| cos θ. A force perpendicular to the motion (gravity on a cart rolling on flat ground) does no work.</li>
+    <li><b>Light:</b> tilt a flashlight onto a table and the same beam spreads over a larger area, so each unit of area gets less energy, by a factor of cos θ. That is why the sphere in Demo 2 darkens toward its edge, and the slanted face in game level 3 gets half the light.</li>
+  </ul>
+  <p class="zh"><b>一句话：</b>点积 = 一个向量在另一个方向上的影子 × 那个方向的长度。分量公式是这个影子的算法，cos θ 是它的几何形状。</p>
+  <p class="en"><b>In one line:</b> the dot product is the shadow of one vector along another's direction, times that direction's length. The component formula is how you compute the shadow; cos θ is its geometric shape.</p>
+</section>
+
 <section id="exercise">
   <h2><span class="tag">Exercise</span><span class="zh">你动手</span><span class="en">Your turn</span></h2>
   <div class="panel">
@@ -275,6 +326,35 @@ function isInFront(eye, facing, target) { /* TODO */ }
 function canSee(eye, facing, target, fovDeg) { /* TODO */ }</textarea>
     <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
     <ul class="tests" id="tests"></ul>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-05，8/8 通过）</span><span class="en">My solution (2026-11-05, 8/8 pass)</span></p>
+      <pre class="formula">  // ---- 1.2 新增 / new in 1.2 ----
+  dot(v)         { return this.x * v.x + this.y * v.y + this.z * v.z;  }
+  angleTo(v)     { 
+      const d = this.length() * v.length();
+      if (d === 0) return Math.PI / 2;   
+      const cos = Math.max(-1, Math.min(1, this.dot(v) / d));
+      return Math.acos(cos);
+      }
+  projectOnto(b) { 
+      if (b.length() === 0) return new Vec3(0, 0, 0);
+      const s = this.dot(b)/ b.length();
+      return b.scale(s/b.length());
+      }
+}
+
+// eye, target: 点 / points;  facing: 朝向 / direction
+function isInFront(eye, facing, target) { return facing.dot(target.sub(eye)) &gt; 0; }
+
+function canSee(eye, facing, target, fovDeg) { 
+      const v1= target.sub(eye);
+      const d = facing.length() * v1.length();
+      const cos = facing.dot(v1)/d;
+      return cos &gt;= Math.cos(fovDeg / 2 * Math.PI / 180);
+      }</pre>
+      <p class="zh"><b>评审时学到的：</b>canSee 第一版把 <code>Math.acos</code> 返回的弧度直接和 <code>fovDeg / 2</code> 的角度比较，单位不一致，弧度最大只有 π ≈ 3.14，所以连正后方的目标都被判成看得见。改成比较余弦 <code>cos ≥ cos(fov / 2)</code> 后，既不用 acos，也避开了浮点误差带来的 NaN。projectOnto 里第一次除以 |b| 得到带正负的影子长度 s，第二次除以 |b| 是把 b 变成单位方向 b̂，再乘以 s，得到长度为 s 的投影向量。最重要的一条：<b>长度只缩放点积的大小，不改变它的正负。</b>所以 isInFront 不用归一化；canSee 要和 cos(fov / 2) 比大小，必须除以 |f||d|；法线长度为 2 会让亮度翻倍、过曝，l 长度为 0.5 会让所有地方亮度减半，但明暗交界线（n · l = 0）都不会动。（第 2、3 个理解题由 AI 讲解，补充题"l 长度为 0.5"由我自己答对。）</p>
+      <p class="en"><b>What the review taught me:</b> my first canSee compared the radians from <code>Math.acos</code> with <code>fovDeg / 2</code> in degrees. The units did not match, and since radians top out at π ≈ 3.14, even a target straight behind counted as visible. Comparing cosines, <code>cos ≥ cos(fov / 2)</code>, needs no acos and also avoids NaN from rounding. In projectOnto, the first division by |b| gives the signed shadow length s; the second turns b into the unit direction b̂, which is then scaled by s to give a projection of length s. The key rule: <b>length scales the size of a dot product but never its sign.</b> So isInFront needs no normalizing; canSee compares against cos(fov / 2) and must divide by |f||d|; a normal of length 2 doubles the brightness and blows it out, and an l of length 0.5 halves it everywhere, but the light/dark boundary (n · l = 0) never moves. (The AI explained understanding questions 2 and 3; I answered the follow-up about an l of length 0.5 myself.)</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">angleTo 的 NaN 从哪里来：浮点误差可能让 cos θ 算出 1.0000000000000002，而 <code>Math.acos</code> 只接受 −1 到 1。canSee 可以完全不调用 acos，比较余弦值就行。</p>
       <p class="en">Where angleTo's NaN comes from: rounding can make cos θ come out as 1.0000000000000002, and <code>Math.acos</code> only accepts −1 to 1. canSee can skip acos entirely and compare cosines instead.</p>
@@ -835,5 +915,108 @@ const onLangChange = [];
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
   new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   render();
+})();
+</script>
+<script>
+// 为什么两种写法相等 / why the two forms agree
+(function(){
+  const $ = id => document.getElementById(id), css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const cv = $("wc"), ctx = cv.getContext("2d"), U = 50, O = { x: 360, y: 220 };
+  const add = (p, q) => ({ x: p.x + q.x, y: p.y + q.y }), sub = (p, q) => ({ x: p.x - q.x, y: p.y - q.y }), mul = (p, s) => ({ x: p.x * s, y: p.y * s });
+  const dot = (p, q) => p.x * q.x + p.y * q.y, len = p => Math.hypot(p.x, p.y), unit = p => { const l = len(p); return l < 1e-9 ? { x: 1, y: 0 } : mul(p, 1 / l); };
+  const rot = (p, g) => ({ x: p.x * Math.cos(g) - p.y * Math.sin(g), y: p.x * Math.sin(g) + p.y * Math.cos(g) });
+  const P = v => ({ x: O.x + v.x * U, y: O.y - v.y * U });
+  let a = { x: 1.2, y: 3 }, b = { x: 3.5, y: 1.4 }, drag = null, mode = "rot";
+  const f2 = x => (Math.abs(x) < 0.005 ? 0 : x).toFixed(2);
+  function arrow(from, v, col, w = 3, alpha = 1, dash){ const p0 = P(from), p1 = P(add(from, v));
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = ctx.fillStyle = col; ctx.lineWidth = w; if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke(); ctx.setLineDash([]);
+    if (len(v) > 0.15){ const g = Math.atan2(p1.y - p0.y, p1.x - p0.x); ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p1.x - 12 * Math.cos(g - 0.4), p1.y - 12 * Math.sin(g - 0.4)); ctx.lineTo(p1.x - 12 * Math.cos(g + 0.4), p1.y - 12 * Math.sin(g + 0.4)); ctx.fill(); }
+    ctx.restore(); }
+  function seg(p, q, col, w = 1.5, dash, alpha = 1){ const s = P(p), e = P(q); ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = "round";
+    if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); ctx.restore(); }
+  function text(v, s, col, dx = 8, dy = -8, size = 16){ const p = P(v); ctx.fillStyle = col; ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.fillText(s, p.x + dx, p.y + dy); }
+  function frameGrid(g, strong){ // 画旋转了 g 的坐标网格 / grid of a frame rotated by g
+    const ex = rot({ x: 1, y: 0 }, g), ey = rot({ x: 0, y: 1 }, g), N = 12;
+    for (let i = -N; i <= N; i++){
+      seg(add(mul(ex, -N), mul(ey, i)), add(mul(ex, N), mul(ey, i)), css("--line"), i === 0 ? 0 : 1);
+      seg(add(mul(ey, -N), mul(ex, i)), add(mul(ey, N), mul(ex, i)), css("--line"), i === 0 ? 0 : 1);
+    }
+    seg(mul(ex, -N), mul(ex, N), strong, 2); seg(mul(ey, -N), mul(ey, N), strong, 2);
+    text(mul(ex, 6.6), "x", strong, 4, -6, 15); text(mul(ey, 4), "y", strong, 8, 4, 15);
+  }
+  function draw(){
+    const z = lang() === "zh", A = css("--accent-2"), B = css("--accent"), G = css("--good"), ink = css("--ink"), mu = css("--muted"), Z = { x: 0, y: 0 };
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    $("wRotRow").hidden = mode !== "rot";
+    const La = len(a), Lb = len(b), d = dot(a, b), th = Math.acos(Math.max(-1, Math.min(1, d / (La * Lb || 1)))), bh = unit(b);
+    let rows = [], note = "";
+    if (mode === "rot"){
+      const gb = Math.atan2(b.y, b.x), t = +$("wRot").value / 1000, g = gb * t;
+      frameGrid(g, mu);
+      const ar = rot(a, -g), br = rot(b, -g); // 新坐标系里的分量 / components in the rotated frame
+      const ex = rot({ x: 1, y: 0 }, g);
+      // a 在新 x 轴上的分量（影子）/ a's component on the new x axis (its shadow)
+      const foot = mul(ex, ar.x); seg(a, foot, G, 1.5, [5, 4]); ctx.save(); ctx.globalAlpha = 0.45; seg(Z, foot, G, 10); ctx.restore();
+      arrow(Z, a, A); arrow(Z, b, B); text(a, "a", A); text(b, "b", B, 8, 20);
+      $("wRotOut").textContent = (g * 180 / Math.PI).toFixed(0) + "°";
+      rows = [[z ? "新坐标里的 a" : "a in new axes", `(${f2(ar.x)}, ${f2(ar.y)})`], [z ? "新坐标里的 b" : "b in new axes", `(${f2(br.x)}, ${f2(br.y)})`],
+        [z ? "逐分量点积" : "component dot", `${f2(ar.x)}×${f2(br.x)} + ${f2(ar.y)}×${f2(br.y)} = <b>${f2(dot(ar, br))}</b>`],
+        ["|a| |b| cos θ", `${f2(La)} × ${f2(Lb)} × ${f2(Math.cos(th))} = <b>${f2(La * Lb * Math.cos(th))}</b>`]];
+      const snapped = Math.abs(t - 1) < 0.002;
+      note = snapped ? (z ? `现在 b = (${f2(Lb)}, 0)，所以点积只剩 aₓ × |b| = ${f2(ar.x)} × ${f2(Lb)}。绿色的 aₓ 就是 a 的影子，长度 |a| cos θ。` : `Now b = (${f2(Lb)}, 0), so the dot product is just aₓ × |b| = ${f2(ar.x)} × ${f2(Lb)}. The green aₓ is the shadow of a, of length |a| cos θ.`)
+        : (z ? "拖动滑块旋转坐标轴：分量一直在变，点积不变。绿色是 a 在当前 x 轴上的分量。" : "Drag the slider to rotate the axes: the components change, the dot product does not. Green is a's component on the current x axis.");
+    } else if (mode === "cos"){
+      frameGrid(0, mu);
+      const c = sub(a, b);
+      ctx.save(); ctx.globalAlpha = 0.1; ctx.fillStyle = ink; ctx.beginPath(); [Z, a, b].map(P).forEach((q, i) => i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)); ctx.fill(); ctx.restore();
+      arrow(b, c, G, 3); text(add(b, mul(c, 0.5)), "a − b", G, 10, 0);
+      arrow(Z, a, A); arrow(Z, b, B); text(a, "a", A); text(b, "b", B, 8, 20);
+      const o = P(Z), ga = Math.atan2(a.y, a.x), gb = Math.atan2(b.y, b.x); let dg = ga - gb; while (dg > Math.PI) dg -= 2 * Math.PI; while (dg < -Math.PI) dg += 2 * Math.PI;
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(o.x, o.y, 30, -gb, -(gb + dg), dg > 0); ctx.stroke(); text(mul(unit(add(unit(a), unit(b))), 0.95), "θ", ink, -4, 6, 15);
+      const lc = len(c) ** 2;
+      rows = [["|a − b|²", `<b>${f2(lc)}</b>`], [z ? "余弦定理" : "law of cosines", `|a|² + |b|² − 2|a||b|cos θ = ${f2(La * La)} + ${f2(Lb * Lb)} − 2×${f2(La)}×${f2(Lb)}×${f2(Math.cos(th))} = <b>${f2(La * La + Lb * Lb - 2 * La * Lb * Math.cos(th))}</b>`],
+        [z ? "按分量展开" : "by components", `|a|² + |b|² − 2 a·b = ${f2(La * La)} + ${f2(Lb * Lb)} − 2×${f2(d)} = <b>${f2(La * La + Lb * Lb - 2 * d)}</b>`]];
+      note = z ? "两行都等于 |a − b|²，前面 |a|² + |b|² 一样，所以剩下的部分也一样：a · b = |a| |b| cos θ。" : "Both lines equal |a − b|², and they share |a|² + |b|², so the rest must match too: a · b = |a| |b| cos θ.";
+    } else {
+      frameGrid(0, mu);
+      seg(mul(bh, -12), mul(bh, 12), B, 1.5, [2, 5]);
+      const sh = v => mul(bh, dot(v, bh));
+      // î、ĵ 的影子 / shadows of î and ĵ
+      const I = { x: 1, y: 0 }, J = { x: 0, y: 1 };
+      [[I, "î", "b̂ₓ"], [J, "ĵ", "b̂_y"]].forEach(([e, n]) => { seg(e, sh(e), ink, 1, [3, 3]); arrow(Z, e, ink, 2.5); text(e, n, ink, 4, -6, 15); });
+      // a = aₓ î + a_y ĵ，影子分两段叠加 / a's shadow as two stacked pieces
+      const ax = { x: a.x, y: 0 }, s1 = sh(ax), s2 = mul(bh, a.y * bh.y);
+      arrow(Z, ax, A, 2, 0.5, [6, 4]); arrow(ax, { x: 0, y: a.y }, A, 2, 0.5, [6, 4]);
+      seg(ax, s1, "#e0a400", 1, [3, 4]); seg(a, add(s1, s2), G, 1.5, [5, 4]);
+      ctx.save(); ctx.globalAlpha = 0.75; seg(Z, s1, "#e0a400", 9); ctx.restore();
+      ctx.save(); ctx.globalAlpha = 0.6; seg(s1, add(s1, s2), G, 9); ctx.restore();
+      arrow(Z, a, A); arrow(Z, b, B); text(a, "a", A); text(b, "b", B, 8, 20);
+      rows = [["b̂", `(${f2(bh.x)}, ${f2(bh.y)})`], [z ? "î 的影子" : "shadow of î", `b̂ₓ = ${f2(bh.x)}`], [z ? "ĵ 的影子" : "shadow of ĵ", `b̂_y = ${f2(bh.y)}`],
+        [z ? "a 的影子" : "shadow of a", `aₓ b̂ₓ + a_y b̂_y = ${f2(a.x)}×${f2(bh.x)} + ${f2(a.y)}×${f2(bh.y)} = <b>${f2(dot(a, bh))}</b>`],
+        [z ? "× |b|" : "× |b|", `${f2(dot(a, bh))} × ${f2(Lb)} = <b>${f2(d)}</b> = a · b`]];
+      note = z ? "黄色段是 aₓ î 的影子（aₓ × b̂ₓ），绿色段是 a_y ĵ 的影子（a_y × b̂_y）。两段接起来就是 a 的整个影子：机器是线性的，影子可以分开算再相加。" : "The yellow piece is the shadow of aₓ î (aₓ × b̂ₓ) and the green piece is the shadow of a_y ĵ (a_y × b̂_y). Together they make the whole shadow of a: the machine is linear, so shadows can be computed piece by piece and added.";
+    }
+    [[a, A], [b, B]].forEach(([v, c]) => { const p = P(v); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, 7); ctx.fill(); });
+    $("wOut").innerHTML = rows.map(([x, y]) => `<dt>${x}</dt><dd>${y}</dd>`).join(""); $("wNote").textContent = note;
+  }
+  function pos(e){ const rc = cv.getBoundingClientRect(); return { x: (e.clientX - rc.left) * cv.width / rc.width, y: (e.clientY - rc.top) * cv.height / rc.height }; }
+  cv.addEventListener("pointerdown", e => { const p = pos(e), da = Math.hypot(P(a).x - p.x, P(a).y - p.y), db = Math.hypot(P(b).x - p.x, P(b).y - p.y);
+    drag = da < 28 && da <= db ? "a" : db < 28 ? "b" : null; if (drag){ cv.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const p = pos(e);
+    const w = { x: Math.max(-7, Math.min(7, Math.round((p.x - O.x) / U * 10) / 10)), y: Math.max(-4.3, Math.min(4.3, Math.round((O.y - p.y) / U * 10) / 10)) };
+    if (len(w) < 0.3) return; if (drag === "a") a = w; else b = w; draw(); });
+  cv.addEventListener("pointerup", () => drag = null);
+  document.querySelectorAll('input[name="why"]').forEach(r => r.addEventListener("change", () => { mode = document.querySelector('input[name="why"]:checked').value; draw(); }));
+  $("wRot").addEventListener("input", draw);
+  let anim = null;
+  $("wSnap").onclick = () => { cancelAnimationFrame(anim); const s = +$("wRot").value, t0 = performance.now();
+    const step = now => { const k = Math.min(1, (now - t0) / 900); $("wRot").value = Math.round(s + (1000 - s) * (1 - (1 - k) ** 3)); draw(); if (k < 1) anim = requestAnimationFrame(step); };
+    anim = requestAnimationFrame(step); };
+  onLangChange.push(draw);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  draw();
 })();
 </script>

@@ -291,6 +291,32 @@ function triangleNormal(A, B, C)      { /* TODO */ }
 function isFrontFacing(A, B, C, eye)  { /* TODO */ }</textarea>
     <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
     <ul class="tests" id="tests"></ul>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-06，8/8 通过）</span><span class="en">My solution (2026-11-06, 8/8 pass)</span></p>
+      <pre class="formula">// ---- 1.3 新增 / new in 1.3 ----
+  cross(v) {
+     return new Vec3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
+     }
+}
+function triangleArea(A, B, C)
+{ const v1 = C.sub(A);
+  const v2 = B.sub(A);
+  return v2.cross(v1).length()/2;
+ }
+function triangleNormal(A, B, C)
+{
+    const v1 = C.sub(A);
+    const v2 = B.sub(A);
+    return v2.cross(v1).normalize();
+}
+function isFrontFacing(A, B, C, eye)  {
+  const norm = triangleNormal(A, B, C);
+  const d = eye.sub(A)
+  return norm.dot(d) &gt; 0;
+ }</pre>
+      <p class="zh"><b>评审时学到的：</b>交换叉积的顺序，面积不变（取的是长度），但法线反向：v1 × v2 = −(v2 × v1)，这就是"交换 B、C 法线翻面"。判断正反面的规则是<b>从相机看逆时针 = 正面 = 法线朝向相机</b>。我一开始把"法线朝向相机"和"法线与相机视线同向"搞混了：相机看过去是 −Z，正面的法线却指向 +Z（朝着相机），也就是 <code>n · (eye − A) &gt; 0</code>。几乎共线的三角形面积很小，但归一化后的法线长度仍是 1；问题在于它的方向对顶点的微小误差极其敏感，float32 精度下会变成噪声甚至 NaN，光照上表现为随机闪烁的黑点。isFrontFacing 里给法线归一化不是必须的，只看正负时长度不影响结果。（理解题前两轮各错了一半，最后在游戏第 3 关「预测」中连续答对 3 题。）</p>
+      <p class="en"><b>What the review taught me:</b> swapping the cross product's order keeps the area (it is a length) but flips the normal: v1 × v2 = −(v2 × v1), which is exactly "swap B and C and the face flips". The rule for front and back is <b>counter-clockwise as seen from the camera = front = normal points at the camera</b>. At first I confused "normal points at the camera" with "normal along the camera's view direction": the camera looks along −Z, yet a front face's normal points +Z (toward the camera), i.e. <code>n · (eye − A) &gt; 0</code>. A nearly collinear triangle has a tiny area, but its normalized normal still has length 1; the trouble is that its direction is extremely sensitive to tiny vertex errors and turns into noise or even NaN at float32 precision, which shows up as randomly flickering black pixels. Normalizing the normal in isFrontFacing is unnecessary, since length cannot change a sign. (I got half of each understanding question wrong in the first two rounds, then answered 3 in a row in the game's level 3 Predict mode.)</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">isFrontFacing：先求法线 n，再求从三角形指向眼睛的向量 eye − A。两者同向（点积 &gt; 0）就是正面朝着眼睛。法线需要归一化吗？想想 1.2 课"只看正负"的结论。</p>
       <p class="en">isFrontFacing: get the normal n, then the vector from the triangle to the eye, eye − A. If they point the same way (dot product &gt; 0) the front faces the eye. Does the normal need normalizing? Recall lesson 1.2's "sign only" rule.</p>

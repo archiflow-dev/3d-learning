@@ -215,12 +215,13 @@
         "右手定则",
         "绕序"
       ],
-      "status": "in-progress",
+      "status": "done",
       "artifactUrl": "https://claude.ai/artifact/KEPabefwUzzvRexfxMCWGa",
       "videos": {
         "UCD": [],
         "MIT": []
-      }
+      },
+      "completedAt": "2026-11-06"
     }
   ],
   "videoRefs": {

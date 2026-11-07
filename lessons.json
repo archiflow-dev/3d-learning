@@ -280,6 +280,35 @@
       },
       "artifactUrl": "https://claude.ai/artifact/JUdcnKiTJaEUvHdTPQZVjX",
       "completedAt": "2026-11-07"
+    },
+    {
+      "id": "1.6",
+      "stage": 1,
+      "title": {
+        "zh": "齐次坐标与平移，Mat4",
+        "en": "Homogeneous Coordinates, Translation and Mat4"
+      },
+      "file": "lessons/1.6-homogeneous.html",
+      "prereqs": [
+        "1.5"
+      ],
+      "concepts": [
+        "平移",
+        "仿射变换",
+        "齐次坐标",
+        "点与方向",
+        "绕任意点旋转"
+      ],
+      "status": "in-progress",
+      "artifactUrl": "https://claude.ai/artifact/85cBnmpG2rrdy8neepVqRr",
+      "videos": {
+        "UCD": [
+          "03"
+        ],
+        "MIT": [
+          "4"
+        ]
+      }
     }
   ],
   "videoRefs": {

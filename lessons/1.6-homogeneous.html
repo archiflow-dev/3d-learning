@@ -1,0 +1,845 @@
+<title>齐次坐标与平移 · Homogeneous Coordinates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.6", slug: "homogeneous",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "齐次坐标与平移，Mat4", en: "Homogeneous Coordinates, Translation and Mat4" },
+  minutes: 90, prereqs: ["1.5"],
+  prev: "1.5-matrices.html", next: null,
+  concepts: ["translation", "affine transformation", "homogeneous coordinates", "points vs directions", "rotation about a pivot"],
+  videos: { UCD: ["03"], MIT: ["4"] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+<style>
+#why h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+.mat3{display:inline-grid;grid-template-columns:repeat(3,58px);gap:6px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
+.mat3 input,.mat3 span{width:58px;font:15px var(--f-mono);padding:4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-align:center;box-sizing:border-box}
+.mat3 span{border-style:dashed;color:var(--muted)}
+</style>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 90 分钟 · 前置：1.5 · 视频：UC Davis ECS 175 第 03 讲 Moving Objects in Space；MIT 6.837 第 4 讲 Transformations（齐次坐标部分）</div>
+  <div class="meta en">About 90 min · Prerequisite: 1.5 · Video: UC Davis ECS 175 lecture 03, Moving Objects in Space; MIT 6.837 lecture 4, Transformations (the homogeneous coordinates part)</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li><b>平移不是线性变换：</b>线性变换（1.5 课）一定让原点不动，所以 2×2 / 3×3 矩阵做不出平移。加一维 w = 1，平移就变成了高一维的剪切，又能用矩阵乘法表示了。</li>
+    <li><b>点和方向不一样：</b>点写成 w = 1，会被平移；方向（速度、法线、光照方向）写成 w = 0，平移对它没有作用。</li>
+    <li><b>读懂 Mat4，并用它绕任意点旋转：</b>左上 3×3 是线性部分，最后一列是平移，最下一行是 0 0 0 1。绕点 p 旋转 = T(p) · R · T(−p)。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Translation is not linear:</b> a linear map (lesson 1.5) always keeps the origin fixed, so no 2×2 / 3×3 matrix can translate. Add a coordinate w = 1 and translation becomes a shear one dimension up, expressible by matrix multiplication again.</li>
+    <li><b>Points and directions differ:</b> a point is written with w = 1 and gets translated; a direction (velocity, normal, light direction) is written with w = 0 and translation does nothing to it.</li>
+    <li><b>Read a Mat4 and rotate about any point:</b> the top-left 3×3 is the linear part, the last column is the translation, the bottom row is 0 0 0 1. Rotating about a point p is T(p) · R · T(−p).</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">1.5 课的矩阵只能拉、转、斜推，原点永远钉在原地：M · (0, 0) 一定是 (0, 0)。可是游戏里最常见的操作恰恰是「把角色往前移 3 米」。</p>
+  <p class="en">Lesson 1.5's matrices can stretch, turn and shear, but the origin stays nailed down: M · (0, 0) is always (0, 0). Yet the most common operation in a game is "move the character 3 meters forward".</p>
+  <p class="zh">办法是给每个点多写一个分量 w = 1，比如 (x, y) 写成 (x, y, 1)。所有点都待在 w = 1 这一层「楼板」上。在 3D 空间里对整栋楼做一次剪切，楼板上的点就整体滑动了。从楼板上看，这正是平移；而在 3D 里它仍然是线性变换，可以用矩阵乘法做。</p>
+  <p class="en">The trick is to give every point an extra component w = 1, writing (x, y) as (x, y, 1). All points then live on the "floor" w = 1. Shear the whole 3D building and everything on that floor slides along together. Seen from the floor this is exactly a translation, yet in 3D it is still linear and can be done by a matrix.</p>
+  <p class="zh">方向不住在楼板上：它们是 w = 0，在「地面」上。剪切不会挪动地面，所以平移对方向没有作用。这正是我们想要的：把一棵树往右移，它的法线方向不应该改变。</p>
+  <p class="en">Directions do not live on that floor: they have w = 0 and sit on the "ground". The shear leaves the ground alone, so translation does nothing to directions. That is exactly what we want: moving a tree to the right should not change its normals.</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：拖动 î、ĵ 和原点</span><span class="en">Demo: drag î, ĵ and the origin</span></h2>
+  <p class="meta zh">比 1.5 课多了一个手柄：黑色圆点是「原点被送到哪」，也就是平移。下面的点 P（w = 1）和方向 d（w = 0）用同一个矩阵变换，看它们有什么不同。</p>
+  <p class="meta en">One more handle than lesson 1.5: the black dot is where the origin goes, i.e. the translation. The point P (w = 1) and direction d (w = 0) below are transformed by the same matrix; watch how they differ.</p>
+  <div class="panel">
+    <div class="cards">
+      <button type="button" data-pre="id"><span class="zh">恒等</span><span class="en">Identity</span></button>
+      <button type="button" data-pre="move"><span class="zh">只平移</span><span class="en">Translate only</span></button>
+      <button type="button" data-pre="rot"><span class="zh">旋转 + 平移</span><span class="en">Rotate + translate</span></button>
+      <button type="button" data-pre="pivot"><span class="zh">绕 F 的角转 90°</span><span class="en">Turn 90° about F's corner</span></button>
+    </div>
+    <canvas id="dc" width="720" height="440" aria-label="affine board"></canvas>
+    <dl class="readout" id="dOut"></dl>
+    <p class="meta" id="dNote"></p>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <pre class="formula">2D 仿射 / 2D affine (3×3)                3D 仿射 / 3D affine (Mat4)
+┌ a  b  tx ┐ ┌ x ┐   ┌ a x + b y + tx ┐     ┌ r00 r01 r02 tx ┐
+│ c  d  ty │ │ y │ = │ c x + d y + ty │     │ r10 r11 r12 ty │   左上 3×3 = 旋转/缩放/剪切
+└ 0  0  1  ┘ └ w ┘   └       w        ┘     │ r20 r21 r22 tz │   top-left 3×3 = rotate/scale/shear
+                                           └  0   0   0   1 ┘   最后一列 = 平移 / last column = translation
+点 / point:      w = 1  →  得到 A p + t      方向 / direction:  w = 0  →  得到 A d（t 消失 / t drops out）
+
+绕点 p 旋转 / rotate about p:   M = T(p) · R · T(−p)      （从右往左：先挪到原点，转，再挪回去）</pre>
+  <p class="zh">注意：这一课的 w 始终是 0 或 1，最后一行总是 0 0 0 1。等到 2.x 课的透视投影，最后一行会被改掉，w 不再是 1，需要再除以 w。</p>
+  <p class="en">Note: in this lesson w is always 0 or 1 and the bottom row is always 0 0 0 1. Perspective projection in stage 2 changes that row, so w stops being 1 and you divide by it.</p>
+</section>
+
+<section id="why">
+  <h2><span class="tag">Why</span><span class="zh">为什么多加一维就能平移？</span><span class="en">Why does one extra dimension make translation possible?</span></h2>
+  <h3 class="zh">1. 线性变换为什么做不了平移</h3><h3 class="en">1. Why a linear map cannot translate</h3>
+  <p class="zh">线性变换满足 T(0 · v) = 0 · T(v) = 0，所以原点一定被送到原点。平移 v ↦ v + t 把原点送到 t，只要 t ≠ 0 就违反了这一条。这不是写法的问题，而是任何 n×n 矩阵都做不到。</p>
+  <p class="en">A linear map satisfies T(0 · v) = 0 · T(v) = 0, so the origin always maps to the origin. Translation v ↦ v + t sends the origin to t, which breaks this rule whenever t ≠ 0. No clever notation helps: no n×n matrix can do it.</p>
+  <h3 class="zh">2. 几何：平移 = 高一维的剪切（拖动下面的滑块）</h3><h3 class="en">2. Geometry: translation = a shear one dimension up (move the slider)</h3>
+  <p class="zh">把 1D 的数轴放到 2D 平面里 w = 1 这一行。2D 剪切 [[1, t], [0, 1]] 把 (x, w) 送到 (x + t·w, w)：w = 1 这一行整体右移 t，w = 0 这一行（横轴）一动不动。这是线性变换（原点没动），但它在 w = 1 这一行上做的事情，正是 1D 的平移。3D 的 Mat4 也是同样的道理，只是高了一维。</p>
+  <p class="en">Put the 1D number line into the 2D plane as the row w = 1. The 2D shear [[1, t], [0, 1]] sends (x, w) to (x + t·w, w): the row w = 1 slides right by t while the row w = 0 (the horizontal axis) stays put. It is linear (the origin is fixed), yet on the row w = 1 it performs exactly a 1D translation. Mat4 does the same thing in 3D, one dimension higher.</p>
+  <div class="panel">
+    <div class="row"><label for="shT" class="meta">t = <output id="shTOut">1.5</output></label><input type="range" id="shT" min="-3" max="3" step="0.1" value="1.5" style="flex:1;min-width:0"></div>
+    <canvas id="wc" width="720" height="380" aria-label="shear figure"></canvas>
+  </div>
+  <h3 class="zh">3. 代数：为什么 w = 0 不受平移影响</h3><h3 class="en">3. Algebra: why w = 0 ignores translation</h3>
+  <p class="zh">矩阵乘向量 = 各列按分量加权相加（1.5 课）。平移 t 住在最后一列，它的权重就是 w。w = 1 时加上一份 t，w = 0 时加上零份。所以「点会被平移、方向不会」不需要额外规定，而是乘法自己算出来的。</p>
+  <p class="en">Matrix times vector is the columns weighted by the components (lesson 1.5). The translation t lives in the last column, so its weight is w. With w = 1 you add one t; with w = 0 you add none. "Points move, directions do not" is not an extra rule; the multiplication works it out by itself.</p>
+  <h3 class="zh">4. 物理：位置和位移</h3><h3 class="en">4. Physics: positions and displacements</h3>
+  <p class="zh">物理里「位置」和「位移、速度、力」是两种东西。把参考系整体挪 5 米，所有物体的位置都变了，但一辆车的速度、两个点之间的位移不会变。点减点得到方向（w：1 − 1 = 0），点加方向还是点（w：1 + 0 = 1），点加点没有意义（w = 2）。w 分量帮你自动检查这些类型。</p>
+  <p class="en">Physics distinguishes positions from displacements, velocities and forces. Shift the reference frame by 5 meters and every position changes, but a car's velocity or the displacement between two points does not. Point minus point gives a direction (w: 1 − 1 = 0), point plus direction is a point (w: 1 + 0 = 1), and point plus point makes no sense (w = 2). The w component type-checks this for you.</p>
+</section>
+
+<section id="game">
+  <h2><span class="tag">Game</span><span class="zh">小游戏：三关，对应三个学习目标</span><span class="en">Game: three levels for three learning goals</span></h2>
+  <p class="meta zh">每一关只练一个学习目标。完成一关的全部任务后，会出现这一关要你记住的那句话。进度保存在你的浏览器里。</p>
+  <p class="meta en">Each level trains one learning goal. Finish all of a level's missions to unlock the one sentence it wants you to keep. Progress is saved in your browser.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="level">
+        <input type="radio" name="glv" id="gl1" value="0" checked><label for="gl1"><span class="zh">1 平移</span><span class="en">1 Translate</span><span id="gd0"></span></label>
+        <input type="radio" name="glv" id="gl2" value="1"><label for="gl2"><span class="zh">2 点和方向</span><span class="en">2 Points vs directions</span><span id="gd1"></span></label>
+        <input type="radio" name="glv" id="gl3" value="2"><label for="gl3"><span class="zh">3 绕点转</span><span class="en">3 Pivot</span><span id="gd2"></span></label>
+      </span>
+    </div>
+    <p id="gTitle" style="margin:0;font-weight:600"></p>
+    <p class="meta" id="gIntro" style="margin:0"></p>
+    <p id="gAsk" style="margin:0;font-weight:600;font-family:var(--f-mono);overflow-wrap:anywhere;white-space:pre-wrap"></p>
+    <div data-lv="0" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row">
+        <span class="seg" role="radiogroup" aria-label="mode">
+          <input type="radio" name="g1m" id="g1mJ" value="0" checked><label for="g1mJ"><span class="zh">判断</span><span class="en">Judge</span></label>
+          <input type="radio" name="g1m" id="g1mD" value="1"><label for="g1mD"><span class="zh">拖动对齐</span><span class="en">Drag to match</span></label>
+          <input type="radio" name="g1m" id="g1mT" value="2"><label for="g1mT"><span class="zh">填矩阵</span><span class="en">Type the matrix</span></label>
+        </span>
+        <button type="button" id="g1Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+      </div>
+      <div class="row" id="g1JudgeRow">
+        <button type="button" id="g1Lin"><span class="zh">2×2 矩阵能做到</span><span class="en">A 2×2 matrix can do it</span></button>
+        <button type="button" id="g1Aff"><span class="zh">必须用平移</span><span class="en">Needs translation</span></button>
+      </div>
+      <div class="row" id="g1TypeRow">
+        <span class="mat3"><input id="g1a" inputmode="decimal" aria-label="a"><input id="g1b" inputmode="decimal" aria-label="b"><input id="g1x" inputmode="decimal" aria-label="tx"><input id="g1c" inputmode="decimal" aria-label="c"><input id="g1d" inputmode="decimal" aria-label="d"><input id="g1y" inputmode="decimal" aria-label="ty"><span>0</span><span>0</span><span>1</span></span>
+        <button type="button" id="g1Check"><span class="zh">检查</span><span class="en">Check</span></button>
+      </div>
+    </div>
+    <div data-lv="1" class="row">
+      <button type="button" id="g2Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+    </div>
+    <div data-lv="2" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row">
+        <span class="seg" role="radiogroup" aria-label="mode">
+          <input type="radio" name="g3m" id="g3mB" value="build" checked><label for="g3mB"><span class="zh">拼变换</span><span class="en">Build</span></label>
+          <input type="radio" name="g3m" id="g3mQ" value="quiz"><label for="g3mQ"><span class="zh">选公式</span><span class="en">Pick the formula</span></label>
+        </span>
+      </div>
+      <div class="cards" id="g3BuildRow">
+        <button type="button" data-card="Tp"></button>
+        <button type="button" data-card="Tn"></button>
+        <button type="button" data-card="R"><span class="zh">R 绕原点转 90°</span><span class="en">R turn 90° about origin</span></button>
+        <button type="button" data-card="S"><span class="zh">S 以原点放大 2 倍</span><span class="en">S scale ×2 about origin</span></button>
+        <button type="button" id="g3Undo"><span class="zh">撤销</span><span class="en">Undo</span></button>
+        <button type="button" id="g3Check"><span class="zh">检查</span><span class="en">Check</span></button>
+        <button type="button" id="g3Next"><span class="zh">下一题</span><span class="en">Next</span></button>
+      </div>
+      <div class="cards" id="g3QuizRow">
+        <button type="button" data-q="0"></button>
+        <button type="button" data-q="1"></button>
+        <button type="button" data-q="2"></button>
+        <button type="button" id="g3QNext"><span class="zh">下一题</span><span class="en">Next</span></button>
+      </div>
+    </div>
+    <canvas id="gc" width="720" height="440" aria-label="game board"></canvas>
+    <p id="gFb" style="margin:0"></p>
+    <ul class="tests" id="gMissions"></ul>
+    <p id="gTake" hidden style="margin:0;padding:10px 12px;border-left:3px solid var(--good);background:var(--code);border-radius:4px"></p>
+  </div>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手：写 Mat4</span><span class="en">Your turn: write Mat4</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>补全 <code>Mat4</code>。16 个数仍然按<b>行优先</b>存在 <code>this.m</code> 里：第 r 行第 c 列是 <code>m[r * 4 + c]</code>。所有方法都返回新对象。这次请先不要展开参考答案，自己写，卡住了先看提示。</p>
+    <p class="en"><b>Task:</b> complete <code>Mat4</code>. Its 16 numbers are still stored <b>row-major</b> in <code>this.m</code>: row r, column c is <code>m[r * 4 + c]</code>. Every method returns a new object. This time, please write it yourself before opening the reference answer, and try the hints first if you get stuck.</p>
+    <ul class="zh">
+      <li><code>Mat4.translation(tx, ty, tz)</code>：平移矩阵。</li>
+      <li><code>Mat4.rotationZ(theta)</code>：绕 z 轴逆时针转 theta 弧度。</li>
+      <li><code>mul(B)</code>：返回 this × B（先 B 后 this）。</li>
+      <li><code>transformPoint(p)</code>：把 Vec3 当作点（w = 1）变换，返回 Vec3。</li>
+      <li><code>transformDirection(d)</code>：把 Vec3 当作方向（w = 0）变换，返回 Vec3。</li>
+      <li><code>Mat4.rotateAround(p, theta)</code>：绕点 p（Vec3）转 theta 弧度（绕平行于 z 轴、经过 p 的轴）。</li>
+    </ul>
+    <ul class="en">
+      <li><code>Mat4.translation(tx, ty, tz)</code>: a translation matrix.</li>
+      <li><code>Mat4.rotationZ(theta)</code>: rotate counter-clockwise by theta radians about the z axis.</li>
+      <li><code>mul(B)</code>: returns this × B (B first, then this).</li>
+      <li><code>transformPoint(p)</code>: transform a Vec3 as a point (w = 1), returning a Vec3.</li>
+      <li><code>transformDirection(d)</code>: transform a Vec3 as a direction (w = 0), returning a Vec3.</li>
+      <li><code>Mat4.rotateAround(p, theta)</code>: rotate by theta radians about the point p (a Vec3), around the axis through p parallel to z.</li>
+    </ul>
+    <label for="code" class="meta"><span class="zh">你的代码（已填好你的 Vec3）</span><span class="en">Your code (pre-filled with your Vec3)</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:520px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  cross(v) {
+    return new Vec3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
+  }
+}
+
+// ---- 1.6 新增 / new in 1.6 ----
+class Mat4 {
+  // 行优先 / row-major: m[r * 4 + c]
+  constructor(m = [1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1]) { this.m = m.slice(); }
+  get(r, c) { return this.m[r * 4 + c]; }
+  static identity() { return new Mat4(); }
+
+  static translation(tx, ty, tz) { /* TODO */ }
+  static rotationZ(theta)        { /* TODO */ }
+  mul(B)                         { /* TODO */ }
+  transformPoint(p)              { /* TODO */ }
+  transformDirection(d)          { /* TODO */ }
+  static rotateAround(p, theta)  { /* TODO */ }
+}</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <canvas id="pc" width="720" height="300" aria-label="your matrices"></canvas>
+    <p class="meta" id="pcNote"></p>
+    <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
+      <p class="zh">translation：单位矩阵，把 tx、ty、tz 放进第 4 列，也就是 m[3]、m[7]、m[11]。transformPoint：把 p 看成 (x, y, z, 1) 和前三行做点积；transformDirection 一样，只是第 4 个分量是 0，所以第 4 列不参与。rotateAround：用你自己的 translation、rotationZ 和 mul 拼起来，注意顺序。</p>
+      <p class="en">translation: the identity with tx, ty, tz in column 4, i.e. m[3], m[7], m[11]. transformPoint: treat p as (x, y, z, 1) and dot it with the first three rows; transformDirection is the same with a 4th component of 0, so column 4 drops out. rotateAround: build it from your own translation, rotationZ and mul, and mind the order.</p>
+    </details>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">static translation(tx, ty, tz) { return new Mat4([1,0,0,tx,  0,1,0,ty,  0,0,1,tz,  0,0,0,1]); }
+static rotationZ(t) {
+  const c = Math.cos(t), s = Math.sin(t);
+  return new Mat4([c,-s,0,0,  s,c,0,0,  0,0,1,0,  0,0,0,1]);
+}
+mul(B) {
+  const r = [];
+  for (let i = 0; i &lt; 4; i++) for (let j = 0; j &lt; 4; j++) {
+    let s = 0; for (let k = 0; k &lt; 4; k++) s += this.get(i, k) * B.get(k, j);
+    r.push(s);
+  }
+  return new Mat4(r);
+}
+transformPoint(p) {     // w = 1
+  const m = this.m;
+  return new Vec3(m[0] * p.x + m[1] * p.y + m[2]  * p.z + m[3],
+                  m[4] * p.x + m[5] * p.y + m[6]  * p.z + m[7],
+                  m[8] * p.x + m[9] * p.y + m[10] * p.z + m[11]);
+}
+transformDirection(d) { // w = 0：第 4 列不参与 / column 4 drops out
+  const m = this.m;
+  return new Vec3(m[0] * d.x + m[1] * d.y + m[2]  * d.z,
+                  m[4] * d.x + m[5] * d.y + m[6]  * d.z,
+                  m[8] * d.x + m[9] * d.y + m[10] * d.z);
+}
+static rotateAround(p, theta) {   // 先挪到原点，转，再挪回去 / move to origin, turn, move back
+  return Mat4.translation(p.x, p.y, p.z).mul(Mat4.rotationZ(theta)).mul(Mat4.translation(-p.x, -p.y, -p.z));
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>用点的方式变换法线或方向。</b>方向被平移后会指向奇怪的地方，光照全错。three.js 里点用 <code>applyMatrix4</code>，方向用 <code>transformDirection</code>。</li>
+    <li><b>以为「旋转」就是绕物体自己转。</b>旋转矩阵永远绕原点转。物体不在原点时，必须先挪到原点、转完再挪回去。three.js 的 Object3D 之所以「绕自己转」，是因为它先旋转、后平移（T · R · S），1.7 课细讲。</li>
+    <li><b>平移写在了最后一行。</b>本课按「矩阵乘列向量」的写法，平移在最后一列。DirectX 等「行向量」写法里平移在最后一行，那是整个矩阵转置了，不能混用。</li>
+    <li><b>把 three.js 的 elements 当成行优先。</b>和 Matrix3 一样，Matrix4 的 elements 是列优先，平移在 elements[12]、[13]、[14]。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Transforming normals or directions as points.</b> A translated direction points somewhere odd and lighting breaks. In three.js points use <code>applyMatrix4</code> and directions <code>transformDirection</code>.</li>
+    <li><b>Assuming "rotate" spins an object in place.</b> A rotation matrix always turns about the origin. If the object is elsewhere, move it to the origin, turn, and move it back. three.js's Object3D "spins in place" because it rotates before translating (T · R · S); lesson 1.7 covers this.</li>
+    <li><b>Putting the translation in the bottom row.</b> This lesson multiplies matrices by column vectors, so translation is in the last column. Row-vector conventions (DirectX and others) put it in the bottom row: the whole matrix is transposed, and the two must not be mixed.</li>
+    <li><b>Reading three.js elements as row-major.</b> As with Matrix3, Matrix4's elements are column-major, so the translation sits in elements[12], [13], [14].</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. M = [[0, −1, 3], [1, 0, 2], [0, 0, 1]]。点 (1, 0) 和方向 (1, 0) 分别变成什么？</span><span class="en">1. M = [[0, −1, 3], [1, 0, 2], [0, 0, 1]]. What do the point (1, 0) and the direction (1, 0) become?</span></summary>
+    <p class="zh">点：(0·1 − 1·0 + 3, 1·1 + 0 + 2) = (3, 3)。方向：(0, 1)，平移被 w = 0 消掉了。</p><p class="en">Point: (0·1 − 1·0 + 3, 1·1 + 0 + 2) = (3, 3). Direction: (0, 1); w = 0 cancels the translation.</p></details>
+  <details><summary><span class="zh">2. 两个点 A、B 都用同一个 Mat4 变换。B − A 应该用 transformPoint 还是 transformDirection 变换，结果才等于 B′ − A′？</span><span class="en">2. Points A and B are both transformed by one Mat4. Should B − A go through transformPoint or transformDirection so the result equals B′ − A′?</span></summary>
+    <p class="zh">transformDirection。B′ − A′ = (M B + t) − (M A + t) = M (B − A)，平移在相减时抵消了。</p><p class="en">transformDirection. B′ − A′ = (M B + t) − (M A + t) = M (B − A); the translation cancels in the subtraction.</p></details>
+  <details><summary><span class="zh">3. 想让一个放在 (5, 0, 0) 的风车绕自己的中心转 30°，矩阵怎么写？如果只用 rotationZ(30°) 会怎样？</span><span class="en">3. A windmill sits at (5, 0, 0). How do you spin it 30° about its own center? What happens with rotationZ(30°) alone?</span></summary>
+    <p class="zh">T(5, 0, 0) · Rz(30°) · T(−5, 0, 0)。只用 Rz(30°)，整个风车会绕世界原点转，中心被甩到 (4.33, 2.5, 0)。</p><p class="en">T(5, 0, 0) · Rz(30°) · T(−5, 0, 0). With Rz(30°) alone the whole windmill orbits the world origin, and its center swings to (4.33, 2.5, 0).</p></details>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><span class="zh">UC Davis ECS 175（2009，Ken Joy）第 03 讲：Moving Objects in Space</span><span class="en">UC Davis ECS 175 (2009, Ken Joy), lecture 03: Moving Objects in Space</span></li>
+    <li><span class="zh">MIT 6.837（2021，Justin Solomon）第 4 讲：Transformations</span><span class="en">MIT 6.837 (2021, Justin Solomon), lecture 4: Transformations</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 7 章：变换矩阵（仿射变换与齐次坐标）</span><span class="en">chapter 7: Transformation Matrices (affine transformations and homogeneous coordinates)</span></li>
+    <li><span class="zh">GAMES101 第 3、4 讲：变换</span><span class="en">GAMES101 lectures 3 and 4: Transformation (in Chinese)</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+<script>
+// ==================== 公共绘图工具 / shared drawing helpers ====================
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const onTheme = [];
+(function(){ const fire = () => onTheme.forEach(f => f());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", fire);
+  new MutationObserver(fire).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); })();
+const GOLD = "#d39b1c";
+const num = v => { const r = Math.round(v * 100) / 100; return (Object.is(r, -0) ? 0 : r).toString().replace("-", "−"); };
+const shift = (n, a) => a === 0 ? n : a > 0 ? `(${n} − ${num(a)})` : `(${n} + ${num(-a)})`;
+const plus = (c, t) => c === 0 ? t : `${num(c)} + ${t}`, minus = (c, t) => c === 0 ? "−" + t : `${num(c)} − ${t}`;
+const sq = (n, a) => a === 0 ? n + "²" : shift(n, a) + "²";
+// a x + b y + c 的写法 / pretty a x + b y + c
+function lin(a, b, c){
+  const parts = []; const term = (k, n) => { if (!k) return; const s = Math.abs(k) === 1 && n ? n : num(Math.abs(k)) + n;
+    parts.push(parts.length ? (k < 0 ? "− " : "+ ") + s : (k < 0 ? "−" : "") + s); };
+  term(a, "x"); term(b, "y"); term(c, ""); return parts.length ? parts.join(" ") : "0";
+}
+const arcPts = (cx, cy, r, a0, a1, n = 200) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+function makeBoard(cv, U){
+  const ctx = cv.getContext("2d"), ox = cv.width / 2, oy = cv.height / 2;
+  const B = { cv, ctx, U, xr: ox / U, yr: oy / U };
+  B.px = (x, y) => [ox + x * U, oy - y * U];
+  B.world = e => { const rc = cv.getBoundingClientRect(); const px = (e.clientX - rc.left) * cv.width / rc.width, py = (e.clientY - rc.top) * cv.height / rc.height; return { x: (px - ox) / U, y: (oy - py) / U }; };
+  // 窄屏时画布被缩小，文字、点和线按比例放大 / on narrow screens the canvas is shrunk, so scale text, dots and lines up
+  B.k = 1;
+  B.clear = () => {
+    const cw = cv.getBoundingClientRect().width; B.k = cw ? Math.max(1, Math.min(1.8, cv.width / cw * 0.75)) : 1;
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.lineWidth = 1; ctx.strokeStyle = css("--line"); ctx.beginPath();
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++){ const [p] = B.px(x, 0); ctx.moveTo(p + .5, 0); ctx.lineTo(p + .5, cv.height); }
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++){ const [, q] = B.px(0, y); ctx.moveTo(0, q + .5); ctx.lineTo(cv.width, q + .5); }
+    ctx.stroke();
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(cv.width, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, cv.height); ctx.stroke();
+    ctx.fillStyle = css("--muted"); ctx.font = 12 * B.k + "px " + css("--f-mono"); ctx.textAlign = "center";
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++) if (x && x % 2 === 0){ const [p] = B.px(x, 0); ctx.fillText(num(x), p, oy + 15 * B.k); }
+    ctx.textAlign = "right";
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++) if (y && y % 2 === 0){ const [, q] = B.px(0, y); ctx.fillText(num(y), ox - 5, q + 4); }
+    ctx.textAlign = "left";
+  };
+  B.path = (pts, col, w = 3, dash = null, alpha = 1, close = false) => { if (pts.length < 2) return; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w * B.k; ctx.lineJoin = ctx.lineCap = "round"; if (dash) ctx.setLineDash(dash.map(d => d * B.k));
+    ctx.beginPath(); pts.forEach(([x, y], i) => { const [p, q] = B.px(x, y); i ? ctx.lineTo(p, q) : ctx.moveTo(p, q); }); if (close) ctx.closePath(); ctx.stroke(); ctx.restore(); };
+  B.dot = (x, y, col, r = 5, ring = null) => { const [p, q] = B.px(x, y); ctx.beginPath(); ctx.arc(p, q, r * B.k, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill(); if (ring){ ctx.lineWidth = 3; ctx.strokeStyle = ring; ctx.stroke(); } };
+  B.text = (s, x, y, col, dx = 8, dy = -8, size = 14, align = "left") => { const [p, q] = B.px(x, y); dx *= B.k; dy *= B.k; size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.textAlign = align;
+    ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.lineJoin = "round"; ctx.strokeText(s, p + dx, q + dy); ctx.fillStyle = col; ctx.fillText(s, p + dx, q + dy); ctx.restore(); };
+  B.label = (s, col, size = 15) => { size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.strokeText(s, 12, size + 8); ctx.fillStyle = col; ctx.fillText(s, 12, size + 8); ctx.restore(); };
+  B.head = (pts, col, size = 13) => { size *= B.k; const n = pts.length; if (n < 2) return; const [x1, y1] = B.px(...pts[n - 1]); let k = n - 2, x0, y0;
+    do { [x0, y0] = B.px(...pts[k]); k--; } while (k >= 0 && Math.hypot(x1 - x0, y1 - y0) < 8);
+    const g = Math.atan2(y1 - y0, x1 - x0); ctx.save(); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - size * Math.cos(g - .45), y1 - size * Math.sin(g - .45)); ctx.lineTo(x1 - size * Math.cos(g + .45), y1 - size * Math.sin(g + .45)); ctx.fill(); ctx.restore(); };
+  // 按 f 的正负给整个画布上色 / tint the board by the sign of f
+  B.heat = f => { const s = 8, inC = css("--accent-2"), outC = css("--accent"); ctx.save();
+    for (let py = 0; py < cv.height; py += s) for (let px = 0; px < cv.width; px += s){ const v = f((px + s / 2 - ox) / U, (oy - py - s / 2) / U);
+      ctx.globalAlpha = v < 0 ? .22 : .08; ctx.fillStyle = v < 0 ? inC : outC; ctx.fillRect(px, py, s, s); } ctx.restore(); };
+  // 整条直线 a x + b y + c = 0 在画布里的两端 / the two ends of the line a x + b y + c = 0 on the board
+  B.lineEnds = (a, b, c) => Math.abs(b) > Math.abs(a) ? [[-B.xr, (a * B.xr - c) / b], [B.xr, (-a * B.xr - c) / b]] : [[(b * B.yr - c) / a, -B.yr], [(-b * B.yr - c) / a, B.yr]];
+  return B;
+}
+</script>
+<script>
+// ==================== 2D 仿射变换工具 / 2D affine helpers ====================
+// A = { a, b, c, d, tx, ty } 表示 [[a, b, tx], [c, d, ty], [0, 0, 1]]
+// A = { a, b, c, d, tx, ty } means [[a, b, tx], [c, d, ty], [0, 0, 1]]
+const pn = v => v < 0 ? `(${num(v)})` : num(v);
+const AF = {
+  I: () => ({ a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 }),
+  T: (x, y) => ({ a: 1, b: 0, c: 0, d: 1, tx: x, ty: y }),
+  lin: (a, b, c, d) => ({ a, b, c, d, tx: 0, ty: 0 }),
+  // w = 1 是点，w = 0 是方向 / w = 1 is a point, w = 0 a direction
+  ap: (M, [x, y], w = 1) => [M.a * x + M.b * y + M.tx * w, M.c * x + M.d * y + M.ty * w],
+  mul: (A, B) => ({ a: A.a * B.a + A.b * B.c, b: A.a * B.b + A.b * B.d, c: A.c * B.a + A.d * B.c, d: A.c * B.b + A.d * B.d,
+                    tx: A.a * B.tx + A.b * B.ty + A.tx, ty: A.c * B.tx + A.d * B.ty + A.ty }),
+  eq: (A, B, e = 1e-6) => ["a", "b", "c", "d", "tx", "ty"].every(k => Math.abs(A[k] - B[k]) < e),
+  str: M => [[M.a, M.b, M.tx], [M.c, M.d, M.ty], [0, 0, 1]].map((r, i) => (i ? (i === 2 ? "└" : "│") : "┌") + r.map(v => num(v).padStart(5)).join("") + (i ? (i === 2 ? " ┘" : " │") : " ┐")).join("\n")
+};
+const LETTER_F = [[0, 0], [0.4, 0], [0.4, 0.8], [0.9, 0.8], [0.9, 1.15], [0.4, 1.15], [0.4, 1.6], [1.2, 1.6], [1.2, 2], [0, 2]];
+function fillPoly(B, pts, col, alpha){ const ctx = B.ctx; ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath();
+  pts.forEach(([x, y], i) => { const [p, q] = B.px(x, y); i ? ctx.lineTo(p, q) : ctx.moveTo(p, q); }); ctx.closePath(); ctx.fill(); ctx.restore(); }
+function drawGrid(B, M, col, alpha, w = 1){ const n = 16;
+  for (let k = -n; k <= n; k++){ B.path([AF.ap(M, [k, -n]), AF.ap(M, [k, n])], col, k === 0 ? w * 2 : w, null, alpha); B.path([AF.ap(M, [-n, k]), AF.ap(M, [n, k])], col, k === 0 ? w * 2 : w, null, alpha); } }
+function arrow(B, to, col, w = 4, from = [0, 0], dash = null){ if (Math.hypot(to[0] - from[0], to[1] - from[1]) < 1e-6) return; B.path([from, to], col, w, dash); B.head([from, to], col, 15); }
+function drawF(B, M, col, alpha = 1, dash = null){ const pts = LETTER_F.map(p => AF.ap(M, p)); fillPoly(B, pts, col, 0.35 * alpha); B.path(pts, col, 2.5, dash, alpha, true); }
+function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx.save(); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2 * B.k; ctx.beginPath(); ctx.arc(p, q, r, 0, 2 * Math.PI); ctx.moveTo(p - r * 1.6, q); ctx.lineTo(p + r * 1.6, q); ctx.moveTo(p, q - r * 1.6); ctx.lineTo(p, q + r * 1.6); ctx.stroke(); ctx.restore(); }
+</script>
+<script>
+// ==================== 交互演示 / demo ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const S = {
+    zh: { mat: "M（3×3，最后一列 = 平移）", pt: "点 P = (2, 1, w = 1)", dir: "方向 d = (1, 1, w = 0)", wrong: "如果把 d 当点（w = 1）",
+          lin: "最后一列是 0：这是 1.5 课的线性变换，原点没动。", aff: "原点被送到 (tx, ty)：点 P 跟着平移，方向 d 只被旋转/缩放，平移对它没有作用。若把 d 当点，会多加一份平移，方向就错了。" },
+    en: { mat: "M (3×3, last column = translation)", pt: "point P = (2, 1, w = 1)", dir: "direction d = (1, 1, w = 0)", wrong: "if d were treated as a point (w = 1)",
+          lin: "The last column is 0: a lesson 1.5 linear map, and the origin stays put.", aff: "The origin goes to (tx, ty): the point P moves along, while the direction d is only rotated or scaled, untouched by the translation. Treat d as a point and an extra translation sneaks in, making the direction wrong." }
+  };
+  const B = makeBoard($("dc"), 40);
+  let M = AF.I(), drag = null, anim = null;
+  const P = [2, 1], D = [1, 1];
+  const PRE = { id: AF.I(), move: AF.T(3, 1), rot: { a: 0.87, b: -0.5, c: 0.5, d: 0.87, tx: 2, ty: 1.5 }, pivot: { a: 0, b: -1, c: 1, d: 0, tx: 2, ty: 2 } };
+  function draw(){
+    const s = S[lang()], gI = css("--good"), gJ = css("--accent-2"), acc = css("--accent"), ink = css("--ink"), mut = css("--muted"), vio = "#7a5bd6";
+    B.clear(); drawGrid(B, M, acc, 0.3); drawF(B, AF.I(), mut, 0.4); drawF(B, M, acc);
+    const O = [M.tx, M.ty], Ti = [M.tx + M.a, M.ty + M.c], Tj = [M.tx + M.b, M.ty + M.d];
+    arrow(B, Ti, gI, 5, O); arrow(B, Tj, gJ, 5, O);
+    B.dot(...Ti, gI, 7); B.dot(...Tj, gJ, 7); B.text("î", ...Ti, gI, 10, 18, 18); B.text("ĵ", ...Tj, gJ, 10, -10, 18);
+    // 点 P 和方向 d / point P and direction d
+    const P2 = AF.ap(M, P, 1), D2 = AF.ap(M, D, 0), Dw = AF.ap(M, D, 1);
+    B.dot(...P, mut, 5); B.text("P", ...P, mut, 8, -8, 14); B.dot(...P2, ink, 6); B.text("P′", ...P2, ink, 8, -8, 15);
+    arrow(B, D, mut, 2.5, [0, 0], [5, 5]); arrow(B, D2, vio, 3.5); B.text("d′", ...D2, vio, 8, 16, 15);
+    if (M.tx || M.ty) arrow(B, Dw, gJ, 2, [0, 0], [3, 5]);
+    B.dot(...O, ink, 8); B.text("O′", ...O, ink, -26, -8, 15);
+    $("dOut").innerHTML = [[s.mat, `[[${num(M.a)}, ${num(M.b)}, ${num(M.tx)}], [${num(M.c)}, ${num(M.d)}, ${num(M.ty)}], [0, 0, 1]]`],
+      [s.pt, `→ (${num(P2[0])}, ${num(P2[1])})`], [s.dir, `→ (${num(D2[0])}, ${num(D2[1])})`], [s.wrong, `→ (${num(Dw[0])}, ${num(Dw[1])})`]].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("dNote").textContent = M.tx || M.ty ? s.aff : s.lin;
+  }
+  const cv = $("dc");
+  cv.addEventListener("pointerdown", e => { const w = B.world(e), cand = [["o", M.tx, M.ty], ["i", M.tx + M.a, M.ty + M.c], ["j", M.tx + M.b, M.ty + M.d]];
+    let best = null, bd = 0.6; cand.forEach(([k, x, y]) => { const d = Math.hypot(w.x - x, w.y - y); if (d < bd){ bd = d; best = k; } });
+    if (best){ drag = best; cv.setPointerCapture(e.pointerId); if (anim) cancelAnimationFrame(anim); } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const w = B.world(e), r = v => Math.max(-8, Math.min(8, Math.round(v * 10) / 10));
+    if (drag === "o"){ M.tx = r(w.x); M.ty = r(w.y); } else if (drag === "i"){ M.a = r(w.x - M.tx); M.c = r(w.y - M.ty); } else { M.b = r(w.x - M.tx); M.d = r(w.y - M.ty); } draw(); });
+  cv.addEventListener("pointerup", () => { drag = null; });
+  document.querySelectorAll("[data-pre]").forEach(btn => btn.onclick = () => { const from = { ...M }, to = PRE[btn.dataset.pre]; let t0 = null; if (anim) cancelAnimationFrame(anim);
+    const step = ts => { if (t0 === null) t0 = ts; const u = Math.min(1, (ts - t0) / 600), k = u * u * (3 - 2 * u);
+      Object.keys(to).forEach(q => M[q] = from[q] + (to[q] - from[q]) * k); draw(); anim = u < 1 ? requestAnimationFrame(step) : null; };
+    anim = requestAnimationFrame(step); });
+  onLangChange.push(draw); onTheme.push(draw); draw();
+
+  // ---- 「平移 = 高一维的剪切」互动图 / figure: translation is a shear one dimension up ----
+  const W = makeBoard($("wc"), 60);
+  function drawW(){ const t = +$("shT").value, acc = css("--accent"), mut = css("--muted"), gP = css("--accent-2"), gD = css("--good"), ink = css("--ink"), z = lang() === "zh";
+    $("shTOut").textContent = num(t); W.clear();
+    const sh = ([x, y]) => [x + t * y, y];
+    for (let k = -12; k <= 12; k++){ W.path([sh([k, -3]), sh([k, 3])], acc, 1.5, null, 0.45); }
+    W.path([[-7, 1], [7, 1]], mut, 1.5, [6, 5]);
+    for (let k = -5; k <= 5; k++){ W.dot(k, 1, mut, 4); W.dot(k + t, 1, gP, 6); W.dot(k, 0, gD, 6); }
+    
+    arrow(W, [t, 1], gP, 3, [0, 1]);
+    W.text(z ? "w = 1：点，整体平移了 t" : "w = 1: points, all shifted by t", -5.8, 1.75, gP, 0, 0, 15);
+    W.text(z ? "w = 0：方向，一动不动" : "w = 0: directions, not moved", -5.8, -0.75, gD, 0, 0, 15);
+    W.label(z ? `剪切 [[1, ${num(t)}], [0, 1]]：(x, w) → (x + ${pn(t)}·w, w)` : `shear [[1, ${num(t)}], [0, 1]]: (x, w) → (x + ${pn(t)}·w, w)`, ink, 14); }
+  $("shT").addEventListener("input", drawW); onLangChange.push(drawW); onTheme.push(drawW); drawW();
+})();
+</script>
+<script>
+// ==================== 小游戏 / game ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const KEY = "3dl-game-1.6";
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+  let lv = 0, fb = null;
+  const isDone = (l, i) => !!(saved[l] || [])[i];
+  function done(l, i){ saved[l] = saved[l] || []; if (saved[l][i]) return null; saved[l][i] = true; save(); return LV[l].missions[i].note; }
+  const join = (a, b) => b ? { zh: a.zh + " " + b.zh, en: a.en + " " + b.en } : a;
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const B = makeBoard($("gc"), 40);
+  const snap = v => Math.max(-8, Math.min(8, Math.round(v * 2) / 2));
+  const LINS = [AF.lin(1, 0, 0, 1), AF.lin(0, -1, 1, 0), AF.lin(0, 1, -1, 0), AF.lin(1, 1, 0, 1), AF.lin(2, 0, 0, 1), AF.lin(-1, 0, 0, 1), AF.lin(1, 0, 0, -1), AF.lin(-1, 0, 0, -1)];
+  // F 变换后都要在画布里 / keep the transformed F on the board
+  const fits = M => [[0, 0], [1.2, 0], [1.2, 2], [0, 2]].every(p => { const [x, y] = AF.ap(M, p); return Math.abs(x) < 8.5 && Math.abs(y) < 5; });
+
+  // ---------- 第 1 关：原点动不了 / level 1: the origin cannot move ----------
+  const g1m = () => +document.querySelector('input[name="g1m"]:checked').value;
+  const L1 = {
+    title: { zh: "第 1 关 · 原点动不了（目标：线性变换不能平移，加一维才行）", en: "Level 1 · The origin is stuck (goal: linear maps cannot translate; one more dimension can)" },
+    intros: [
+      { zh: "灰色 F 的左下角在原点（十字准星）。金色 F 是变换后的样子。判断：只用 1.5 课的 2×2 矩阵能不能做到？", en: "The gray F's bottom-left corner is at the origin (crosshair). The gold F is the result of some transform. Can a lesson 1.5 2×2 matrix alone do it?" },
+      { zh: "拖动 î（绿）、ĵ（玫红）的箭头尖和黑色原点手柄，让你的 F 和金色重合。", en: "Drag the tips of î (green) and ĵ (magenta) and the black origin handle until your F matches the gold one." },
+      { zh: "只看金色 F，填出 3×3 矩阵的 6 个数（最后一行固定是 0 0 1）。灰色网格是原坐标。", en: "Look at the gold F and type the six numbers of its 3×3 matrix (the bottom row is fixed at 0 0 1). The gray grid is the original coordinates." }
+    ],
+    missions: [
+      { zh: "判断：连续答对 4 题", en: "Judge: 4 in a row", note: { zh: "看原点（F 的左下角）有没有动：动了就一定需要平移，2×2 矩阵永远把原点留在原点。", en: "Watch the origin (F's bottom-left corner): if it moved, translation is required, since a 2×2 matrix always keeps the origin in place." } },
+      { zh: "拖动对齐：做对 2 题", en: "Drag to match: 2 solved", note: { zh: "黑色手柄就是矩阵的第 3 列 (tx, ty)：原点被送到的位置。", en: "The black handle is the matrix's third column (tx, ty): where the origin goes." } },
+      { zh: "填矩阵：做对 2 题", en: "Type the matrix: 2 solved", note: { zh: "前两列从「î、ĵ 箭头」读（以新原点为起点），第 3 列就是新原点的坐标。", en: "Read the first two columns from the î and ĵ arrows (measured from the new origin); the third column is the new origin itself." } }
+    ],
+    take: { zh: "线性变换永远不动原点；平移要放在多出来的那一列里，用 w = 1 把它「乘」出来。", en: "A linear map never moves the origin; translation lives in the extra column and gets multiplied in by w = 1." },
+    need: [4, 2, 2], wins: [0, 0, 0], streak: 0, T: null, U: AF.I(), solved: false, typed: null,
+    newTarget(){ const m = g1m(); let T;
+      do { const L = pick(LINS), move = m > 0 || Math.random() < 0.5; T = { ...L, tx: move ? ri(-4, 4) : 0, ty: move ? ri(-2, 2) : 0 };
+           if (move && !T.tx && !T.ty) T.tx = 2; } while (!fits(T) || (m > 0 && AF.eq({ ...T, tx: 0, ty: 0 }, AF.I()) && Math.random() < 0.7));
+      this.T = T; this.U = AF.I(); this.solved = false; this.typed = null; ["g1a", "g1b", "g1c", "g1d", "g1x", "g1y"].forEach(id => $(id).value = ""); },
+    ask(){ return ""; },
+    judge(lin){ if (this.solved) return; this.solved = true; const need = !!(this.T.tx || this.T.ty), ok = lin !== need;
+      this.streak = ok ? this.streak + 1 : 0;
+      const why = need ? { zh: `F 的左下角从原点移到了 (${num(this.T.tx)}, ${num(this.T.ty)})，所以必须平移。`, en: `F's corner moved from the origin to (${num(this.T.tx)}, ${num(this.T.ty)}), so translation is required.` }
+                       : { zh: "F 的左下角还在原点，只是转了、拉了或翻了，2×2 矩阵就够了。", en: "F's corner is still at the origin; it was only turned, stretched or flipped, so a 2×2 matrix suffices." };
+      fb = join(join(ok ? { zh: "对！", en: "Right!" } : { zh: "不对。", en: "Not quite." }, why), this.streak >= 4 ? done(0, 0) : null); render(); },
+    win(){ const m = g1m(); this.solved = true; this.wins[m]++; fb = join({ zh: "完全重合！", en: "Exact match!" }, this.wins[m] >= this.need[m] ? done(0, m) : null); },
+    release(){ if (!this.solved && g1m() === 1 && AF.eq(this.U, this.T)) this.win(); render(); },
+    check(){ if (this.solved) return; const v = ["g1a", "g1b", "g1c", "g1d", "g1x", "g1y"].map(id => parseFloat($(id).value.replace("−", "-")));
+      if (v.some(Number.isNaN)){ fb = { zh: "6 个格子都要填数字。", en: "Fill in all six boxes." }; render(); return; }
+      this.typed = { a: v[0], b: v[1], c: v[2], d: v[3], tx: v[4], ty: v[5] };
+      if (AF.eq(this.typed, this.T)) this.win();
+      else { const T = this.T, Y = this.typed, linOk = AF.eq({ ...Y, tx: 0, ty: 0 }, { ...T, tx: 0, ty: 0 }), tOk = Y.tx === T.tx && Y.ty === T.ty;
+        fb = linOk ? { zh: "前两列对了，平移那一列不对：看新原点（F 的左下角）在哪。", en: "The first two columns are right but the translation column is not: where is the new origin (F's corner)?" }
+           : tOk ? { zh: "平移对了，前两列不对：从新原点出发看 î、ĵ 指向哪里。", en: "The translation is right but the first two columns are not: from the new origin, where do î and ĵ point?" }
+                 : { zh: "不对。青色是你填的矩阵画出来的 F。", en: "Not quite. Teal is the F your matrix makes." }; }
+      render(); },
+    draw(){ const m = g1m(), gI = css("--good"), gJ = css("--accent-2"), acc = css("--accent"), mut = css("--muted"); B.clear();
+      if (m === 0){ drawF(B, AF.I(), mut, 0.5); drawF(B, this.T, GOLD); originMark(B); return; }
+      if (m === 2){ drawF(B, this.T, GOLD); originMark(B); if (this.typed) drawF(B, this.typed, acc, 1, [6, 5]); return; }
+      drawGrid(B, this.U, acc, 0.25); drawF(B, this.T, GOLD, 0.9, [8, 6]); drawF(B, this.U, acc);
+      const U = this.U, O = [U.tx, U.ty], Ti = [U.tx + U.a, U.ty + U.c], Tj = [U.tx + U.b, U.ty + U.d];
+      arrow(B, Ti, gI, 5, O); arrow(B, Tj, gJ, 5, O); B.dot(...Ti, gI, 7); B.dot(...Tj, gJ, 7); B.dot(...O, css("--ink"), 8); },
+    controls(){ const m = g1m(); $("g1JudgeRow").hidden = m !== 0; $("g1TypeRow").hidden = m !== 2;
+      $("g1Lin").disabled = $("g1Aff").disabled = this.solved; $("g1Check").disabled = this.solved; }
+  };
+
+  // ---------- 第 2 关：点和方向 / level 2: points vs directions ----------
+  const L2 = {
+    title: { zh: "第 2 关 · 点还是方向（目标：w = 1 会被平移，w = 0 不会）", en: "Level 2 · Point or direction? (goal: w = 1 gets translated, w = 0 does not)" },
+    intro: { zh: "用上面的矩阵变换下面的向量，在画布上点出结果的位置（方向画成从原点出发的箭头，点它的箭头尖）。灰色是变换前。", en: "Transform the vector with the matrix shown, then click where the result lands (a direction is drawn as an arrow from the origin; click its tip). Gray is the original." },
+    missions: [
+      { zh: "点（w = 1）：答对 2 题", en: "Points (w = 1): 2 correct", note: { zh: "点 = 前两列的组合 + 一份平移。", en: "A point = the combination of the first two columns + one translation." } },
+      { zh: "方向（w = 0）：答对 2 题", en: "Directions (w = 0): 2 correct", note: { zh: "方向的 w = 0，平移那一列乘了 0，直接消失。", en: "A direction has w = 0, so the translation column is multiplied by 0 and vanishes." } },
+      { zh: "混合：连续答对 4 题", en: "Mixed: 4 in a row", note: { zh: "法线、光照方向、速度都是 w = 0。把它们当点变换，是光照出错的常见原因。", en: "Normals, light directions and velocities all have w = 0. Transforming them as points is a classic cause of broken lighting." } }
+    ],
+    take: { zh: "点写 w = 1，方向写 w = 0。同一个矩阵，点会被平移，方向只被旋转和缩放。", en: "Points get w = 1, directions w = 0. Under the same matrix, points are translated while directions are only rotated and scaled." },
+    q: null, answered: false, wins: [0, 0], streak: 0,
+    newQ(){ const w = !isDone(1, 0) ? 1 : !isDone(1, 1) ? 0 : ri(0, 1); let M, v, r;
+      do { M = { ...pick(LINS), tx: ri(-3, 3), ty: ri(-2, 2) }; if (!M.tx && !M.ty) M.ty = 1; v = [ri(-2, 2), ri(-2, 2)]; r = AF.ap(M, v, w); }
+      while ((!v[0] && !v[1]) || Math.abs(r[0]) > 8 || Math.abs(r[1]) > 5 || Math.abs(AF.ap(M, v, 1 - w)[0]) > 8.5 || Math.abs(AF.ap(M, v, 1 - w)[1]) > 5.2);
+      this.q = { M, v, w, r, click: null }; this.answered = false; },
+    ask(){ const { M, v, w } = this.q, z = lang(); return `M =\n${AF.str(M)}\n` + (w ? (z === "zh" ? `点 P = (${num(v[0])}, ${num(v[1])})，w = 1` : `point P = (${num(v[0])}, ${num(v[1])}), w = 1`) : (z === "zh" ? `方向 d = (${num(v[0])}, ${num(v[1])})，w = 0` : `direction d = (${num(v[0])}, ${num(v[1])}), w = 0`)); },
+    click(w){ if (this.answered) return; const q = this.q, c = [snap(w.x), snap(w.y)]; q.click = c; this.answered = true;
+      const ok = Math.hypot(c[0] - q.r[0], c[1] - q.r[1]) < 0.3, other = AF.ap(q.M, q.v, 1 - q.w), slip = Math.hypot(c[0] - other[0], c[1] - other[1]) < 0.3;
+      let res = ok ? { zh: `对！结果是 (${num(q.r[0])}, ${num(q.r[1])})。`, en: `Right! The result is (${num(q.r[0])}, ${num(q.r[1])}).` }
+                   : { zh: `不对，结果是 (${num(q.r[0])}, ${num(q.r[1])})。`, en: `Not quite; the result is (${num(q.r[0])}, ${num(q.r[1])}).` };
+      if (!ok && slip) res = join(res, q.w ? { zh: "你忘了加平移：点的 w = 1，第 3 列要加上一份。", en: "You forgot the translation: a point has w = 1, so add one copy of column 3." }
+                                           : { zh: "你把方向也平移了：方向的 w = 0，第 3 列不参与。", en: "You translated the direction: it has w = 0, so column 3 drops out." });
+      if (ok){ this.streak++; this.wins[q.w ? 0 : 1]++; } else this.streak = 0;
+      let n = null; if (ok && q.w && this.wins[0] >= 2) n = done(1, 0); if (ok && !q.w && this.wins[1] >= 2) n = done(1, 1) || n; if (this.streak >= 4) n = done(1, 2) || n;
+      fb = join(res, n); render(); },
+    draw(){ const q = this.q, mut = css("--muted"), acc = css("--accent"), ink = css("--ink"); B.clear(); originMark(B);
+      if (q.w) B.dot(...q.v, mut, 6); else arrow(B, q.v, mut, 3, [0, 0], [6, 5]);
+      if (this.answered){ if (q.w) B.dot(...q.r, css("--good"), 8); else arrow(B, q.r, css("--good"), 4);
+        B.dot(...q.click, css("--accent-2"), 6, ink); } }
+  };
+
+  // ---------- 第 3 关：绕任意点转 / level 3: rotate about a pivot ----------
+  const g3m = () => document.querySelector('input[name="g3m"]:checked').value;
+  const ROT = AF.lin(0, -1, 1, 0), SC = AF.lin(2, 0, 0, 2);
+  const L3 = {
+    title: { zh: "第 3 关 · 绕着 p 转（目标：T(p) · R · T(−p)）", en: "Level 3 · Turn about p (goal: T(p) · R · T(−p))" },
+    introB: { zh: "青色 F 的左下角在点 p（黑点）。按顺序点卡片（第一个点的最先做），让它和金色重合：金色是 F 绕 p 转 90° 或以 p 为中心放大 2 倍的结果。", en: "The teal F's corner sits at the point p (black dot). Click cards in the order they should happen (first click first) until it matches the gold F, which is the F turned 90° about p or scaled ×2 about p." },
+    introQ: { zh: "不画图，选出正确的矩阵写法（从右往左读）。", en: "No picture: pick the right matrix product (read right to left)." },
+    missions: [
+      { zh: "拼变换：绕 p 旋转做对 2 题", en: "Build: 2 rotations about p", note: { zh: "旋转矩阵只会绕原点转，所以先用 T(−p) 把 p 挪到原点，转完再用 T(p) 挪回去。", en: "A rotation matrix only turns about the origin, so first move p to the origin with T(−p), turn, then move back with T(p)." } },
+      { zh: "拼变换：以 p 为中心放大做对 1 题", en: "Build: 1 scaling about p", note: { zh: "缩放也一样：任何「以某点为中心」的变换都是 T(p) · X · T(−p)。", en: "Scaling works the same way: any transform \"about a point\" is T(p) · X · T(−p)." } },
+      { zh: "选公式：连续答对 3 题", en: "Pick the formula: 3 in a row", note: { zh: "三明治写法 T(p) · X · T(−p)：右边先做，所以 T(−p) 在最右。", en: "The sandwich T(p) · X · T(−p): the right side happens first, so T(−p) sits on the far right." } }
+    ],
+    take: { zh: "要绕点 p 转（或缩放），就写 T(p) · R · T(−p)：先挪到原点，做变换，再挪回去。", en: "To turn (or scale) about a point p, write T(p) · R · T(−p): move to the origin, transform, move back." },
+    p: [2, 1], op: "R", seq: [], solved: false, w: [0, 0], streak: 0, q: null, qDone: false,
+    card(k){ return { Tp: AF.T(this.p[0], this.p[1]), Tn: AF.T(-this.p[0], -this.p[1]), R: ROT, S: SC }[k]; },
+    prod(seq){ return seq.reduce((acc, k) => AF.mul(this.card(k), acc), AF.I()); },
+    place(){ return AF.T(this.p[0], this.p[1]); },
+    goal(){ return AF.mul(AF.T(this.p[0], this.p[1]), AF.mul(this.op === "R" ? ROT : SC, AF.T(-this.p[0], -this.p[1]))); },
+    newPuzzle(){ this.op = !isDone(2, 0) ? "R" : !isDone(2, 1) ? "S" : pick(["R", "S"]);
+      do { this.p = [ri(-4, 4), ri(-2, 2)]; } while ((!this.p[0] && !this.p[1]) || !fits(this.place()) || !fits(AF.mul(this.goal(), this.place())));
+      this.seq = []; this.solved = false; },
+    names(){ const z = lang(), [x, y] = this.p; return { Tp: z === "zh" ? `T(p) 平移 (${num(x)}, ${num(y)})` : `T(p) move by (${num(x)}, ${num(y)})`, Tn: z === "zh" ? `T(−p) 平移 (${num(-x)}, ${num(-y)})` : `T(−p) move by (${num(-x)}, ${num(-y)})` }; },
+    ask(){ const z = lang();
+      if (g3m() === "quiz"){ const q = this.q; return q.type === 0 ? (z === "zh" ? `要让物体绕点 p ${q.op === "R" ? "旋转" : "放大"}，矩阵是？` : `To ${q.op === "R" ? "rotate" : "scale"} an object about p, the matrix is?`)
+          : (z === "zh" ? "先以原点把物体放大 2 倍（S），再把它挪到 (3, 1)（T）。矩阵是？" : "First scale the object ×2 about the origin (S), then move it to (3, 1) (T). The matrix is?"); }
+      const tag = { Tp: "T(p)", Tn: "T(−p)", R: "R", S: "S" };
+      return (z === "zh" ? `p = (${num(this.p[0])}, ${num(this.p[1])})，目标：${this.op === "R" ? "绕 p 逆时针转 90°" : "以 p 为中心放大 2 倍"}\n你拼的：` : `p = (${num(this.p[0])}, ${num(this.p[1])}), target: ${this.op === "R" ? "turn 90° CCW about p" : "scale ×2 about p"}\nYou built: `)
+        + (this.seq.length ? "M = " + this.seq.slice().reverse().map(k => tag[k]).join(" · ") : "M = I"); },
+    add(k){ if (this.solved || this.seq.length >= 5) return; this.seq.push(k); fb = null; render(); },
+    undo(){ if (this.solved) return; this.seq.pop(); fb = null; render(); },
+    check(){ if (this.solved) return; const G = this.goal();
+      if (AF.eq(this.prod(this.seq), G)){ this.solved = true; const r = { zh: "对！", en: "Right!" };
+        if (this.op === "R"){ this.w[0]++; fb = join(r, this.w[0] >= 2 ? done(2, 0) : null); } else { this.w[1]++; fb = join(r, done(2, 1)); } }
+      else { const key = this.seq.join(",");
+        fb = key === this.op ? { zh: "它绕着原点转（或放大）了，所以被甩出去了：变换矩阵只认原点。", en: "It turned (or scaled) about the origin and got flung away: the matrix only knows the origin." }
+           : key === "Tn," + this.op ? { zh: "绕原点做完了，但还停在原点附近：最后要挪回 p。", en: "Transformed about the origin, but it is still near the origin: move it back to p at the end." }
+           : key === "Tp," + this.op + ",Tn" ? { zh: "三张卡对了，顺序反了：要先把 p 挪到原点。", en: "Right three cards, wrong order: move p to the origin first." }
+           : { zh: "还没和金色重合。可以撤销再试。", en: "Not matching the gold yet. Undo and try again." }; }
+      render(); },
+    newQuiz(){ const type = ri(0, 2) < 2 ? 0 : 1, op = pick(["R", "S"]), X = op === "R" ? "R" : "S";
+      const opts = type === 0 ? [`T(p) · ${X} · T(−p)`, `T(−p) · ${X} · T(p)`, `${X} · T(p)`] : ["T · S", "S · T", "S · T · S"];
+      const order = [0, 1, 2].sort(() => Math.random() - 0.5); this.q = { type, op, opts, order }; this.qDone = false; },
+    answer(i){ if (this.qDone) return; this.qDone = true; const q = this.q, ok = q.order[i] === 0;
+      this.streak = ok ? this.streak + 1 : 0;
+      const why = q.type === 0 ? { zh: `正确写法 ${q.opts[0]}：最右边的 T(−p) 先发生。`, en: `The answer is ${q.opts[0]}: the rightmost T(−p) happens first.` } : { zh: "T · S：先做的 S 写在右边。", en: "T · S: S happens first, so it goes on the right." };
+      fb = join(join(ok ? { zh: "对！", en: "Right!" } : { zh: "不对。", en: "Not quite." }, why), this.streak >= 3 ? done(2, 2) : null); render(); },
+    draw(){ const acc = css("--accent"); B.clear(); originMark(B);
+      drawF(B, AF.mul(this.goal(), this.place()), GOLD, 0.9, [8, 6]); drawF(B, AF.mul(this.prod(this.seq), this.place()), acc);
+      B.dot(...this.p, css("--ink"), 7); B.text("p", ...this.p, css("--ink"), -18, 18, 16); },
+    controls(){ const q = g3m() === "quiz"; $("g3BuildRow").hidden = q; $("g3QuizRow").hidden = !q;
+      const nm = this.names(); document.querySelector('[data-card="Tp"]').textContent = nm.Tp; document.querySelector('[data-card="Tn"]').textContent = nm.Tn;
+      document.querySelectorAll("#g3BuildRow [data-card], #g3Undo, #g3Check").forEach(b => b.disabled = this.solved);
+      document.querySelectorAll("#g3QuizRow [data-q]").forEach(b => { const i = +b.dataset.q; b.textContent = this.q.opts[this.q.order[i]]; b.disabled = this.qDone; }); }
+  };
+
+  const LV = [L1, L2, L3];
+  function render(){
+    const lvl = LV[lv], z = lang();
+    document.querySelectorAll("#game [data-lv]").forEach(el => el.hidden = +el.dataset.lv !== lv);
+    $("gc").hidden = lv === 2 && g3m() === "quiz";
+    $("gTitle").textContent = lvl.title[z];
+    $("gIntro").textContent = lv === 0 ? L1.intros[g1m()][z] : lv === 1 ? L2.intro[z] : (g3m() === "quiz" ? L3.introQ : L3.introB)[z];
+    $("gAsk").textContent = lvl.ask();
+    if (lv === 0){ L1.draw(); L1.controls(); } else if (lv === 1) L2.draw(); else { if (g3m() !== "quiz") L3.draw(); L3.controls(); }
+    const st = saved[lv] || [];
+    $("gMissions").innerHTML = lvl.missions.map((m, i) => `<li class="${st[i] ? "ok" : "no"}"><span class="mark">${st[i] ? "✓" : "○"}</span>${m[z]}</li>`).join("");
+    $("gFb").textContent = fb ? fb[z] : "";
+    const all = lvl.missions.every((_, i) => st[i]); $("gTake").hidden = !all; $("gTake").textContent = all ? (z === "zh" ? "这一关要记住的：" : "Keep this: ") + lvl.take[z] : "";
+    LV.forEach((x, i) => $("gd" + i).textContent = x.missions.every((_, j) => isDone(i, j)) ? " ✓" : "");
+  }
+  const cv = $("gc"); let drag = null;
+  cv.addEventListener("pointerdown", e => { const w = B.world(e);
+    if (lv === 1){ L2.click(w); return; }
+    if (lv !== 0 || g1m() !== 1 || L1.solved) return; const U = L1.U, cand = [["o", U.tx, U.ty], ["i", U.tx + U.a, U.ty + U.c], ["j", U.tx + U.b, U.ty + U.d]];
+    let best = null, bd = 0.7; cand.forEach(([k, x, y]) => { const d = Math.hypot(w.x - x, w.y - y); if (d < bd){ bd = d; best = k; } });
+    if (best){ drag = best; cv.setPointerCapture(e.pointerId); } });
+  cv.addEventListener("pointermove", e => { if (!drag) return; const w = B.world(e), U = L1.U;
+    if (drag === "o"){ U.tx = snap(w.x); U.ty = snap(w.y); } else if (drag === "i"){ U.a = snap(w.x - U.tx); U.c = snap(w.y - U.ty); } else { U.b = snap(w.x - U.tx); U.d = snap(w.y - U.ty); } L1.draw(); });
+  cv.addEventListener("pointerup", () => { if (!drag) return; drag = null; L1.release(); });
+  document.querySelectorAll('input[name="glv"]').forEach(r => r.addEventListener("change", () => { lv = +document.querySelector('input[name="glv"]:checked').value; fb = null; render(); }));
+  document.querySelectorAll('input[name="g1m"]').forEach(r => r.addEventListener("change", () => { L1.newTarget(); fb = null; render(); }));
+  $("g1Next").onclick = () => { L1.newTarget(); fb = null; render(); }; $("g1Check").onclick = () => L1.check();
+  $("g1Lin").onclick = () => L1.judge(true); $("g1Aff").onclick = () => L1.judge(false);
+  $("g2Next").onclick = () => { L2.newQ(); fb = null; render(); };
+  document.querySelectorAll('input[name="g3m"]').forEach(r => r.addEventListener("change", () => { fb = null; render(); }));
+  document.querySelectorAll("#g3BuildRow [data-card]").forEach(b => b.onclick = () => L3.add(b.dataset.card));
+  $("g3Undo").onclick = () => L3.undo(); $("g3Check").onclick = () => L3.check(); $("g3Next").onclick = () => { L3.newPuzzle(); fb = null; render(); };
+  document.querySelectorAll("#g3QuizRow [data-q]").forEach(b => b.onclick = () => L3.answer(+b.dataset.q));
+  $("g3QNext").onclick = () => { L3.newQuiz(); fb = null; render(); };
+  L1.newTarget(); L2.newQ(); L3.newPuzzle(); L3.newQuiz();
+  onLangChange.push(render); onTheme.push(render);
+  render();
+  window.__game16 = { L1, L2, L3, render, AF };   // 给自动测试用 / for automated checks
+})();
+</script>
+<script>
+// ---- 练习：自动测试 / exercise: auto-tests ----
+(function(){
+  const S_ = { zh: { err: "代码出错：", all: "全部通过！", some: "通过", missing: "没有找到 Vec3 或 Mat4 类",
+                     pc: "灰色是放在 p = (3, 1) 的 F。青色：用你的 rotateAround(p, 90°)、180°、270° 转出来的 F，应该围着 p 转。玫红：只用 rotationZ(90°)，它绕原点（十字）转，被甩走了。", pcErr: "画图时出错：" },
+               en: { err: "Code error: ", all: "All tests pass!", some: "passed", missing: "No Vec3 or Mat4 class found",
+                     pc: "Gray is an F placed at p = (3, 1). Teal: the F turned by your rotateAround(p, 90°), 180° and 270°, which should circle p. Magenta: rotationZ(90°) alone turns about the origin (crosshair) and flings the F away.", pcErr: "Error while plotting: " } };
+  const near = (p, q, e = 1e-9) => typeof p === "number" && Math.abs(p - q) < e;
+  const eq = (v, x, y, z) => !!v && near(v.x, x) && near(v.y, y) && near(v.z, z);
+  const meq = (A, arr) => !!A && typeof A.get === "function" && arr.every((x, i) => near(A.get(Math.floor(i / 4), i % 4), x));
+  const GEN = [2,-1,0.5,3,  1,3,0,-2,  0,1,-2,4,  0,0,0,1];
+  const TESTS = [
+    { zh: "translation(1,2,3)：点 (1,1,1) → (2,3,4)；方向 (1,1,1) 不变", en: "translation(1,2,3): point (1,1,1) → (2,3,4); direction (1,1,1) unchanged",
+      f: ({ V, M }) => { const T = M.translation(1,2,3); return eq(T.transformPoint(new V(1,1,1)), 2,3,4) && eq(T.transformDirection(new V(1,1,1)), 1,1,1); } },
+    { zh: "transformPoint：一般矩阵 × 点 (1,2,3) = (4.5,5,0)，不修改矩阵和输入", en: "transformPoint: a general matrix × point (1,2,3) = (4.5,5,0), leaving matrix and input unchanged",
+      f: ({ V, M }) => { const A = new M(GEN), p = new V(1,2,3); return eq(A.transformPoint(p), 4.5,5,0) && eq(p, 1,2,3) && meq(A, GEN); } },
+    { zh: "transformDirection：同一个矩阵 × 方向 (1,2,3) = (1.5,7,−4)，第 4 列不参与", en: "transformDirection: the same matrix × direction (1,2,3) = (1.5,7,−4); column 4 drops out",
+      f: ({ V, M }) => eq(new M(GEN).transformDirection(new V(1,2,3)), 1.5,7,-4) },
+    { zh: "mul：T(1,0,0)·T(0,2,0) = T(1,2,0)；Rz(90°)·T(1,0,0) 把原点送到 (0,1,0)，T(1,0,0)·Rz(90°) 送到 (1,0,0)", en: "mul: T(1,0,0)·T(0,2,0) = T(1,2,0); Rz(90°)·T(1,0,0) sends the origin to (0,1,0), T(1,0,0)·Rz(90°) sends it to (1,0,0)",
+      f: ({ V, M }) => { const o = new V(0,0,0), R = M.rotationZ(Math.PI / 2), T = M.translation(1,0,0);
+        return meq(M.translation(1,0,0).mul(M.translation(0,2,0)), [1,0,0,1, 0,1,0,2, 0,0,1,0, 0,0,0,1]) && eq(R.mul(T).transformPoint(o), 0,1,0) && eq(T.mul(R).transformPoint(o), 1,0,0); } },
+    { zh: "(A·B) 变换点 = A(B(点))，最下一行保持 0 0 0 1", en: "(A·B) on a point = A(B(point)), and the bottom row stays 0 0 0 1",
+      f: ({ V, M }) => { const A = new M(GEN), B2 = M.rotationZ(0.7).mul(M.translation(-1,2,0.5)), p = new V(1,-2,3), q = A.transformPoint(B2.transformPoint(p)), C = A.mul(B2);
+        return eq(C.transformPoint(p), q.x, q.y, q.z) && [0,1,2,3].every(j => near(C.get(3, j), j === 3 ? 1 : 0)); } },
+    { zh: "rotationZ(90°)：点 (1,0,5) → (0,1,5)，方向 (0,2,0) → (−2,0,0)", en: "rotationZ(90°): point (1,0,5) → (0,1,5), direction (0,2,0) → (−2,0,0)",
+      f: ({ V, M }) => { const R = M.rotationZ(Math.PI / 2); return eq(R.transformPoint(new V(1,0,5)), 0,1,5) && eq(R.transformDirection(new V(0,2,0)), -2,0,0); } },
+    { zh: "rotateAround(p = (2,1,0), 90°)：p 不动，(3,1,0) → (2,2,0)，(2,1,7) → (2,1,7)", en: "rotateAround(p = (2,1,0), 90°): p stays put, (3,1,0) → (2,2,0), (2,1,7) → (2,1,7)",
+      f: ({ V, M }) => { const A = M.rotateAround(new V(2,1,0), Math.PI / 2); return eq(A.transformPoint(new V(2,1,0)), 2,1,0) && eq(A.transformPoint(new V(3,1,0)), 2,2,0) && eq(A.transformPoint(new V(2,1,7)), 2,1,7); } },
+    { zh: "rotateAround 对方向来说就是普通旋转：p = (5,5,0)、90°，方向 (1,0,0) → (0,1,0)；到 p 的距离不变", en: "For directions rotateAround is a plain rotation: p = (5,5,0), 90°, direction (1,0,0) → (0,1,0); distances to p are kept",
+      f: ({ V, M }) => { const p = new V(5,5,0), A = M.rotateAround(p, Math.PI / 2), q = A.transformPoint(new V(8,1,0)); return eq(A.transformDirection(new V(1,0,0)), 0,1,0) && near(Math.hypot(q.x - 5, q.y - 5), 5); } }
+  ];
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  const pc = document.getElementById("pc"), pcNote = document.getElementById("pcNote");
+  let results = null, X = null, pcErr = "";
+  function plot(){
+    const B = makeBoard(pc, 30); B.clear(); pcErr = ""; originMark(B);
+    const base = LETTER_F.map(([x, y]) => [x + 3, y + 1]);
+    fillPoly(B, base, css("--muted"), 0.3); B.path(base, css("--muted"), 2, null, 1, true);
+    if (X && X.V && X.M){
+      try { const p = new X.V(3, 1, 0), run = (A, col) => { const pts = base.map(([x, y]) => { const q = A.transformPoint(new X.V(x, y, 0)); return [q.x, q.y]; }); fillPoly(B, pts, col, 0.25); B.path(pts, col, 2, null, 1, true); };
+        [1, 2, 3].forEach(k => run(X.M.rotateAround(p, k * Math.PI / 2), css("--accent"))); run(X.M.rotationZ(Math.PI / 2), css("--accent-2")); B.dot(3, 1, css("--ink"), 5); }
+      catch (e){ pcErr = e.message; }
+    }
+    const t = S_[lang()]; pcNote.textContent = t.pc + (pcErr ? " " + t.pcErr + pcErr : "");
+  }
+  function show(){ const t = S_[lang()]; plot(); if (!results){ list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length; err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`; err.classList.toggle("allok", n === results.length); }
+  function run(){ err.classList.remove("allok");
+    try { X = new Function(document.getElementById("code").value + "\nreturn { V: typeof Vec3 === 'undefined' ? undefined : Vec3, M: typeof Mat4 === 'undefined' ? undefined : Mat4 };")(); }
+    catch (e){ X = null; results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    if (!X.V || !X.M){ results = null; show(); err.textContent = S_[lang()].missing; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(X); } catch { return false; } }); show(); }
+  document.getElementById("run").onclick = run; onLangChange.push(show); onTheme.push(plot); run();
+})();
+</script>

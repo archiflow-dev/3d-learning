@@ -113,6 +113,18 @@ const LESSON = {
 .mat3{display:inline-grid;grid-template-columns:repeat(3,58px);gap:6px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
 .mat3 input,.mat3 span{width:58px;font:15px var(--f-mono);padding:4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-align:center;box-sizing:border-box}
 .mat3 span{border-style:dashed;color:var(--muted)}
+.amg{display:inline-grid;grid-template-columns:repeat(3,minmax(64px,84px));gap:6px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
+.amg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;font:600 16px var(--f-mono);border-radius:6px;border:2px solid transparent;cursor:pointer;color:var(--ink)}
+.amg button small{font:11px var(--f-mono);color:var(--muted);white-space:nowrap}
+.amg .c0{background:color-mix(in srgb,var(--good) 16%,transparent)}
+.amg .c1{background:color-mix(in srgb,var(--accent-2) 16%,transparent)}
+.amg .c2{background:color-mix(in srgb,#d39b1c 18%,transparent)}
+.amg .fx{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.amg button.on{border-color:var(--ink)}
+.amg button.hot{animation:amHot .7s ease-out}
+@keyframes amHot{0%{box-shadow:0 0 0 4px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
+.amhead{display:grid;grid-template-columns:repeat(3,minmax(64px,84px));gap:6px;padding:0 12px;font:11px var(--f-mono);color:var(--muted);text-align:center}
+#amRole{margin:0;padding:8px 10px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
 </style>
 
 <header id="meta">
@@ -163,6 +175,59 @@ const LESSON = {
     <canvas id="dc" width="720" height="440" aria-label="affine board"></canvas>
     <dl class="readout" id="dOut"></dl>
     <p class="meta" id="dNote"></p>
+  </div>
+</section>
+
+<section id="anatomy">
+  <h2><span class="tag">Anatomy</span><span class="zh">矩阵解剖：每个元素管什么</span><span class="en">Matrix anatomy: what each entry does</span></h2>
+  <p class="meta zh">两种玩法。「改元素」：点矩阵里任意一格，只拖动那一个数，看 F 怎么变，画布上会标出这个数对应的那一段。「用参数生成」：拖旋转、缩放、平移的滑块，看矩阵里哪些格子跟着变（变化的格子会闪）。</p>
+  <p class="meta en">Two ways to play. "Edit entries": click any cell and drag just that one number; the canvas marks the segment that number controls. "Build from parameters": drag rotation, scale and translation sliders and watch which cells change (changing cells flash).</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="anatomy mode">
+        <input type="radio" name="amm" id="amm1" value="el" checked><label for="amm1"><span class="zh">改元素</span><span class="en">Edit entries</span></label>
+        <input type="radio" name="amm" id="amm2" value="par"><label for="amm2"><span class="zh">用参数生成</span><span class="en">Build from parameters</span></label>
+      </span>
+      <button type="button" id="amReset"><span class="zh">复位</span><span class="en">Reset</span></button>
+    </div>
+    <div class="row" style="align-items:flex-start;gap:16px">
+      <div>
+        <div class="amhead"><span class="zh">第 1 列：î′</span><span class="en">col 1: î′</span><span class="zh">第 2 列：ĵ′</span><span class="en">col 2: ĵ′</span><span class="zh">第 3 列：平移</span><span class="en">col 3: shift</span></div>
+        <div class="amg" id="amGrid">
+          <button type="button" class="c0" data-k="a"><span>1</span><small>a</small></button>
+          <button type="button" class="c1" data-k="b"><span>0</span><small>b</small></button>
+          <button type="button" class="c2" data-k="tx"><span>0</span><small>tx</small></button>
+          <button type="button" class="c0" data-k="c"><span>0</span><small>c</small></button>
+          <button type="button" class="c1" data-k="d"><span>1</span><small>d</small></button>
+          <button type="button" class="c2" data-k="ty"><span>0</span><small>ty</small></button>
+          <button type="button" class="fx" data-k="w0"><span>0</span><small>&nbsp;</small></button>
+          <button type="button" class="fx" data-k="w1"><span>0</span><small>&nbsp;</small></button>
+          <button type="button" class="fx" data-k="w2"><span>1</span><small>&nbsp;</small></button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px">
+        <div data-am="el" style="display:flex;flex-direction:column;gap:8px">
+          <div class="row"><label for="amV" class="meta" id="amVLab">a = 1</label><input type="range" id="amV" min="-3" max="3" step="0.1" value="1" style="flex:1;min-width:120px"></div>
+          <div class="row"><button type="button" id="amSweep"><span class="zh">▶ 把这个数从 −2 扫到 2</span><span class="en">▶ Sweep this entry from −2 to 2</span></button></div>
+        </div>
+        <div data-am="par" style="display:none;flex-direction:column;gap:6px">
+          <div class="row"><label for="amTh" class="meta" style="min-width:76px">θ = <output id="amThO">0°</output></label><input type="range" id="amTh" min="-180" max="180" step="5" value="0" style="flex:1"></div>
+          <div class="row"><label for="amSx" class="meta" style="min-width:76px">sx = <output id="amSxO">1</output></label><input type="range" id="amSx" min="-2" max="2.5" step="0.1" value="1" style="flex:1"></div>
+          <div class="row"><label for="amSy" class="meta" style="min-width:76px">sy = <output id="amSyO">1</output></label><input type="range" id="amSy" min="-2" max="2.5" step="0.1" value="1" style="flex:1"></div>
+          <div class="row"><label for="amTx" class="meta" style="min-width:76px">tx = <output id="amTxO">0</output></label><input type="range" id="amTx" min="-5" max="5" step="0.5" value="0" style="flex:1"></div>
+          <div class="row"><label for="amTy" class="meta" style="min-width:76px">ty = <output id="amTyO">0</output></label><input type="range" id="amTy" min="-4" max="4" step="0.5" value="0" style="flex:1"></div>
+          <div class="row">
+            <span class="seg" role="radiogroup" aria-label="order">
+              <input type="radio" name="amo" id="amo1" value="TRS" checked><label for="amo1">M = T·R·S</label>
+              <input type="radio" name="amo" id="amo2" value="RTS"><label for="amo2">M = R·T·S</label>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p id="amRole"></p>
+    <canvas id="am" width="720" height="440" aria-label="matrix anatomy board"></canvas>
+    <dl class="readout" id="amOut"></dl>
   </div>
 </section>
 
@@ -660,6 +725,107 @@ function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx
   sc.addEventListener("pointermove", e => { if (!drag3) return; yaw = drag3[2] + (e.clientX - drag3[0]) * 0.01; pitch = Math.max(0.12, Math.min(Math.PI / 2, drag3[3] + (e.clientY - drag3[1]) * 0.01)); draw3(); });
   sc.addEventListener("pointerup", () => { drag3 = null; });
   ["s3x", "s3y"].forEach(id => $(id).addEventListener("input", draw3)); onLangChange.push(draw3); onTheme.push(draw3); draw3();
+})();
+</script>
+<script>
+// ==================== 矩阵解剖 / matrix anatomy ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const ROLE = {
+    a:  { zh: "a = î′ 的 x 分量（画布上的绿色虚线段）。只改 a：F 沿 x 方向拉伸或压缩，a < 0 时左右翻转，a = 0 时 F 被压成一条竖线。注意：旋转时 a = cos θ，所以 a 不等于「x 方向缩放」，它是缩放和旋转混合后的结果。",
+          en: "a = the x-component of î′ (the dashed green segment). Change only a: F stretches or squashes along x; a < 0 flips it left-right, a = 0 squashes it into a vertical line. Note: in a rotation a = cos θ, so a is not \"the x scale\"; it is scale and rotation mixed together." },
+    c:  { zh: "c = î′ 的 y 分量。只改 c：î′ 往上或往下翘，原来水平的线变斜，竖线不动。这是竖直方向的剪切：x 越大的点被往上推得越多。旋转时 c = sin θ。",
+          en: "c = the y-component of î′. Change only c: î′ tilts up or down, horizontal lines become slanted, vertical lines stay. This is a vertical shear: points with larger x are pushed up more. In a rotation c = sin θ." },
+    b:  { zh: "b = ĵ′ 的 x 分量（粉色虚线段）。只改 b：越高的点被往右推得越多，竖线变斜，横线不动。这是水平剪切，斜体字就是这么来的。旋转时 b = −sin θ。",
+          en: "b = the x-component of ĵ′ (the dashed pink segment). Change only b: the higher a point, the further it is pushed right; vertical lines slant, horizontal lines stay. This is a horizontal shear, which is how italic text is made. In a rotation b = −sin θ." },
+    d:  { zh: "d = ĵ′ 的 y 分量。只改 d：F 沿 y 方向拉伸或压缩，d < 0 时上下翻转。旋转时 d = cos θ。",
+          en: "d = the y-component of ĵ′. Change only d: F stretches or squashes along y; d < 0 flips it upside down. In a rotation d = cos θ." },
+    tx: { zh: "tx = 原点被送到哪里的 x 坐标（金色箭头的水平段）。只改 tx：F 整体左右平移，形状和朝向都不变，î′、ĵ′ 只是起点跟着搬走。它只对 w = 1 的点起作用，方向（w = 0）不受影响。",
+          en: "tx = the x-coordinate of where the origin goes (the horizontal part of the gold arrow). Change only tx: F slides left or right with shape and orientation unchanged; î′ and ĵ′ just move their starting point. It acts only on points (w = 1); directions (w = 0) ignore it." },
+    ty: { zh: "ty = 原点被送到哪里的 y 坐标。只改 ty：F 整体上下平移。和 tx 一样，它独占第三列，和旋转、缩放互不干扰。",
+          en: "ty = the y-coordinate of where the origin goes. Change only ty: F slides up or down. Like tx it has the third column to itself and never mixes with rotation or scale." },
+    w:  { zh: "最后一行固定为 0 0 1。它保证点变换后 w 还是 1，方向的 w 还是 0。如果改掉它，就成了投影变换，这是第 2 阶段讲相机时的内容，所以这里锁住了。",
+          en: "The last row is fixed at 0 0 1. It keeps a point's w at 1 and a direction's w at 0 after the transform. Changing it gives a projective transform, which comes in stage 2 with cameras, so it is locked here." },
+    par: { zh: "M = T · R(θ) · S(sx, sy)：先缩放、再旋转、最后平移。注意闪动的格子：θ 一动，左上 2×2 的四个数全变；sx 只动第一列，sy 只动第二列；tx、ty 只动第三列。旋转和缩放挤在同一块 2×2 里，所以单看一个数分不清是哪个造成的；平移独占第三列。",
+           en: "M = T · R(θ) · S(sx, sy): scale first, then rotate, then translate. Watch the flashing cells: moving θ changes all four entries of the top-left 2×2; sx changes only column 1, sy only column 2; tx and ty only column 3. Rotation and scale share the same 2×2, so one entry alone cannot tell you which caused it; translation has column 3 to itself." },
+    rts: { zh: "M = R · T · S：先平移、再旋转。现在 θ 一动，第三列也跟着变了：第三列 = R · (tx, ty)，因为平移向量本身也被转了一下。这就是「第三列 = 原点被送到哪」：原点先被平移到 (tx, ty)，然后再绕世界原点转了 θ。",
+           en: "M = R · T · S: translate first, then rotate. Now moving θ changes column 3 too: column 3 = R · (tx, ty), because the translation vector itself gets rotated. That is what \"column 3 = where the origin goes\" means: the origin is first moved to (tx, ty), then rotated by θ about the world origin." }
+  };
+  const FORM = { TRS: { a: "sx·cosθ", b: "−sy·sinθ", c: "sx·sinθ", d: "sy·cosθ", tx: "tx", ty: "ty" },
+                 RTS: { a: "sx·cosθ", b: "−sy·sinθ", c: "sx·sinθ", d: "sy·cosθ", tx: "(R·t)ₓ", ty: "(R·t)ᵧ" } };
+  const DEP = { TRS: { amTh: "abcd", amSx: "ac", amSy: "bd", amTx: ["tx"], amTy: ["ty"] },
+                RTS: { amTh: ["a", "b", "c", "d", "tx", "ty"], amSx: "ac", amSy: "bd", amTx: ["tx", "ty"], amTy: ["tx", "ty"] } };
+  const B = makeBoard($("am"), 40), KEYS = ["a", "b", "c", "d", "tx", "ty"];
+  let M = AF.I(), sel = "a", anim = null;
+  const mode = () => document.querySelector('input[name="amm"]:checked').value;
+  const order = () => document.querySelector('input[name="amo"]:checked').value;
+  const r1 = v => Math.round(v * 100) / 100;
+  function fromParams(){
+    const th = +$("amTh").value * Math.PI / 180, sx = +$("amSx").value, sy = +$("amSy").value, tx = +$("amTx").value, ty = +$("amTy").value;
+    const R = AF.lin(Math.cos(th), -Math.sin(th), Math.sin(th), Math.cos(th)), Sc = AF.lin(sx, 0, 0, sy), T = AF.T(tx, ty);
+    const m = order() === "TRS" ? AF.mul(T, AF.mul(R, Sc)) : AF.mul(R, AF.mul(T, Sc));
+    KEYS.forEach(k => { if (Math.abs(m[k]) < 1e-9) m[k] = 0; }); return m;
+  }
+  function seg(p, q, col, lab, dx, dy){ B.path([p, q], col, 6, [7, 5], 0.95); B.text(lab, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2, col, dx, dy, 16); }
+  function draw(){
+    const z = lang() === "zh", gI = css("--good"), gJ = css("--accent-2"), acc = css("--accent"), ink = css("--ink"), mut = css("--muted"), par = mode() === "par";
+    document.querySelectorAll("#amGrid button").forEach(bt => { const k = bt.dataset.k; if (M[k] !== undefined) bt.firstElementChild.textContent = num(M[k]);
+      bt.lastElementChild.innerHTML = par && FORM[order()][k] ? FORM[order()][k] : (k[0] === "w" ? "&nbsp;" : k);
+      bt.classList.toggle("on", !par && (k === sel || (sel === "w" && k[0] === "w"))); });
+    document.querySelectorAll("[data-am]").forEach(e => e.style.display = e.dataset.am === mode() ? "flex" : "none");
+    $("amRole").textContent = (par ? ROLE[order() === "TRS" ? "par" : "rts"] : ROLE[sel])[lang()];
+    if (!par){ const sl = $("amV"), on = sel !== "w"; sl.disabled = !on; $("amSweep").disabled = !on;
+      $("amVLab").textContent = on ? `${sel} = ${num(M[sel])}` : (z ? "最后一行已锁定" : "last row is locked"); if (on && document.activeElement !== sl) sl.value = M[sel]; }
+    else { $("amThO").textContent = $("amTh").value + "°"; ["Sx", "Sy", "Tx", "Ty"].forEach(k => $("am" + k + "O").textContent = num(+$("am" + k).value)); }
+    B.clear(); drawGrid(B, M, acc, 0.22); drawF(B, AF.I(), mut, 0.35, [5, 5]); drawF(B, M, acc);
+    const O = [M.tx, M.ty], Ti = [M.tx + M.a, M.ty + M.c], Tj = [M.tx + M.b, M.ty + M.d], hot = par ? null : sel;
+    const dim = k => hot && hot !== "w" && !k.includes(hot) ? 0.35 : 1;
+    if (M.tx || M.ty){ B.path([[0, 0], O], GOLD, 3, null, dim(["tx", "ty"])); B.head([[0, 0], O], GOLD, 13); }
+    B.path([O, Ti], gI, 5, null, dim(["a", "c"])); B.head([O, Ti], gI, 15); B.path([O, Tj], gJ, 5, null, dim(["b", "d"])); B.head([O, Tj], gJ, 15);
+    B.text("î′", ...Ti, gI, 10, 18, 18); B.text("ĵ′", ...Tj, gJ, 10, -10, 18); B.dot(...O, ink, 6); B.text("O′", ...O, ink, -28, -8, 15);
+    if (hot === "a") seg(O, [O[0] + M.a, O[1]], gI, "a", -4, 20);
+    if (hot === "c") seg([O[0] + M.a, O[1]], Ti, gI, "c", 10, 4);
+    if (hot === "b") seg(O, [O[0] + M.b, O[1]], gJ, "b", -4, 20);
+    if (hot === "d") seg([O[0] + M.b, O[1]], Tj, gJ, "d", 10, 4);
+    if (hot === "tx") seg([0, 0], [M.tx, 0], GOLD, "tx", -6, 20);
+    if (hot === "ty") seg([M.tx, 0], O, GOLD, "ty", 10, 4);
+    // 测量：从两列读出几何量 / measurements read off the two columns
+    const sxm = Math.hypot(M.a, M.c), sym = Math.hypot(M.b, M.d), det = M.a * M.d - M.b * M.c;
+    const ang = Math.atan2(M.c, M.a) * 180 / Math.PI, between = sxm && sym ? Math.acos(Math.max(-1, Math.min(1, (M.a * M.b + M.c * M.d) / (sxm * sym)))) * 180 / Math.PI : NaN;
+    const deg = v => isNaN(v) ? "—" : num(Math.round(v)) + "°";
+    const kind = (() => { const lin = Math.abs(M.a - 1) < 1e-6 && Math.abs(M.d - 1) < 1e-6 && !M.b && !M.c;
+      if (lin) return M.tx || M.ty ? (z ? "纯平移" : "pure translation") : (z ? "恒等" : "identity");
+      if (Math.abs(det) < 1e-6) return z ? "退化：F 被压扁成线或点，无法还原" : "degenerate: F collapses to a line or point, cannot be undone";
+      const orth = Math.abs(between - 90) < 0.5, flip = det < 0 ? (z ? "，含翻转" : ", with a flip") : "";
+      if (orth && Math.abs(sxm - 1) < 0.01 && Math.abs(sym - 1) < 0.01) return (det > 0 ? (z ? "纯旋转" : "pure rotation") : (z ? "镜像（翻转）" : "mirror (flip)")) + (M.tx || M.ty ? (z ? " + 平移" : " + translation") : "");
+      if (orth) return (Math.abs(sxm - sym) < 0.01 ? (z ? "旋转 + 均匀缩放" : "rotation + uniform scale") : (z ? "旋转 + 不均匀缩放" : "rotation + non-uniform scale")) + flip + (M.tx || M.ty ? (z ? " + 平移" : " + translation") : "");
+      return (z ? "含剪切（î′ 和 ĵ′ 不再垂直）" : "has shear (î′ and ĵ′ are no longer perpendicular)") + flip + (M.tx || M.ty ? (z ? " + 平移" : " + translation") : ""); })();
+    const rows = z ? [["类型", kind], ["|î′| = √(a² + c²)", num(r1(sxm)) + "　（x 轴被拉长的倍数）"], ["|ĵ′| = √(b² + d²)", num(r1(sym)) + "　（y 轴被拉长的倍数）"],
+                      ["î′ 的角度 = atan2(c, a)", deg(ang) + "　（x 轴转了多少）"], ["î′ 与 ĵ′ 的夹角", deg(between) + "　（90° = 没有剪切）"],
+                      ["det = ad − bc", num(r1(det)) + "　（面积倍数，负数 = 翻转）"], ["原点 → 第三列", `(${num(M.tx)}, ${num(M.ty)})`]]
+                   : [["kind", kind], ["|î′| = √(a² + c²)", num(r1(sxm)) + "  (how much the x-axis is stretched)"], ["|ĵ′| = √(b² + d²)", num(r1(sym)) + "  (how much the y-axis is stretched)"],
+                      ["angle of î′ = atan2(c, a)", deg(ang) + "  (how far the x-axis turned)"], ["angle between î′ and ĵ′", deg(between) + "  (90° = no shear)"],
+                      ["det = ad − bc", num(r1(det)) + "  (area factor; negative = flip)"], ["origin → column 3", `(${num(M.tx)}, ${num(M.ty)})`]];
+    $("amOut").innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  }
+  const flash = ks => document.querySelectorAll("#amGrid button").forEach(bt => { if (ks.includes(bt.dataset.k)){ bt.classList.remove("hot"); void bt.offsetWidth; bt.classList.add("hot"); } });
+  const stop = () => { if (anim){ cancelAnimationFrame(anim); anim = null; } };
+  document.querySelectorAll("#amGrid button").forEach(bt => bt.onclick = () => {
+    if (mode() === "par"){ $("amm1").checked = true; }
+    stop(); sel = bt.dataset.k[0] === "w" ? "w" : bt.dataset.k; draw(); });
+  $("amV").addEventListener("input", () => { if (sel === "w") return; stop(); M[sel] = +$("amV").value; draw(); });
+  $("amSweep").onclick = () => { if (sel === "w") return; stop(); const k = sel, v0 = M[k]; let t0 = null;
+    const step = ts => { if (t0 === null) t0 = ts; const u = Math.min(1, (ts - t0) / 3000);
+      const lerp = (p, q, t) => p + (q - p) * t;   // v0 → −2 → 2 → v0
+      M[k] = r1(u < 0.15 ? lerp(v0, -2, u / 0.15) : u < 0.8 ? lerp(-2, 2, (u - 0.15) / 0.65) : lerp(2, v0, (u - 0.8) / 0.2));
+      if (u >= 1) M[k] = v0; draw(); anim = u < 1 ? requestAnimationFrame(step) : null; };
+    anim = requestAnimationFrame(step); };
+  ["amTh", "amSx", "amSy", "amTx", "amTy"].forEach(id => $(id).addEventListener("input", () => { stop(); M = fromParams(); flash([...DEP[order()][id]]); draw(); }));
+  document.querySelectorAll('input[name="amo"]').forEach(r => r.addEventListener("change", () => { M = fromParams(); flash(KEYS.filter(k => k.startsWith("t"))); draw(); }));
+  document.querySelectorAll('input[name="amm"]').forEach(r => r.addEventListener("change", () => { stop(); if (mode() === "par") M = fromParams(); draw(); }));
+  $("amReset").onclick = () => { stop(); M = AF.I(); [["amTh", 0], ["amSx", 1], ["amSy", 1], ["amTx", 0], ["amTy", 0]].forEach(([id, v]) => $(id).value = v); flash(KEYS); draw(); };
+  window.__anat16 = { get M(){ return { ...M }; }, fromParams };
+  onLangChange.push(draw); onTheme.push(draw); draw();
 })();
 </script>
 <script>

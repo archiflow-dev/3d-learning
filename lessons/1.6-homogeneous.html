@@ -192,6 +192,21 @@ const LESSON = {
     <div class="row"><label for="shT" class="meta">t = <output id="shTOut">1.5</output></label><input type="range" id="shT" min="-3" max="3" step="0.1" value="1.5" style="flex:1;min-width:0"></div>
     <canvas id="wc" width="720" height="380" aria-label="shear figure"></canvas>
   </div>
+  <p class="zh"><b>2D 版本：</b>同样的事情再高一维。2D 的点 (x, y) 放到 3D 里 w = 1 那一层，方向放在 w = 0 的地面上。3D 剪切 [[1, 0, tx], [0, 1, ty], [0, 0, 1]] 让整个空间按高度 w「斜着推」：地面不动，w = 1 那层整体移动 (tx, ty)。拖动画布可以换视角，点「从正上方看」就是我们平时看到的 2D 平移。</p>
+  <p class="en"><b>The 2D version:</b> the same idea one dimension up. 2D points (x, y) sit on the layer w = 1 in 3D, while directions sit on the ground w = 0. The 3D shear [[1, 0, tx], [0, 1, ty], [0, 0, 1]] pushes space sideways in proportion to the height w: the ground stays put and the layer w = 1 moves by (tx, ty). Drag the canvas to change the view; "View from above" shows the familiar 2D translation.</p>
+  <div class="panel">
+    <div class="row">
+      <label for="s3x" class="meta">tx = <output id="s3xOut">2</output></label><input type="range" id="s3x" min="-3" max="3" step="0.1" value="2" style="flex:1;min-width:100px">
+      <label for="s3y" class="meta">ty = <output id="s3yOut">1</output></label><input type="range" id="s3y" min="-3" max="3" step="0.1" value="1" style="flex:1;min-width:100px">
+    </div>
+    <div class="cards">
+      <button type="button" id="s3Side"><span class="zh">斜着看</span><span class="en">Angled view</span></button>
+      <button type="button" id="s3Top"><span class="zh">从正上方看</span><span class="en">View from above</span></button>
+      <button type="button" id="s3Play"><span class="zh">播放剪切</span><span class="en">Play the shear</span></button>
+    </div>
+    <canvas id="sc3" width="720" height="440" aria-label="3D shear figure"></canvas>
+    <p class="meta" id="s3Note"></p>
+  </div>
   <h3 class="zh">3. 代数：为什么 w = 0 不受平移影响</h3><h3 class="en">3. Algebra: why w = 0 ignores translation</h3>
   <p class="zh">矩阵乘向量 = 各列按分量加权相加（1.5 课）。平移 t 住在最后一列，它的权重就是 w。w = 1 时加上一份 t，w = 0 时加上零份。所以「点会被平移、方向不会」不需要额外规定，而是乘法自己算出来的。</p>
   <p class="en">Matrix times vector is the columns weighted by the components (lesson 1.5). The translation t lives in the last column, so its weight is w. With w = 1 you add one t; with w = 0 you add none. "Points move, directions do not" is not an extra rule; the multiplication works it out by itself.</p>
@@ -593,6 +608,58 @@ function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx
     W.text(z ? "w = 0：方向，一动不动" : "w = 0: directions, not moved", -5.8, -0.75, gD, 0, 0, 15);
     W.label(z ? `剪切 [[1, ${num(t)}], [0, 1]]：(x, w) → (x + ${pn(t)}·w, w)` : `shear [[1, ${num(t)}], [0, 1]]: (x, w) → (x + ${pn(t)}·w, w)`, ink, 14); }
   $("shT").addEventListener("input", drawW); onLangChange.push(drawW); onTheme.push(drawW); drawW();
+  // ---- 2D 平移 = 3D 剪切（可旋转视角）/ 2D translation = a 3D shear (rotatable view) ----
+  const sc = $("sc3"), sx = sc.getContext("2d");
+  let yaw = -0.6, pitch = 0.45, drag3 = null, anim3 = null;
+  const H = 2.6;                        // w = 1 这一层画多高 / how high the w = 1 layer is drawn
+  function P3(x, y, w){ const U = 54, k = Math.cos(yaw), s = Math.sin(yaw), X = x * k - y * s, Y = x * s + y * k;
+    const mx = (+$("s3x").value * k - +$("s3y").value * s) / 2;   // 让地面和剪切层整体居中 / keep both layers centred
+    return [sc.width / 2 + (X - mx) * U, sc.height * (0.5 + 0.2 * Math.cos(pitch)) - (w * H * Math.cos(pitch) + Y * Math.sin(pitch)) * U]; }
+  function line3(a, b, col, w = 1, alpha = 1, dash = null){ const [p, q] = P3(...a), [r, t] = P3(...b); sx.save(); sx.globalAlpha = alpha; sx.strokeStyle = col; sx.lineWidth = w * kk(); if (dash) sx.setLineDash(dash.map(d => d * kk()));
+    sx.beginPath(); sx.moveTo(p, q); sx.lineTo(r, t); sx.stroke(); sx.restore(); }
+  function poly3(pts, col, alpha, stroke){ sx.save(); sx.beginPath(); pts.forEach((v, i) => { const [p, q] = P3(...v); i ? sx.lineTo(p, q) : sx.moveTo(p, q); }); sx.closePath();
+    sx.globalAlpha = alpha; sx.fillStyle = col; sx.fill(); if (stroke){ sx.globalAlpha = 1; sx.strokeStyle = col; sx.lineWidth = 2.5 * kk(); sx.stroke(); } sx.restore(); }
+  function text3(str, v, col, dx = 6, dy = -6, size = 14){ const [p, q] = P3(...v); sx.save(); sx.font = `600 ${size * kk()}px ` + css("--f-mono"); sx.lineWidth = 4; sx.strokeStyle = css("--surface");
+    const X = Math.max(6, Math.min(sc.width - sx.measureText(str).width - 6, p + dx * kk())), Y = Math.max(16 * kk(), Math.min(sc.height - 6, q + dy * kk()));
+    sx.strokeText(str, X, Y); sx.fillStyle = col; sx.fillText(str, X, Y); sx.restore(); }
+  const kk = () => { const cw = sc.getBoundingClientRect().width; return cw ? Math.max(1, Math.min(1.8, sc.width / cw * 0.75)) : 1; };
+  function draw3(){
+    const tx = +$("s3x").value, ty = +$("s3y").value, z = lang() === "zh", acc = css("--accent"), mut = css("--muted"), gP = css("--accent-2"), gD = css("--good"), ink = css("--ink"), ln = css("--line");
+    $("s3xOut").textContent = num(tx); $("s3yOut").textContent = num(ty);
+    sx.setLineDash([]); sx.globalAlpha = 1; sx.fillStyle = css("--surface"); sx.fillRect(0, 0, sc.width, sc.height);
+    const R = 3, sh = (x, y, w) => [x + tx * w, y + ty * w, w];
+    // 地面 w = 0：不动 / the ground w = 0 stays put
+    poly3([[-R, -R, 0], [R, -R, 0], [R, R, 0], [-R, R, 0]], gD, 0.08);
+    for (let k = -R; k <= R; k++){ line3([k, -R, 0], [k, R, 0], ln, 1); line3([-R, k, 0], [R, k, 0], ln, 1); }
+    line3([0, 0, 0], [1.6, 1.2, 0], gD, 3.5); text3(z ? "方向 d（w = 0）" : "direction d (w = 0)", [1.6, 1.2, 0], gD, 6, 16, 13);
+    // 被剪切的竖线：整个空间按 w 斜推 / sheared vertical lines: space leans in proportion to w
+    [[-R, -R], [R, -R], [R, R], [-R, R]].forEach(([x, y]) => line3([x, y, 0], sh(x, y, 1.25), mut, 1, 0.6, [5, 5]));
+    line3([0, 0, 0], sh(0, 0, 1.35), ink, 2); text3("w", sh(0, 0, 1.35), ink, 6, -4, 14);
+    // 原来的 w = 1 层（虚线）/ the original w = 1 layer (dashed)
+    poly3([[-R, -R, 1], [R, -R, 1], [R, R, 1], [-R, R, 1]], mut, 0.04);
+    [[-R, -R, R, -R], [R, -R, R, R], [R, R, -R, R], [-R, R, -R, -R]].forEach(([a, b, c, d]) => line3([a, b, 1], [c, d, 1], mut, 1, 0.7, [4, 5]));
+    poly3(LETTER_F.map(([x, y]) => [x, y, 1]), mut, 0.25, false);
+    // 剪切后的 w = 1 层 / the sheared w = 1 layer
+    poly3([sh(-R, -R, 1), sh(R, -R, 1), sh(R, R, 1), sh(-R, R, 1)], acc, 0.1);
+    for (let k = -R; k <= R; k++){ line3(sh(k, -R, 1), sh(k, R, 1), acc, 1, 0.5); line3(sh(-R, k, 1), sh(R, k, 1), acc, 1, 0.5); }
+    poly3(LETTER_F.map(([x, y]) => sh(x, y, 1)), gP, 0.45, true);
+    line3([0, 0, 1], sh(0, 0, 1), gP, 2.5, 1, [6, 4]);
+    text3(z ? "w = 1：点（整层移动了 (tx, ty)）" : "w = 1: points (the layer moved by (tx, ty))", sh(-R, R, 1), gP, 4, -8, 13);
+    text3(z ? "w = 0：地面不动" : "w = 0: the ground stays", [R, -R, 0], gD, -60, 22, 13);
+    $("s3Note").textContent = `M = [[1, 0, ${num(tx)}], [0, 1, ${num(ty)}], [0, 0, 1]]。 `.replace("。", z ? "。" : ".") + (z ? `F 上每个点 (x, y, 1) 都变成了 (x + ${pn(tx)}, y + ${pn(ty)}, 1)：在 w = 1 这一层上看，这就是平移；而方向 d = (1.6, 1.2, 0) 在地面上，一点没动。整个 3D 变换是线性的：原点 (0, 0, 0) 没动。`
+                                 : `Every point (x, y, 1) of F became (x + ${pn(tx)}, y + ${pn(ty)}, 1): on the layer w = 1 that is a translation, while the direction d = (1.6, 1.2, 0) on the ground did not move. The whole 3D map is linear: the origin (0, 0, 0) stays put.`);
+  }
+  const tween = (to, ms = 500) => { if (anim3) cancelAnimationFrame(anim3); const from = [yaw, pitch]; let t0 = null;
+    const step = ts => { if (t0 === null) t0 = ts; const u = Math.min(1, (ts - t0) / ms), k = u * u * (3 - 2 * u); yaw = from[0] + (to[0] - from[0]) * k; pitch = from[1] + (to[1] - from[1]) * k; draw3(); anim3 = u < 1 ? requestAnimationFrame(step) : null; };
+    anim3 = requestAnimationFrame(step); };
+  $("s3Side").onclick = () => tween([-0.6, 0.45]); $("s3Top").onclick = () => tween([0, Math.PI / 2]);
+  $("s3Play").onclick = () => { if (anim3) cancelAnimationFrame(anim3); const gx = +$("s3x").value || 2, gy = +$("s3y").value || 1; let t0 = null;
+    const step = ts => { if (t0 === null) t0 = ts; const u = Math.min(1, (ts - t0) / 1500); $("s3x").value = gx * u; $("s3y").value = gy * u; draw3(); anim3 = u < 1 ? requestAnimationFrame(step) : null; };
+    anim3 = requestAnimationFrame(step); };
+  sc.addEventListener("pointerdown", e => { drag3 = [e.clientX, e.clientY, yaw, pitch]; sc.setPointerCapture(e.pointerId); if (anim3) cancelAnimationFrame(anim3); });
+  sc.addEventListener("pointermove", e => { if (!drag3) return; yaw = drag3[2] + (e.clientX - drag3[0]) * 0.01; pitch = Math.max(0.12, Math.min(Math.PI / 2, drag3[3] + (e.clientY - drag3[1]) * 0.01)); draw3(); });
+  sc.addEventListener("pointerup", () => { drag3 = null; });
+  ["s3x", "s3y"].forEach(id => $(id).addEventListener("input", draw3)); onLangChange.push(draw3); onTheme.push(draw3); draw3();
 })();
 </script>
 <script>

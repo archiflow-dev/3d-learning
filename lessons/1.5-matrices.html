@@ -315,6 +315,24 @@ class Mat3 {
     <ul class="tests" id="tests"></ul>
     <canvas id="pc" width="720" height="300" aria-label="your matrices"></canvas>
     <p class="meta" id="pcNote"></p>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-07，8/8 通过）</span><span class="en">My solution (2026-11-07, 8/8 pass)</span></p>
+      <pre class="formula">static fromColumns(a, b, c) { return new Mat3([a.x, b.x, c.x,  a.y, b.y, c.y,  a.z, b.z, c.z]); }
+mulVec(v)  { const m = this.m;
+  return new Vec3(m[0] * v.x + m[1] * v.y + m[2] * v.z,
+                  m[3] * v.x + m[4] * v.y + m[5] * v.z,
+                  m[6] * v.x + m[7] * v.y + m[8] * v.z); }
+mul(B)     { const r = [];
+  for (let i = 0; i &lt; 3; i++) for (let j = 0; j &lt; 3; j++)
+    r.push(this.get(i, 0) * B.get(0, j) + this.get(i, 1) * B.get(1, j) + this.get(i, 2) * B.get(2, j));
+  return new Mat3(r); }
+det()      { const col = j =&gt; new Vec3(this.get(0, j), this.get(1, j), this.get(2, j));
+  return col(0).dot(col(1).cross(col(2))); }
+static rotationZ(t) { const c = Math.cos(t), s = Math.sin(t);
+  return new Mat3([c, -s, 0,  s, c, 0,  0, 0, 1]); }</pre>
+      <p class="zh"><b>评审时学到的：</b>（代码和参考答案相同，所以主要靠理解题判断。）fromColumns 把三列竖着放；如果按行存，mulVec((1,0,0)) 会返回第 1 行 (a.x, b.x, c.x)，整个矩阵变成转置，旋转方向也会反。det = a · (b × c)：|b × c| 是底面积，方向是底面的<b>法线</b>（不是「角度」，我一开始答错了），a 点乘单位法线是高，所以是底面积 × 高 = 体积，符号表示三列是不是右手系。R·H 表示先剪切 H 再旋转 R：(1,0,0) 剪切后不动，旋转后到 (0,1,0)。我第一次误答成 (0,2,0)，把 H 当成了拉长；H·R 得到 (1,1,0)。两种顺序 det 都是 1：det 只记录体积倍数和是否翻面，不记录形状。det 的用途：负缩放（det = −1）让三角形绕序反转，渲染器必须反过来剔除；某列是另一列的倍数时 det = 0，矩阵线性相关、不能求逆；此外还用于符号面积（光栅化的边函数）、射线和三角形求交、检测物理模拟里的单元被挤翻。（法线方向、det 的用途是 AI 讲的；补充题我都答对了。）</p>
+      <p class="en"><b>What the review taught me:</b> (My code matches the reference, so the questions did the judging.) fromColumns stores the three columns vertically; stored by rows, mulVec((1,0,0)) would return row 1 (a.x, b.x, c.x), the whole matrix becomes its transpose, and rotations turn the other way. det = a · (b × c): |b × c| is the base area and its direction is the base's <b>normal</b> (not an "angle", which I got wrong at first); a dotted with the unit normal is the height, so the product is base × height = volume, and the sign tells whether the columns are right-handed. R·H means shear H first, then rotate R: (1,0,0) is unchanged by the shear and rotates to (0,1,0). I first answered (0,2,0), treating H as a stretch; H·R gives (1,1,0). Both orders have det 1: det records only the volume factor and whether there is a flip, not the shape. Uses of det: a negative scale (det = −1) reverses triangle winding, so the renderer must flip culling; when one column is a multiple of another, det = 0, the matrix is linearly dependent and has no inverse; it also gives signed areas (rasterization edge functions), ray–triangle intersection, and detecting inverted elements in physics simulation. (The AI explained the normal direction and the uses of det; I answered every follow-up correctly.)</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">fromColumns：第 1 列在 m[0]、m[3]、m[6]。mul：结果第 r 行第 c 列 = this 的第 r 行 · B 的第 c 列。det：可以用三列的混合积 a · (b × c)，你已经有 dot 和 cross 了。</p>
       <p class="en">fromColumns: column 1 lives in m[0], m[3], m[6]. mul: entry (r, c) of the result = row r of this · column c of B. det: use the triple product a · (b × c) of the columns; you already have dot and cross.</p>

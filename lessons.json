@@ -269,7 +269,7 @@
         "矩阵乘法",
         "变换顺序"
       ],
-      "status": "in-progress",
+      "status": "done",
       "videos": {
         "UCD": [
           "03"
@@ -278,7 +278,8 @@
           "4"
         ]
       },
-      "artifactUrl": "https://claude.ai/artifact/JUdcnKiTJaEUvHdTPQZVjX"
+      "artifactUrl": "https://claude.ai/artifact/JUdcnKiTJaEUvHdTPQZVjX",
+      "completedAt": "2026-11-07"
     }
   ],
   "videoRefs": {

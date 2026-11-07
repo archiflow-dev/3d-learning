@@ -250,6 +250,36 @@
         "MIT": []
       },
       "completedAt": "2026-11-06"
+    },
+    {
+      "id": "1.5",
+      "stage": 1,
+      "title": {
+        "zh": "矩阵与线性变换",
+        "en": "Matrices and Linear Transformations"
+      },
+      "file": "lessons/1.5-matrices.html",
+      "prereqs": [
+        "1.4"
+      ],
+      "concepts": [
+        "线性变换",
+        "矩阵的列",
+        "行列式",
+        "矩阵乘法",
+        "变换顺序"
+      ],
+      "status": "done",
+      "videos": {
+        "UCD": [
+          "03"
+        ],
+        "MIT": [
+          "4"
+        ]
+      },
+      "artifactUrl": "https://claude.ai/artifact/JUdcnKiTJaEUvHdTPQZVjX",
+      "completedAt": "2026-11-07"
     }
   ],
   "videoRefs": {

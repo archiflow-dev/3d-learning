@@ -299,8 +299,9 @@
         "点与方向",
         "绕任意点旋转"
       ],
-      "status": "in-progress",
+      "status": "done",
       "artifactUrl": "https://claude.ai/artifact/85cBnmpG2rrdy8neepVqRr",
+      "completedAt": "2026-11-08",
       "videos": {
         "UCD": [
           "03"

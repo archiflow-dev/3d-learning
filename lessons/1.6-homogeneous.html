@@ -113,6 +113,8 @@ const LESSON = {
 .mat3{display:inline-grid;grid-template-columns:repeat(3,58px);gap:6px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
 .mat3 input,.mat3 span{width:58px;font:15px var(--f-mono);padding:4px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-align:center;box-sizing:border-box}
 .mat3 span{border-style:dashed;color:var(--muted)}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
 .amg{display:inline-grid;grid-template-columns:repeat(3,minmax(64px,84px));gap:6px;padding:6px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:6px}
 .amg button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;font:600 16px var(--f-mono);border-radius:6px;border:2px solid transparent;cursor:pointer;color:var(--ink)}
 .amg button small{font:11px var(--f-mono);color:var(--muted);white-space:nowrap}
@@ -402,6 +404,32 @@ class Mat4 {
     <ul class="tests" id="tests"></ul>
     <canvas id="pc" width="720" height="300" aria-label="your matrices"></canvas>
     <p class="meta" id="pcNote"></p>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-08，第一次 6/8，改正后 8/8 通过）</span><span class="en">My solution (2026-11-08, 6/8 at first, 8/8 after the fix)</span></p>
+      <pre class="formula">static translation(tx, ty, tz) {
+  const a = [1, 0, 0, tx, 0, 1, 0, ty, 0, 0, 1, tz, 0, 0, 0, 1];
+  return new Mat4(a); }
+static rotationZ(theta) {
+  return new Mat4([Math.cos(theta),-Math.sin(theta),0,0,  Math.sin(theta), Math.cos(theta),0,0,  0,0,1,0,  0,0,0,1]); }
+mul(B) { const r = [];
+  for (let i = 0; i &lt; 4; i++) for (let j = 0; j &lt; 4; j++) {
+    let s = 0; for (let k = 0; k &lt; 4; k++) s += this.get(i, k) * B.get(k, j);
+    r.push(s); }
+  return new Mat4(r); }
+transformPoint(p) {
+  return new Vec3(this.m[0] * p.x + this.m[1] * p.y + this.m[2]  * p.z + this.m[3],
+                  this.m[4] * p.x + this.m[5] * p.y + this.m[6]  * p.z + this.m[7],
+                  this.m[8] * p.x + this.m[9] * p.y + this.m[10] * p.z + this.m[11]); }
+transformDirection(d) {
+  return new Vec3(this.m[0] * d.x + this.m[1] * d.y + this.m[2]  * d.z,
+                  this.m[4] * d.x + this.m[5] * d.y + this.m[6]  * d.z,
+                  this.m[8] * d.x + this.m[9] * d.y + this.m[10] * d.z); }
+static rotateAround(p, theta) {
+  // 第一版写成 T(−p)·R·T(p)，错 / first try was T(−p)·R·T(p), wrong
+  return Mat4.translation(p.x, p.y, p.z).mul(Mat4.rotationZ(theta)).mul(Mat4.translation(-p.x, -p.y, -p.z)); }</pre>
+      <p class="zh"><b>评审时学到的：</b>（这次大部分是自己写的，mul 和参考答案相同。）rotateAround 第一版写成了 T(−p)·R·T(p)，p = (2,1,0) 被送到 (−4,3,0)。我的直觉「先把 p 移到原点」是对的，错在读顺序：M·x = T(p)·(R·(T(−p)·x))，离点最近的最右边矩阵最先作用，所以「先减 p」要写在<b>最右边</b>，写的顺序和执行顺序相反（这一点是 AI 讲的）。三步是 T(−p) 移到原点、R 旋转、T(p) 移回；我复述时把中间一步说成了「移动」，应是旋转。M = T(5,0,0)·Rz(90°) 作用于 d = (1,0,0)：transformDirection 得 (0,1,0)，transformPoint 得 (5,1,0)，两个都算对。把法线当点变换，平移会混进分量，方向和长度都错（归一化后约 (0.98, 0.2, 0)），光照就错，物体离原点越远错得越多（这点 AI 补充了，我原先只说「法线会移动」）。第 4 行我只答出是 (0,0,0,1)，作用是 AI 讲的：第 4 行点乘 (x,y,z,w) 就是新的 w；仿射矩阵相乘后第 4 行仍是 (0,0,0,1)，所以 w 恒为 1，可以不算；透视投影第 4 行是 (0,0,−1,0)，w′ = −z，必须算出来再除，近大远小就来自这一步。补充题：(3,0,−6) 得 w′ = 6，屏幕 x = 0.5，答对了。</p>
+      <p class="en"><b>What the review taught me:</b> (Mostly my own code this time; mul matches the reference.) My first rotateAround was T(−p)·R·T(p), which sent p = (2,1,0) to (−4,3,0). My instinct "move p to the origin first" was right; I misread the order: M·x = T(p)·(R·(T(−p)·x)), the rightmost matrix is nearest the point and acts first, so "subtract p first" goes on the <b>far right</b>; written order is the reverse of execution order (the AI explained this). The three steps are T(−p) to the origin, R to rotate, T(p) to move back; when restating I called the middle step a "move", but it is the rotation. For M = T(5,0,0)·Rz(90°) and d = (1,0,0): transformDirection gives (0,1,0) and transformPoint gives (5,1,0), both correct. Transforming a normal as a point mixes the translation into its components, so both direction and length go wrong (about (0.98, 0.2, 0) after normalizing), the lighting is wrong, and it gets worse the further the object is from the origin (the AI added this; I had only said "the normal moves"). On row 4 I only knew it is (0,0,0,1); the AI explained its role: row 4 dotted with (x,y,z,w) is the new w; products of affine matrices keep row 4 = (0,0,0,1), so w stays 1 and can be skipped; a perspective projection has row 4 = (0,0,−1,0), so w′ = −z must be computed and divided by, which is where "far things look smaller" comes from. Follow-up: (3,0,−6) gives w′ = 6 and screen x = 0.5, answered correctly.</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">translation：单位矩阵，把 tx、ty、tz 放进第 4 列，也就是 m[3]、m[7]、m[11]。transformPoint：把 p 看成 (x, y, z, 1) 和前三行做点积；transformDirection 一样，只是第 4 个分量是 0，所以第 4 列不参与。rotateAround：用你自己的 translation、rotationZ 和 mul 拼起来，注意顺序。</p>
       <p class="en">translation: the identity with tx, ty, tz in column 4, i.e. m[3], m[7], m[11]. transformPoint: treat p as (x, y, z, 1) and dot it with the first three rows; transformDirection is the same with a 4th component of 0, so column 4 drops out. rotateAround: build it from your own translation, rotationZ and mul, and mind the order.</p>

@@ -310,6 +310,35 @@
           "4"
         ]
       }
+    },
+    {
+      "id": "1.7",
+      "stage": 1,
+      "title": {
+        "zh": "变换的组合与顺序，法线的变换",
+        "en": "Composing Transforms, Order, and Transforming Normals"
+      },
+      "file": "lessons/1.7-composition.html",
+      "prereqs": [
+        "1.6"
+      ],
+      "concepts": [
+        "组合顺序",
+        "局部与世界坐标",
+        "TRS",
+        "法线矩阵",
+        "逆转置"
+      ],
+      "status": "in-progress",
+      "artifactUrl": "https://claude.ai/artifact/WHi6ZQ2CVTmJw2q8sKHxmC",
+      "videos": {
+        "UCD": [
+          "03"
+        ],
+        "MIT": [
+          "4"
+        ]
+      }
     }
   ],
   "videoRefs": {

@@ -108,7 +108,9 @@ const LESSON = {
 })();
 </script>
 <style>
-#why h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+#why h3,#deep h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+#deep h4{font:600 15px/1.4 var(--f-display);margin:12px 0 2px}
+#deep td{padding:2px 12px 2px 0;vertical-align:top}
 .cards{display:flex;flex-wrap:wrap;gap:8px}
 #dOrd{flex-wrap:wrap}
 #dOrd label{padding:6px 9px;font-family:var(--f-mono)}
@@ -231,6 +233,137 @@ button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in s
   <p class="en">A surface can be seen as the level set f(x, y) = 0 of a function, and its normal is the gradient ∇f: the direction in which f grows fastest, and by how much per meter. Picture a temperature map that rises 1 degree per meter. Stretch the map ×2 along x and the same temperature difference is now spread over 2 meters, so the gradient's x-component becomes 0.5 degree per meter.</p>
   <p class="zh">普通方向（速度、切线）的单位是「米」，拉长空间它就跟着变长；法线的单位是「每米」，拉长空间它反而变短。所以一个乘 S，一个乘 S⁻¹。物理里这两类量分别叫向量和余向量（covector）。</p>
   <p class="en">An ordinary direction (a velocity, a tangent) is measured in meters, so stretching space makes it longer; a normal is measured in "per meter", so stretching space makes it shorter. One gets multiplied by S, the other by S⁻¹. Physics calls these two kinds of quantities vectors and covectors.</p>
+</section>
+
+<section id="deep">
+  <h2><span class="tag">Deep dive</span><span class="zh">深入：逆、转置和逆转置</span><span class="en">Deep dive: inverse, transpose and inverse transpose</span></h2>
+  <p class="meta zh">这一节把「(M⁻¹)ᵀ 到底是什么」拆开讲：平面方程、转置、求逆，最后讲它的几何意义和物理意义。每一部分都有可以播放的动画。</p>
+  <p class="meta en">This section takes "what exactly is (M⁻¹)ᵀ" apart: the plane equation, the transpose, the inverse, and finally its geometric and physical meaning. Each part has an animation you can play.</p>
+
+  <h3 class="zh">1. 平面方程 n · x = d</h3><h3 class="en">1. The plane equation n · x = d</h3>
+  <p class="zh">在平面上取一个固定点 p₀。对平面上任意一点 x，向量 x − p₀ 躺在平面里，所以和法线 n 垂直：n · (x − p₀) = 0，也就是 n · x = n · p₀。右边是一个固定的数，记作 d。平面就是<b>所有满足 n · x = d 的点</b>。</p>
+  <p class="en">Fix a point p₀ on the plane. For any point x on the plane, x − p₀ lies in the plane and is therefore perpendicular to the normal n: n · (x − p₀) = 0, i.e. n · x = n · p₀. The right side is a fixed number, call it d. The plane is <b>every point satisfying n · x = d</b>.</p>
+  <p class="zh">n 是单位向量时，n · x 是 x 在 n 方向上的投影长度（1.2 课），所以平面就是「沿法线看高度都是 d 的那一层」，|d| 是原点到平面的距离。例子：地面 n = (0, 1, 0)、d = 0，展开就是 y = 0；n = (1, 1, 0)、d = 2 展开是 x + y = 2，一个竖直的斜面。1.4 课的 lineSide 就是 2D 版的 n · x − d：等于 0 在线上，正负号表示在哪一侧。弯曲的表面在一点附近放大看几乎是平面（切平面），法线说的就是这个切平面的 n。</p>
+  <p class="en">When n is a unit vector, n · x is the length of x's projection onto n (lesson 1.2), so the plane is "the layer whose height along the normal is d", and |d| is the distance from the origin. Examples: the ground n = (0, 1, 0), d = 0 expands to y = 0; n = (1, 1, 0), d = 2 expands to x + y = 2, a vertical slanted wall. Lesson 1.4's lineSide is the 2D n · x − d: zero on the line, its sign tells the side. A curved surface looks almost flat near any point when you zoom in (the tangent plane), and its normal is that tangent plane's n.</p>
+
+  <h3 class="zh">2. 转置：行变成列（动画）</h3><h3 class="en">2. Transpose: rows become columns (animation)</h3>
+  <p class="zh">转置 Aᵀ 就是沿主对角线（左上到右下）把矩阵翻过来：第 r 行第 c 列的数搬到第 c 行第 r 列。对角线上的数不动。播放动画，看三种颜色的行怎么变成三种颜色的列。</p>
+  <p class="en">The transpose Aᵀ flips the matrix across its main diagonal (top-left to bottom-right): the entry in row r, column c moves to row c, column r. Diagonal entries stay put. Play the animation and watch the three colored rows become three colored columns.</p>
+  <div class="panel">
+    <div class="cards">
+      <button type="button" id="tPlay"><span class="zh">▶ 播放转置</span><span class="en">▶ Play the transpose</span></button>
+      <button type="button" id="tBack"><span class="zh">↺ 转回去（再转置一次）</span><span class="en">↺ Transpose again</span></button>
+      <button type="button" id="tRot"><span class="zh">换成旋转矩阵</span><span class="en">Use a rotation matrix</span></button>
+      <button type="button" id="tGen"><span class="zh">换成一般矩阵</span><span class="en">Use a general matrix</span></button>
+    </div>
+    <canvas id="tc" width="720" height="300" aria-label="transpose animation"></canvas>
+    <p class="meta" id="tNote"></p>
+  </div>
+  <h4 class="zh">为什么转置能让矩阵「跨过点积」：u · (A v) = (Aᵀ u) · v</h4><h4 class="en">Why the transpose lets a matrix "hop across" a dot product: u · (A v) = (Aᵀ u) · v</h4>
+  <p class="zh"><b>代数：</b>点积就是一行乘一列：u · v = uᵀ v。所以 u · (A v) = uᵀ (A v) = (uᵀ A) v。uᵀ A 是一行，把它竖起来就是 Aᵀ u，于是等于 (Aᵀ u) · v。只用了「矩阵乘法可以换括号」，转置负责把行和列对调。2D 展开验证：u₁(a v₁ + b v₂) + u₂(c v₁ + d v₂) = v₁(a u₁ + c u₂) + v₂(b u₁ + d u₂)，括号里正是 Aᵀ u。</p>
+  <p class="en"><b>Algebra:</b> a dot product is a row times a column: u · v = uᵀ v. So u · (A v) = uᵀ (A v) = (uᵀ A) v. uᵀ A is a row; stand it up and it is Aᵀ u, so this equals (Aᵀ u) · v. All it uses is that matrix products can be regrouped, with the transpose swapping rows and columns. Check in 2D: u₁(a v₁ + b v₂) + u₂(c v₁ + d v₂) = v₁(a u₁ + c u₂) + v₂(b u₁ + d u₂), and the brackets are exactly Aᵀ u.</p>
+  <p class="zh"><b>几何：</b>左边是「先用 A 变换 v，再用尺子 u 量它」；右边是「不变换 v，换一把尺子 Aᵀ u 直接量」。两边量出来是同一个数。下面拖动左图里的 v 试试。</p>
+  <p class="en"><b>Geometry:</b> the left side is "transform v by A, then measure it with the ruler u"; the right side is "leave v alone and measure it with a different ruler, Aᵀ u". Both give the same number. Drag v in the left picture below.</p>
+  <div class="panel">
+    <div class="cards">
+      <button type="button" data-xa="shear" aria-pressed="true"><span class="zh">剪切</span><span class="en">Shear</span></button>
+      <button type="button" data-xa="scale" aria-pressed="false"><span class="zh">缩放 (2, 1)</span><span class="en">Scale (2, 1)</span></button>
+      <button type="button" data-xa="rot" aria-pressed="false"><span class="zh">旋转 30°</span><span class="en">Rotate 30°</span></button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div style="flex:1 1 300px;min-width:0"><p class="meta" style="margin:0"><span class="zh">左：u · (A v)，拖动 v</span><span class="en">Left: u · (A v), drag v</span></p><canvas id="xcL" width="360" height="300" aria-label="u dot Av"></canvas></div>
+      <div style="flex:1 1 300px;min-width:0"><p class="meta" style="margin:0"><span class="zh">右：(Aᵀ u) · v</span><span class="en">Right: (Aᵀ u) · v</span></p><canvas id="xcR" width="360" height="300" aria-label="ATu dot v"></canvas></div>
+    </div>
+    <dl class="readout" id="xOut"></dl>
+  </div>
+
+  <h3 class="zh">3. 求逆：把变换撤销（动画）</h3><h3 class="en">3. The inverse: undoing a transform (animation)</h3>
+  <p class="zh">M⁻¹ 满足 M · M⁻¹ = I：做了 M 再做 M⁻¹，等于什么都没做。图形学里求逆有几种做法，按常用程度排：</p>
+  <p class="en">M⁻¹ satisfies M · M⁻¹ = I: doing M and then M⁻¹ is doing nothing. Graphics uses several ways to compute it, roughly in order of how often:</p>
+  <ul class="zh">
+    <li><b>知道是什么变换，就反着做：</b>T(t)⁻¹ = T(−t)，R(θ)⁻¹ = R(−θ) = Rᵀ，S⁻¹ = S(1/sx, 1/sy, 1/sz)，(A · B)⁻¹ = B⁻¹ · A⁻¹。所以 (T · R · S)⁻¹ = S⁻¹ · R⁻¹ · T⁻¹，相机的视图矩阵就是这样求的。</li>
+    <li><b>仿射 Mat4 分两块：</b>M = [[A, t], [0, 1]]。y = A x + t 倒过来是 x = A⁻¹ y − A⁻¹ t，所以 M⁻¹ = [[A⁻¹, −A⁻¹ t], [0, 1]]，只需要求一个 3×3 的逆。</li>
+    <li><b>2×2 公式：</b>主对角线互换，副对角线变号，再除以 det（下面有动画）。</li>
+    <li><b>3×3 用叉积：</b>A 的三列是 a、b、c，det = a · (b × c)，A⁻¹ 的三<b>行</b>是 (b × c)/det、(c × a)/det、(a × b)/det。因为 b × c 和 a 点乘得 det，和 b、c 点乘得 0。把这三个当成<b>列</b>，就直接得到逆转置（练习里的 normalMatrix）。</li>
+    <li><b>通用：高斯-约当消元。</b>把 [A | I] 并排写，用行操作把左边变成 I，右边就成了 A⁻¹（下面有逐步动画）。</li>
+    <li><b>det = 0 没有逆：</b>空间被压扁了，信息丢了，撤销不了。代码里要先检查 det 是否接近 0。</li>
+  </ul>
+  <ul class="en">
+    <li><b>If you know the transform, run it backwards:</b> T(t)⁻¹ = T(−t), R(θ)⁻¹ = R(−θ) = Rᵀ, S⁻¹ = S(1/sx, 1/sy, 1/sz), (A · B)⁻¹ = B⁻¹ · A⁻¹. So (T · R · S)⁻¹ = S⁻¹ · R⁻¹ · T⁻¹, which is how a camera's view matrix is computed.</li>
+    <li><b>Split an affine Mat4 in two:</b> M = [[A, t], [0, 1]]. Reversing y = A x + t gives x = A⁻¹ y − A⁻¹ t, so M⁻¹ = [[A⁻¹, −A⁻¹ t], [0, 1]]; only a 3×3 inverse is needed.</li>
+    <li><b>The 2×2 formula:</b> swap the main diagonal, negate the other diagonal, divide by det (animated below).</li>
+    <li><b>3×3 with cross products:</b> with columns a, b, c and det = a · (b × c), the <b>rows</b> of A⁻¹ are (b × c)/det, (c × a)/det, (a × b)/det, because b × c dotted with a gives det and with b or c gives 0. Use those three as <b>columns</b> and you get the inverse transpose directly (the exercise's normalMatrix).</li>
+    <li><b>General: Gauss–Jordan elimination.</b> Write [A | I] side by side and use row operations to turn the left half into I; the right half becomes A⁻¹ (step-by-step animation below).</li>
+    <li><b>det = 0 has no inverse:</b> space was flattened, information was lost, and nothing can undo it. Check whether det is near 0 in code.</li>
+  </ul>
+  <div class="panel">
+    <p class="meta" style="margin:0"><span class="zh">撤销：F 先被 A 变换，再被 A⁻¹ 送回原处。</span><span class="en">Undo: F is transformed by A, then A⁻¹ sends it back.</span></p>
+    <div class="cards">
+      <button type="button" id="uPlay"><span class="zh">▶ 先做 A，再做 A⁻¹</span><span class="en">▶ Do A, then A⁻¹</span></button>
+      <button type="button" id="uF"><span class="zh">▶ 2×2 公式三步</span><span class="en">▶ The 2×2 formula in three steps</span></button>
+      <button type="button" id="uNew"><span class="zh">换一个 A</span><span class="en">Another A</span></button>
+    </div>
+    <canvas id="uc" width="720" height="360" aria-label="inverse animation"></canvas>
+    <p class="meta" id="uNote"></p>
+  </div>
+  <h4 class="zh">高斯-约当消元：一步一步求逆</h4><h4 class="en">Gauss–Jordan elimination: the inverse step by step</h4>
+  <p class="zh">三种行操作：交换两行、某行乘一个数、某行加上另一行的倍数。每一步都等于在左边乘一个「初等矩阵」，所以左右两边一起变；左边变成 I 时，右边累积的就是 A⁻¹。</p>
+  <p class="en">Three row operations: swap two rows, multiply a row by a number, add a multiple of one row to another. Each step equals multiplying on the left by an "elementary matrix", so both halves change together; when the left becomes I, the right has accumulated A⁻¹.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="matrix">
+        <input type="radio" name="gjm" id="gj1" value="0" checked><label for="gj1">2×2</label>
+        <input type="radio" name="gjm" id="gj2" value="1"><label for="gj2">3×3</label>
+        <input type="radio" name="gjm" id="gj3" value="2"><label for="gj3"><span class="zh">3×3（要换行）</span><span class="en">3×3 (needs a swap)</span></label>
+      </span>
+    </div>
+    <div class="cards">
+      <button type="button" id="gjStep"><span class="zh">下一步</span><span class="en">Next step</span></button>
+      <button type="button" id="gjAuto"><span class="zh">▶ 自动播放</span><span class="en">▶ Auto play</span></button>
+      <button type="button" id="gjReset"><span class="zh">重来</span><span class="en">Restart</span></button>
+    </div>
+    <p id="gjOp" style="margin:0;font:600 15px var(--f-mono);min-height:1.4em"></p>
+    <canvas id="gjc" width="720" height="260" aria-label="Gauss-Jordan animation"></canvas>
+    <p class="meta" id="gjNote"></p>
+  </div>
+
+  <h3 class="zh">4. 合起来：(M⁻¹)ᵀ 到底表示什么</h3><h3 class="en">4. Putting it together: what (M⁻¹)ᵀ really means</h3>
+  <p class="zh"><b>推导：</b>点被变换成 x′ = M x，所以旧点 x = M⁻¹ x′。代回平面方程：n · (M⁻¹ x′) = d，用第 2 部分的恒等式把 M⁻¹ 跨到左边：((M⁻¹)ᵀ n) · x′ = d。<b>逆</b>是因为要从新点倒推旧点；<b>转置</b>是因为要把矩阵跨过点积，作用到 n 上。所以新法线 n′ = (M⁻¹)ᵀ n，而且 d 不变。顺便：(M⁻¹)ᵀ = (Mᵀ)⁻¹，先转置后求逆也一样。</p>
+  <p class="en"><b>Derivation:</b> points become x′ = M x, so the old point is x = M⁻¹ x′. Substitute into the plane equation: n · (M⁻¹ x′) = d, and use the identity from part 2 to hop M⁻¹ to the left: ((M⁻¹)ᵀ n) · x′ = d. The <b>inverse</b> is there because we go back from new points to old ones; the <b>transpose</b> because the matrix hops across the dot product onto n. So the new normal is n′ = (M⁻¹)ᵀ n, and d is unchanged. Also: (M⁻¹)ᵀ = (Mᵀ)⁻¹; transposing first gives the same thing.</p>
+  <p class="zh"><b>几何意义：法线代表一叠平行平面。</b>n 可以看成 n · x = 0、1、2、3……这一叠平面，n 越长排得越密，|n| 就是「每走一米穿过几层」。把空间沿 x 拉长，这叠平面被拉开，每米穿过的层数变少，法线反而变短，方向偏向被压缩的那一侧。下面拖动滑块看：绿色 (M⁻¹)ᵀ n 的长度始终等于新的层密度，玫红 M · n 既不垂直，长度也不对。</p>
+  <p class="en"><b>Geometric meaning: a normal stands for a stack of parallel planes.</b> Think of n as the stack n · x = 0, 1, 2, 3…; the longer n, the denser the stack, and |n| is "layers crossed per meter". Stretch space along x and the stack spreads apart, fewer layers are crossed per meter, and the normal gets shorter, tilting toward the squeezed side. Drag the sliders below: the green (M⁻¹)ᵀ n always has the length of the new layer density, while magenta M · n is neither perpendicular nor the right length.</p>
+  <div class="panel">
+    <div class="slid">
+      <label for="lSx">sx = <output id="lSxO">2</output></label><input type="range" id="lSx" min="0.5" max="3" step="0.1" value="2">
+      <label for="lSh">shear k = <output id="lShO">0</output></label><input type="range" id="lSh" min="-1.5" max="1.5" step="0.1" value="0">
+    </div>
+    <canvas id="lc" width="720" height="360" aria-label="stack of planes"></canvas>
+    <dl class="readout" id="lOut"></dl>
+  </div>
+  <p class="zh"><b>有向面积：</b>三角形两条边 a、b，a × b 的方向是法线、长度是面积的 2 倍。变换后有精确关系 (M a) × (M b) = det(M) · (M⁻¹)ᵀ (a × b)：一小块表面的法线和面积正好按 det · 逆转置变化。det &lt; 0（镜像）时朝向翻转，就是从这里来的。</p>
+  <p class="en"><b>Oriented area:</b> for triangle edges a and b, a × b points along the normal with length twice the area. After a transform, exactly (M a) × (M b) = det(M) · (M⁻¹)ᵀ (a × b): a surface patch's normal and area change by det times the inverse transpose. That is where the flipped orientation for det &lt; 0 (a mirror) comes from.</p>
+  <p class="zh"><b>物理意义：单位带「每米」的量都按逆转置变。</b>梯度（温度每米升几度、电场 V/m、压强梯度）；波矢（每米几道波峰：介质拉长，波峰变疏，波矢变短）；晶体的倒格子（基矢满足 bᵢ · aⱼ = 2π δᵢⱼ，倒格子矩阵就是 2π (A⁻¹)ᵀ，X 射线衍射测到的正是它）。位移、速度、切线的单位是「米」，乘 M；法线、梯度、波矢的单位是「每米」，乘 (M⁻¹)ᵀ；两者的点积（米 × 每米）是没有单位的「穿过几层」，所以变换前后不变，这正是第 2 部分的恒等式。</p>
+  <p class="en"><b>Physical meaning: anything measured "per meter" transforms by the inverse transpose.</b> Gradients (degrees per meter, electric field in V/m, pressure gradients); wave vectors (crests per meter: stretch the medium and the crests spread, so the wave vector shrinks); a crystal's reciprocal lattice (its basis satisfies bᵢ · aⱼ = 2π δᵢⱼ, so the reciprocal lattice matrix is 2π (A⁻¹)ᵀ, which is exactly what X-ray diffraction measures). Displacements, velocities and tangents are in meters and get M; normals, gradients and wave vectors are per meter and get (M⁻¹)ᵀ; their dot product (meters × per meter) is a unitless "layers crossed" and survives the transform, which is precisely the identity from part 2.</p>
+  <p class="zh"><b>手算例子（剪切 M = [[1, 1], [0, 1]]）：</b>M⁻¹ = [[1, −1], [0, 1]]，(M⁻¹)ᵀ = [[1, 0], [−1, 1]]。水平线 y = 1、n = (0, 1)：剪切只把 x 加上 y，水平线还是水平，逆转置给出 (0, 1)，对；M · n = (1, 1) 斜了 45°，错。竖线 x = 0、n = (1, 0)：点 (0, y) 变成 (y, y)，线变成方向 (1, 1) 的斜线；逆转置给出 (1, −1)，和 (1, 1) 点积为 0，对；M · n = (1, 0)，点积为 1，错。</p>
+  <p class="en"><b>Worked example (shear M = [[1, 1], [0, 1]]):</b> M⁻¹ = [[1, −1], [0, 1]], (M⁻¹)ᵀ = [[1, 0], [−1, 1]]. The horizontal line y = 1 with n = (0, 1): the shear only adds y to x, so the line stays horizontal; the inverse transpose gives (0, 1), right; M · n = (1, 1) tilts 45°, wrong. The vertical line x = 0 with n = (1, 0): the point (0, y) goes to (y, y), so the line becomes the diagonal with direction (1, 1); the inverse transpose gives (1, −1), whose dot with (1, 1) is 0, right; M · n = (1, 0) has dot 1, wrong.</p>
+  <table class="zh" style="border-collapse:collapse;font:13px/1.6 var(--f-mono)">
+    <tr><th style="text-align:left;padding:2px 12px 2px 0">M 是</th><th style="text-align:left;padding:2px 12px 2px 0">(M⁻¹)ᵀ</th><th style="text-align:left">能直接用 M 吗</th></tr>
+    <tr><td>旋转 R</td><td>R</td><td>能</td></tr>
+    <tr><td>均匀缩放 k</td><td>1/k（方向不变）</td><td>能（归一化后一样）</td></tr>
+    <tr><td>不均匀缩放 diag(sx, sy)</td><td>diag(1/sx, 1/sy)</td><td>不能</td></tr>
+    <tr><td>T · R · S</td><td>R · S⁻¹</td><td>不能（除非 S 均匀）</td></tr>
+    <tr><td>剪切</td><td>见上例</td><td>不能</td></tr>
+  </table>
+  <table class="en" style="border-collapse:collapse;font:13px/1.6 var(--f-mono)">
+    <tr><th style="text-align:left;padding:2px 12px 2px 0">M is</th><th style="text-align:left;padding:2px 12px 2px 0">(M⁻¹)ᵀ</th><th style="text-align:left">Can normals use M?</th></tr>
+    <tr><td>rotation R</td><td>R</td><td>yes</td></tr>
+    <tr><td>uniform scale k</td><td>1/k (same direction)</td><td>yes (after normalizing)</td></tr>
+    <tr><td>non-uniform diag(sx, sy)</td><td>diag(1/sx, 1/sy)</td><td>no</td></tr>
+    <tr><td>T · R · S</td><td>R · S⁻¹</td><td>no (unless S is uniform)</td></tr>
+    <tr><td>shear</td><td>see the example</td><td>no</td></tr>
+  </table>
+  <p class="zh"><b>在代码里怎么用：</b>每个物体算一次法线矩阵（左上 3×3 的逆转置，不含平移），每个顶点算 n′ = normalize(N n)；片元着色器里插值后的法线还要再归一化一次。three.js 用 <code>new Matrix3().getNormalMatrix(object.matrixWorld)</code>，着色器内置的 <code>normalMatrix</code> 是 modelViewMatrix 左上 3×3 的逆转置。反正要归一化，也可以不除以 det，直接用 (b × c, c × a, a × b) 当列（余子式矩阵），镜像时它还能让法线跟着三角形一起翻面。</p>
+  <p class="en"><b>Using it in code:</b> compute the normal matrix once per object (inverse transpose of the top-left 3×3, no translation) and n′ = normalize(N n) per vertex; normalize again in the fragment shader after interpolation. three.js uses <code>new Matrix3().getNormalMatrix(object.matrixWorld)</code>, and the shader's built-in <code>normalMatrix</code> is the inverse transpose of modelViewMatrix's top-left 3×3. Since you normalize anyway, you can skip dividing by det and use (b × c, c × a, a × b) as columns (the cofactor matrix), which also flips the normal along with the triangle under a mirror.</p>
 </section>
 
 <section id="game">
@@ -978,5 +1111,170 @@ function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx
     if (!X.V || !X.M){ results = null; show(); err.textContent = S_[lang()].missing; return; }
     results = TESTS.map(tc => { try { return !!tc.f(X); } catch { return false; } }); show(); }
   document.getElementById("run").onclick = run; onLangChange.push(show); onTheme.push(plot); run();
+})();
+</script>
+<script>
+// ==================== 深入：逆、转置、逆转置 / deep dive: inverse, transpose, inverse transpose ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const kOf = cv => { const cw = cv.getBoundingClientRect().width; return cw ? Math.max(1, Math.min(1.8, cv.width / cw * 0.75)) : 1; };
+  const ease = u => u * u * (3 - 2 * u);
+  // 分数显示：分母不超过 12 时写成分数 / show as a fraction when the denominator is at most 12
+  const fmt = v => { if (Math.abs(v) < 1e-9) return "0"; for (let d = 1; d <= 12; d++){ const n = Math.round(v * d); if (Math.abs(v * d - n) < 1e-6) return d === 1 ? num(n) : (n < 0 ? "−" : "") + Math.abs(n) + "/" + d; } return num(Math.round(v * 100) / 100); };
+  function cellText(ctx, s, x, y, size, col, k){ ctx.save(); ctx.font = `600 ${size * k}px ` + css("--f-mono"); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = col; ctx.fillText(s, x, y); ctx.restore(); }
+  function bracket(ctx, x0, y0, x1, y1, k){ const w = 8 * k; ctx.save(); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2 * k; ctx.beginPath();
+    ctx.moveTo(x0 + w, y0); ctx.lineTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x0 + w, y1); ctx.moveTo(x1 - w, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1); ctx.lineTo(x1 - w, y1); ctx.stroke(); ctx.restore(); }
+  const anims = {};
+  function run(key, ms, f, then){ if (anims[key]) cancelAnimationFrame(anims[key]); let t0 = null;
+    const tick = ts => { if (t0 === null) t0 = ts; const u = Math.min(1, (ts - t0) / ms); f(u); if (u < 1) anims[key] = requestAnimationFrame(tick); else { anims[key] = null; if (then) then(); } };
+    anims[key] = requestAnimationFrame(tick); }
+
+  // ---------- 转置动画 / transpose animation ----------
+  const tc = $("tc"), tx = tc.getContext("2d");
+  const TM = { gen: [[2, -1, 3], [0, 4, 1], [5, 2, -2]], rot: [[0.87, -0.5, 0], [0.5, 0.87, 0], [0, 0, 1]] };
+  let tKind = "gen", tU = 0;
+  function drawT(){ const k = kOf(tc), A = TM[tKind], z = lang() === "zh", cs = 74 * Math.min(k, 1.25), n = 3, W = cs * n, x0 = tc.width / 2 - W / 2, y0 = tc.height / 2 - W / 2 + 6 * k;
+    const ROW = [css("--accent-2"), css("--good"), GOLD];
+    tx.fillStyle = css("--surface"); tx.fillRect(0, 0, tc.width, tc.height);
+    tx.save(); tx.setLineDash([6 * k, 6 * k]); tx.strokeStyle = css("--muted"); tx.lineWidth = 1.5 * k; tx.beginPath(); tx.moveTo(x0 - 14 * k, y0 - 14 * k); tx.lineTo(x0 + W + 14 * k, y0 + W + 14 * k); tx.stroke(); tx.restore();
+    bracket(tx, x0 - 10 * k, y0 - 6 * k, x0 + W + 10 * k, y0 + W + 6 * k, k);
+    // 三对数依次互换，移动中的那一对画在最上层 / the three pairs swap one after another; the moving pair is drawn on top
+    const PAIRS = [[0, 1], [0, 2], [1, 2]], cells = [];
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++){
+      let fr = r, fc = c, moving = false;
+      if (r !== c){ const pi = PAIRS.findIndex(([a, b]) => (a === r && b === c) || (a === c && b === r)), u = Math.max(0, Math.min(1, tU * 3 - pi)), e = ease(u);
+        const bow = Math.sin(Math.PI * e) * 0.55 * Math.sign(c - r);          // 沿对角线方向错开，两数从两侧擦肩而过 / offset along the diagonal so the two pass side by side
+        fr = r + (c - r) * e + bow; fc = c + (r - c) * e + bow; moving = u > 0 && u < 1; }
+      cells.push({ r, c, x: x0 + (fc + 0.5) * cs, y: y0 + (fr + 0.5) * cs, moving }); }
+    cells.sort((p, q) => p.moving - q.moving).forEach(({ r, c, x, y, moving }) => {
+      tx.save(); if (moving){ tx.fillStyle = css("--surface"); tx.fillRect(x - cs * 0.46, y - cs * 0.42, cs * 0.92, cs * 0.84); }
+      tx.globalAlpha = moving ? 0.35 : 0.18; tx.fillStyle = ROW[r]; tx.fillRect(x - cs * 0.44, y - cs * 0.4, cs * 0.88, cs * 0.8); tx.restore();
+      cellText(tx, fmt(A[r][c]), x, y, moving ? 23 : 20, ROW[r], k); });
+    cellText(tx, tU < 0.5 ? "A" : "Aᵀ", x0 - 46 * k, y0 + W / 2, 24, css("--ink"), k);
+    const lab = z ? ["第 1 行", "第 2 行", "第 3 行"] : ["row 1", "row 2", "row 3"], labC = z ? ["第 1 列", "第 2 列", "第 3 列"] : ["col 1", "col 2", "col 3"];
+    for (let i = 0; i < 3; i++){ if (tU < 0.5) cellText(tx, lab[i], x0 + W + 54 * k, y0 + (i + 0.5) * cs, 13, ROW[i], k); else cellText(tx, labC[i], x0 + (i + 0.5) * cs, y0 + W + 22 * k, 13, ROW[i], k); }
+    $("tNote").textContent = tKind === "rot"
+      ? (z ? "这是绕 z 轴转 30° 的矩阵。转置后，正弦的符号换了位置，正好是转 −30° 的矩阵：Rᵀ = R⁻¹。所以旋转的法线矩阵 (R⁻¹)ᵀ = (Rᵀ)ᵀ = R，直接用 R 就行。" : "This is a 30° rotation about z. Transposing swaps where the sine's sign sits, giving exactly the −30° rotation: Rᵀ = R⁻¹. So a rotation's normal matrix (R⁻¹)ᵀ = (Rᵀ)ᵀ = R; just use R.")
+      : (tU < 0.5 ? (z ? "颜色表示原来的行。虚线是主对角线，上面的 2、4、−2 不会动。" : "Colors mark the original rows. The dashed line is the main diagonal; 2, 4 and −2 on it do not move.")
+                  : (z ? "原来的每一行都竖了起来，变成同色的列。再转置一次就回到 A：(Aᵀ)ᵀ = A。" : "Each original row now stands up as the column of the same color. Transpose again to get A back: (Aᵀ)ᵀ = A."));
+  }
+  $("tPlay").onclick = () => { const from = tU; run("t", 2700 * (1 - from) + 1, u => { tU = from + (1 - from) * u; drawT(); }); };
+  $("tBack").onclick = () => { const from = tU; run("t", 2700 * from + 1, u => { tU = from * (1 - u); drawT(); }); };
+  $("tRot").onclick = () => { tKind = "rot"; tU = 0; drawT(); }; $("tGen").onclick = () => { tKind = "gen"; tU = 0; drawT(); };
+
+  // ---------- 跨过点积 / hopping across the dot product ----------
+  const XA = { shear: AF.lin(1, 1, 0, 1), scale: AF.lin(2, 0, 0, 1), rot: AF.lin(Math.cos(Math.PI / 6), -Math.sin(Math.PI / 6), Math.sin(Math.PI / 6), Math.cos(Math.PI / 6)) };
+  let xKind = "shear", xv = [1.5, 1];
+  const xu = [0.8, 0.6], BL = makeBoard($("xcL"), 40), BR = makeBoard($("xcR"), 40);
+  const dot = (p, q) => p[0] * q[0] + p[1] * q[1];
+  function ruler(B, d, col){ const l = Math.hypot(...d) || 1, e = [d[0] / l * 12, d[1] / l * 12]; B.path([[-e[0], -e[1]], e], col, 1.5, [5, 5], 0.8); }
+  function proj(B, p, d, col){ const l2 = dot(d, d) || 1, f = dot(p, d) / l2, q = [d[0] * f, d[1] * f]; B.path([p, q], col, 1.5, [2, 4]); B.dot(...q, col, 4); }
+  function drawX(){ const z = lang() === "zh", A = XA[xKind], AT = AF.lin(A.a, A.c, A.b, A.d), Av = AF.ap(A, xv, 0), ATu = AF.ap(AT, xu, 0), acc = css("--accent"), mut = css("--muted");
+    BL.clear(); ruler(BL, xu, GOLD); arrow(BL, xv, mut, 2, [0, 0], [5, 4]); BL.text("v", ...xv, mut, 6, -6, 14); arrow(BL, Av, acc, 4); BL.text("Av", ...Av, acc, 6, -6, 15); arrow(BL, xu, GOLD, 4); BL.text("u", ...xu, GOLD, 6, 16, 15); proj(BL, Av, xu, acc); BL.dot(...xv, mut, 6);
+    BR.clear(); ruler(BR, ATu, GOLD); arrow(BR, xu, mut, 2, [0, 0], [5, 4]); BR.text("u", ...xu, mut, 6, 16, 14); arrow(BR, ATu, GOLD, 4); BR.text("Aᵀu", ...ATu, GOLD, 6, -6, 15); arrow(BR, xv, acc, 4); BR.text("v", ...xv, acc, 6, -6, 15); proj(BR, xv, ATu, acc);
+    const p = v => `(${num(Math.round(v[0] * 100) / 100)}, ${num(Math.round(v[1] * 100) / 100)})`, L = dot(xu, Av), R = dot(ATu, xv);
+    $("xOut").innerHTML = [["A", `[[${num(A.a)}, ${num(A.b)}], [${num(A.c)}, ${num(A.d)}]]`], ["Aᵀ", `[[${num(AT.a)}, ${num(AT.b)}], [${num(AT.c)}, ${num(AT.d)}]]`], ["v", p(xv)], ["A v", p(Av)], ["Aᵀ u", p(ATu)],
+      ["u · (A v)", num(Math.round(L * 1000) / 1000)], ["(Aᵀ u) · v", num(Math.round(R * 1000) / 1000) + (z ? "　（相等）" : "  (equal)")]].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  }
+  let xDrag = false; const xc = $("xcL");
+  const setV = e => { const w = BL.world(e); xv = [Math.max(-4, Math.min(4, Math.round(w.x * 10) / 10)), Math.max(-3.4, Math.min(3.4, Math.round(w.y * 10) / 10))]; drawX(); };
+  xc.addEventListener("pointerdown", e => { xDrag = true; xc.setPointerCapture(e.pointerId); setV(e); });
+  xc.addEventListener("pointermove", e => { if (xDrag) setV(e); }); xc.addEventListener("pointerup", () => { xDrag = false; });
+  document.querySelectorAll("[data-xa]").forEach(b => b.onclick = () => { xKind = b.dataset.xa; document.querySelectorAll("[data-xa]").forEach(c => c.setAttribute("aria-pressed", c === b ? "true" : "false")); drawX(); });
+
+  // ---------- 撤销 + 2×2 公式 / undo + the 2×2 formula ----------
+  const UA = [AF.lin(1, 2, -1, 1), AF.lin(2, 1, 1, 1), AF.lin(1, 1, 0, 1), AF.lin(0, -1, 1, 0), AF.lin(2, 0, 0, 0.5)];
+  let uIdx = 0, uMode = "undo", uState = { M: AF.I(), phase: 0 }, fStep = 0, fU = 1;
+  const UB = makeBoard($("uc"), 36), uc = $("uc"), ux = uc.getContext("2d");
+  const inv2 = A => { const d = A.a * A.d - A.b * A.c; return AF.lin(A.d / d, -A.b / d, -A.c / d, A.a / d); };
+  const lerpM = (P, Q, t) => AF.lin(P.a + (Q.a - P.a) * t, P.b + (Q.b - P.b) * t, P.c + (Q.c - P.c) * t, P.d + (Q.d - P.d) * t);
+  function drawU(){ const z = lang() === "zh", A = UA[uIdx], Ai = inv2(A), det = A.a * A.d - A.b * A.c;
+    if (uMode === "undo"){ UB.clear(); originMark(UB); drawF(UB, AF.I(), css("--muted"), 0.4, [5, 5]); drawF(UB, uState.M, css("--accent"));
+      UB.label(`A = [[${fmt(A.a)}, ${fmt(A.b)}], [${fmt(A.c)}, ${fmt(A.d)}]]   A⁻¹ = [[${fmt(Ai.a)}, ${fmt(Ai.b)}], [${fmt(Ai.c)}, ${fmt(Ai.d)}]]`, css("--ink"), 14);
+      $("uNote").textContent = uState.phase === 1 ? (z ? "第 1 步：做 A。" : "Step 1: apply A.") : uState.phase === 2 ? (z ? "第 2 步：再做 A⁻¹，F 被一点点送回去。" : "Step 2: apply A⁻¹; F is carried back.")
+        : uState.phase === 3 ? (z ? "回到原处：A⁻¹ · A = I。" : "Back home: A⁻¹ · A = I.") : (z ? "点「先做 A，再做 A⁻¹」。" : "Press \"Do A, then A⁻¹\"."); return; }
+    // 公式模式：在画布上排矩阵 / formula mode: lay the matrix out on the canvas
+    const k = kOf(uc), cs = 84 * Math.min(k, 1.2), cx = uc.width / 2 + 60 * k, cy = uc.height / 2, e = ease(fU);
+    ux.fillStyle = css("--surface"); ux.fillRect(0, 0, uc.width, uc.height);
+    const pos = { a: [0, 0], b: [0, 1], c: [1, 0], d: [1, 1] };
+    const at = (r, c) => [cx + (c - 0.5) * cs, cy + (r - 0.5) * cs];
+    bracket(ux, cx - cs - 10 * k, cy - cs + 4 * k, cx + cs + 10 * k, cy + cs - 4 * k, k);
+    const swapT = fStep > 1 ? 1 : fStep === 1 ? e : 0, negT = fStep > 2 ? 1 : fStep === 2 ? e : 0, divT = fStep > 3 ? 1 : fStep === 3 ? e : 0;
+    const val = { a: A.d, d: A.a, b: -A.b, c: -A.c }, raw = { a: A.a, b: A.b, c: A.c, d: A.d };
+    ["a", "b", "c", "d"].forEach(key => { let [r, c] = pos[key];
+      if (key === "a" || key === "d"){ const [r2, c2] = pos[key === "a" ? "d" : "a"]; const s = key === "a" ? A.a : A.d; r = r + (r2 - r) * swapT; c = c + (c2 - c) * swapT;
+        const v = divT ? (s + (s / det - s) * divT) : s; const [x, y] = at(r, c); cellText(ux, fmt(divT === 1 ? s / det : v), x, y, 24, swapT > 0 && swapT < 1 ? GOLD : css("--ink"), k); }
+      else { const s = raw[key], sv = negT >= 0.5 ? -s : s, v = divT ? sv + (sv / det - sv) * divT : sv, [x, y] = at(r, c);
+        cellText(ux, fmt(divT === 1 ? sv / det : v), x, y, 24, negT > 0 && negT < 1 ? css("--accent-2") : css("--ink"), k); } });
+    const lx = cx - cs - 40 * k; cellText(ux, fStep >= 3 ? `1/${fmt(det)} ×` : "", lx - 30 * k, cy, 20, css("--accent"), k);
+    cellText(ux, fStep === 0 ? "A =" : fStep >= 4 ? "A⁻¹ =" : "", lx - (fStep >= 3 ? 110 : 10) * k, cy, 22, css("--ink"), k);
+    const msg = z ? ["第 0 步：A，det = ad − bc = " + fmt(det), "第 1 步：主对角线 a、d 互换", "第 2 步：副对角线 b、c 变号", "第 3 步：整体乘 1/det", "完成：A⁻¹。验算 A · A⁻¹ = I"]
+                  : ["Step 0: A, det = ad − bc = " + fmt(det), "Step 1: swap the main diagonal a, d", "Step 2: negate the other diagonal b, c", "Step 3: multiply everything by 1/det", "Done: A⁻¹. Check: A · A⁻¹ = I"];
+    $("uNote").textContent = msg[Math.min(fStep, 4)] + (det === 0 ? (z ? "（det = 0，没有逆）" : " (det = 0: no inverse)") : "");
+  }
+  $("uPlay").onclick = () => { uMode = "undo"; const A = UA[uIdx], Ai = inv2(A); uState = { M: AF.I(), phase: 1 };
+    run("u", 1400, t => { uState.M = lerpM(AF.I(), A, ease(t)); drawU(); }, () => setTimeout(() => { uState.phase = 2; run("u", 1400, t => { uState.M = AF.mul(lerpM(AF.I(), Ai, ease(t)), A); drawU(); }, () => { uState.phase = 3; drawU(); }); }, 400)); };
+  $("uF").onclick = () => { uMode = "formula"; fStep = 0; fU = 1; drawU(); let s = 0;
+    const next = () => { s++; if (s > 4) return; fStep = s; run("u", 900, t => { fU = t; drawU(); }, () => setTimeout(next, 600)); }; setTimeout(next, 800); };
+  $("uNew").onclick = () => { uIdx = (uIdx + 1) % UA.length; uState = { M: AF.I(), phase: 0 }; fStep = 0; fU = 1; drawU(); };
+
+  // ---------- 高斯-约当 / Gauss–Jordan ----------
+  const GJ = [[[2, 1], [1, 1]], [[2, 0, 1], [1, 1, 0], [0, 1, 1]], [[0, 1, 1], [1, 0, 2], [1, 1, 0]]];
+  const gc = $("gjc"), gx = gc.getContext("2d");
+  let gjSteps = [], gjI = 0, gjU = 1, gjAuto = false;
+  function buildGJ(A){ const n = A.length; let M = A.map((row, i) => [...row, ...row.map((_, j) => i === j ? 1 : 0)]); const steps = [{ M: M.map(r => r.slice()), op: null }];
+    const push = (op, i, j, f) => steps.push({ M: M.map(r => r.slice()), op, i, j, f });
+    for (let j = 0; j < n; j++){
+      if (Math.abs(M[j][j]) < 1e-9){ const i = M.findIndex((r, ii) => ii > j && Math.abs(r[j]) > 1e-9); [M[i], M[j]] = [M[j], M[i]]; push("swap", i, j); }
+      const p = M[j][j]; if (Math.abs(p - 1) > 1e-9){ M[j] = M[j].map(v => v / p); push("scale", j, j, 1 / p); }
+      for (let i = 0; i < n; i++) if (i !== j && Math.abs(M[i][j]) > 1e-9){ const f = M[i][j]; M[i] = M[i].map((v, c) => v - f * M[j][c]); push("elim", i, j, f); } }
+    return steps; }
+  function drawGJ(){ const z = lang() === "zh", k = kOf(gc), st = gjSteps[gjI], prev = gjSteps[Math.max(0, gjI - 1)], n = st.M.length, cols = 2 * n;
+    const cw = Math.min(70 * Math.min(k, 1.3), (gc.width - 60) / cols), ch = Math.min(56 * Math.min(k, 1.3), (gc.height - 30) / n), W = cw * cols + 20, x0 = (gc.width - W) / 2, y0 = (gc.height - ch * n) / 2, e = ease(gjU);
+    gx.fillStyle = css("--surface"); gx.fillRect(0, 0, gc.width, gc.height);
+    if (st.op){ const hi = (r, col, a) => { gx.save(); gx.globalAlpha = a; gx.fillStyle = col; gx.fillRect(x0 - 6, y0 + r * ch + 3, W + 12, ch - 6); gx.restore(); };
+      hi(st.i, css("--accent"), 0.16); if (st.op !== "scale") hi(st.j, GOLD, 0.16); }
+    for (let r = 0; r < n; r++) for (let c = 0; c < cols; c++){
+      let v = st.M[r][c], y = y0 + (r + 0.5) * ch;
+      if (st.op && gjU < 1){ if (st.op === "swap"){ const from = r === st.i ? st.j : r === st.j ? st.i : r; y = y0 + (from + (r - from) * e + 0.5) * ch; v = st.M[r][c]; }
+        else v = prev.M[r][c] + (st.M[r][c] - prev.M[r][c]) * e; }
+      const x = x0 + (c + 0.5) * cw + (c >= n ? 20 : 0), changed = st.op && st.op !== "swap" && r === st.i && Math.abs(prev.M[r][c] - st.M[r][c]) > 1e-9;
+      cellText(gx, gjU < 1 && st.op !== "swap" && changed ? num(Math.round(v * 100) / 100) : fmt(v), x, y, 19, changed ? css("--accent") : (c >= n ? css("--muted") : css("--ink")), k); }
+    gx.save(); gx.strokeStyle = css("--line"); gx.lineWidth = 2; gx.beginPath(); gx.moveTo(x0 + n * cw + 10, y0); gx.lineTo(x0 + n * cw + 10, y0 + n * ch); gx.stroke(); gx.restore();
+    bracket(gx, x0 - 8, y0 - 4, x0 + W + 8, y0 + n * ch + 4, k);
+    const R = i => (z ? `第 ${i + 1} 行` : `R${i + 1}`);
+    $("gjOp").textContent = !st.op ? (z ? "[A | I]：左边是 A，右边是单位矩阵" : "[A | I]: A on the left, the identity on the right")
+      : st.op === "swap" ? (z ? `交换${R(st.i)}和${R(st.j)}（主元是 0，先换一个不是 0 的上来）` : `Swap R${st.i + 1} and R${st.j + 1} (the pivot is 0; bring up a nonzero one)`)
+      : st.op === "scale" ? (z ? `${R(st.i)} × ${fmt(st.f)}（让主元变成 1）` : `R${st.i + 1} × ${fmt(st.f)} (make the pivot 1)`)
+      : (z ? `${R(st.i)} − ${fmt(st.f)} × ${R(st.j)}（把第 ${st.j + 1} 列这个数消成 0）` : `R${st.i + 1} − ${fmt(st.f)} × R${st.j + 1} (clear column ${st.j + 1} in this row)`);
+    const last = gjI === gjSteps.length - 1;
+    $("gjNote").textContent = (z ? `第 ${gjI} / ${gjSteps.length - 1} 步。` : `Step ${gjI} / ${gjSteps.length - 1}. `) + (last ? (z ? "左边已经是 I，右边就是 A⁻¹。每一步行操作都等于左乘一个矩阵 E，所有 E 乘起来把 A 变成 I，所以它们的乘积就是 A⁻¹，而右边正好记下了这个乘积。" : "The left is now I, so the right is A⁻¹. Each row operation is a left-multiplication by some matrix E; together the Es turn A into I, so their product is A⁻¹, and the right half has recorded exactly that product.") : "");
+    $("gjStep").disabled = last; }
+  function gjNext(){ if (gjI >= gjSteps.length - 1){ gjAuto = false; return; } gjI++; run("gj", 800, t => { gjU = t; drawGJ(); }, () => { if (gjAuto) setTimeout(() => { if (gjAuto) gjNext(); }, 700); }); }
+  function gjReset(){ gjAuto = false; if (anims.gj){ cancelAnimationFrame(anims.gj); anims.gj = null; } gjSteps = buildGJ(GJ[+document.querySelector('input[name="gjm"]:checked').value]); gjI = 0; gjU = 1; drawGJ(); }
+  $("gjStep").onclick = () => { gjAuto = false; gjNext(); }; $("gjAuto").onclick = () => { if (gjI >= gjSteps.length - 1) gjReset(); gjAuto = true; gjNext(); }; $("gjReset").onclick = gjReset;
+  document.querySelectorAll('input[name="gjm"]').forEach(r => r.addEventListener("change", gjReset));
+
+  // ---------- 一叠平行平面 / a stack of parallel planes ----------
+  const LB = makeBoard($("lc"), 56), n0 = [0.6, 0.8], AS = 2;   // 箭头画成 2 倍长 / arrows drawn ×2
+  function drawL(){ const z = lang() === "zh", sx = +$("lSx").value, sh = +$("lSh").value; $("lSxO").textContent = num(sx); $("lShO").textContent = num(sh);
+    const M = AF.lin(sx, sh, 0, 1), det = sx, IT = AF.lin(1 / det, 0, -sh / det, 1), np = AF.ap(IT, n0, 0), wm = AF.ap(M, n0, 0), t0 = [-n0[1], n0[0]];
+    LB.clear();
+    for (let kk = -12; kk <= 12; kk++){ const p0 = [n0[0] * kk, n0[1] * kk], a = [p0[0] - t0[0] * 30, p0[1] - t0[1] * 30], b = [p0[0] + t0[0] * 30, p0[1] + t0[1] * 30];
+      LB.path([a, b], css("--muted"), 1, [4, 6], 0.45); LB.path([AF.ap(M, a), AF.ap(M, b)], css("--accent"), kk === 0 ? 2.5 : 1.5, null, 0.75); }
+    const sc2 = v => [v[0] * AS, v[1] * AS]; arrow(LB, sc2(n0), css("--muted"), 2.5, [0, 0], [5, 4]); arrow(LB, sc2(np), css("--good"), 4.5); arrow(LB, sc2(wm), css("--accent-2"), 3);
+    LB.text("(M⁻¹)ᵀn", ...sc2(np), css("--good"), 8, -8, 14); LB.text("M·n", ...sc2(wm), css("--accent-2"), 8, 16, 14);
+    const tm = AF.ap(M, t0, 0), ang = v => Math.round(Math.acos(Math.min(1, Math.abs(v[0] * tm[0] + v[1] * tm[1]) / (Math.hypot(...v) * Math.hypot(...tm)))) * 180 / Math.PI);
+    const L = Math.hypot(...np);
+    $("lOut").innerHTML = (z ? [["原来", "每米 1 层（间距 1），|n| = 1"], ["变换后的层密度", `每米 ${num(Math.round(L * 100) / 100)} 层，间距 ${num(Math.round(100 / L) / 100)}`], ["|(M⁻¹)ᵀ n|", num(Math.round(L * 100) / 100) + "　（正好等于层密度）"], ["和平面的夹角", `绿 ${ang(np)}°，玫红 ${ang(wm)}°`], ["说明", "图中箭头都画成 2 倍长；灰色虚线是原来的平面和法线"]]
+                            : [["before", "1 layer per meter (spacing 1), |n| = 1"], ["layer density after", `${num(Math.round(L * 100) / 100)} per meter, spacing ${num(Math.round(100 / L) / 100)}`], ["|(M⁻¹)ᵀ n|", num(Math.round(L * 100) / 100) + "  (exactly the density)"], ["angle to the planes", `green ${ang(np)}°, magenta ${ang(wm)}°`], ["note", "arrows are drawn ×2; dashed gray shows the original planes and normal"]])
+      .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  }
+  ["lSx", "lSh"].forEach(id => $(id).addEventListener("input", drawL));
+
+  const all = () => { drawT(); drawX(); drawU(); drawGJ(); drawL(); };
+  gjSteps = buildGJ(GJ[0]);
+  onLangChange.push(all); onTheme.push(all); all();
+  window.__deep17 = { buildGJ, fmt };
 })();
 </script>

@@ -570,6 +570,20 @@ class Mat4 {
     <ul class="tests" id="tests"></ul>
     <canvas id="pc" width="720" height="320" aria-label="your normals"></canvas>
     <p class="meta" id="pcNote"></p>
+    <div class="mine">
+      <p class="meta"><span class="zh">我的解答（2026-11-09，8/8 通过）</span><span class="en">My solution (2026-11-09, 8/8 passed)</span></p>
+      <pre class="formula">static scaling(sx, sy, sz) { return new Mat4([sx,0,0,0,  0,sy,0,0,  0,0,sz,0,  0,0,0,1]); }
+static compose(t, theta, s) {
+  return Mat4.translation(t.x, t.y, t.z).mul(Mat4.rotationZ(theta)).mul(Mat4.scaling(s.x, s.y, s.z)); }
+normalMatrix() {
+  const a = new Vec3(this.m[0], this.m[4], this.m[8]), b = new Vec3(this.m[1], this.m[5], this.m[9]), c = new Vec3(this.m[2], this.m[6], this.m[10]);
+  const det = a.dot(b.cross(c));
+  const p = b.cross(c).scale(1 / det), q = c.cross(a).scale(1 / det), r = a.cross(b).scale(1 / det);
+  return new Mat4([p.x, q.x, r.x, 0,  p.y, q.y, r.y, 0,  p.z, q.z, r.z, 0,  0, 0, 0, 1]); }
+transformNormal(n) { return this.normalMatrix().transformDirection(n).normalize(); }</pre>
+      <p class="zh"><b>评审时学到的：</b>（代码和参考答案几乎相同，所以靠理解题评审。）顺序题全对：写的顺序是 T·R·S，对点执行的顺序是 S → R → T；误写成 S·R·T 时，t = (5,0,0)、90°、s = (2,1,1) 会把原点送到 (0,5,0) 而不是 t。p 与 a、b、c 的点积是 1、0、0，答对了。但我第一次说 p、q、r 放在行上是「转置矩阵」，错了：因为 M 的列是 a、b、c，行放 p、q、r 的矩阵 X 满足 X·M = I，所以它就是 <b>M⁻¹</b>；列放才是 <b>(M⁻¹)ᵀ</b>（这一点和剪切的手算例子是 AI 讲的）。为什么法线用列放的那个，我原先不知道；AI 讲解后我复述正确：(M⁻¹)ᵀn 和 Mv 的点积 = nᵀM⁻¹Mv = n·v，点积在变换前后保持不变，所以垂直的仍然垂直。第 3 题是 AI 讲的：scaling(2,2,2) 下 n = (0,0,1) 归一化前变成 (0,0,0.5)，均匀放大 k 倍法线反而缩短为 1/k；忘了 normalize，n·l 就不等于 cosθ，放大的物体变暗、缩小的物体过曝，非均匀缩放还会出现亮度不均；法线是方向，w = 0，平移列乘以 0 被消掉，所以 normalMatrix 只用左上 3×3。</p>
+      <p class="en"><b>What the review taught me:</b> (My code is nearly identical to the reference, so the understanding questions did the judging.) The order question was fully right: the written order is T·R·S and the execution order on a point is S → R → T; mistakenly writing S·R·T with t = (5,0,0), 90°, s = (2,1,1) sends the origin to (0,5,0) instead of t. The dot products of p with a, b, c are 1, 0, 0, correct. But I first said p, q, r as rows give "the transpose", which is wrong: M's columns are a, b, c, so the matrix X with rows p, q, r satisfies X·M = I, i.e. it is <b>M⁻¹</b>; as columns they give <b>(M⁻¹)ᵀ</b> (the AI explained this, with a hand-worked shear example). I did not know why normals use the column version; after the AI explained, I restated it correctly: the dot product of (M⁻¹)ᵀn with Mv is nᵀM⁻¹Mv = n·v, so dot products survive the transform and perpendicular stays perpendicular. Question 3 was explained by the AI: under scaling(2,2,2), n = (0,0,1) becomes (0,0,0.5) before normalizing, so a uniform scale by k shrinks the normal to 1/k; without normalize, n·l is no longer cosθ, so enlarged objects get darker, shrunk ones overexpose, and non-uniform scaling gives uneven brightness; a normal is a direction with w = 0, so the translation column is multiplied by 0 and drops out, which is why normalMatrix uses only the top-left 3×3.</p>
+    </div>
     <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
       <p class="zh">compose：用你已有的 translation、rotationZ、scaling 和 mul，注意谁写在最右边。normalMatrix：取出左上 3×3 的三列 a、b、c（各是一个 Vec3，例如 a = (m[0], m[4], m[8])），det = a · (b × c)。逆转置的三列就是 (b × c) / det、(c × a) / det、(a × b) / det。把这三列按行优先填回一个 Mat4。transformNormal：normalMatrix().transformDirection(n)，再 normalize()。</p>
       <p class="en">compose: use your translation, rotationZ, scaling and mul, and mind which one goes on the far right. normalMatrix: take the three columns a, b, c of the top-left 3×3 (each a Vec3, e.g. a = (m[0], m[4], m[8])), det = a · (b × c). The inverse transpose has columns (b × c) / det, (c × a) / det, (a × b) / det. Write those columns back into a row-major Mat4. transformNormal: normalMatrix().transformDirection(n), then normalize().</p>

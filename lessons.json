@@ -329,8 +329,9 @@
         "法线矩阵",
         "逆转置"
       ],
-      "status": "in-progress",
+      "status": "done",
       "artifactUrl": "https://claude.ai/artifact/WHi6ZQ2CVTmJw2q8sKHxmC",
+      "completedAt": "2026-11-09",
       "videos": {
         "UCD": [
           "03"

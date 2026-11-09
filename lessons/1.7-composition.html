@@ -308,7 +308,9 @@ button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in s
   </div>
   <h4 class="zh">高斯-约当消元：一步一步求逆</h4><h4 class="en">Gauss–Jordan elimination: the inverse step by step</h4>
   <p class="zh">三种行操作：交换两行、某行乘一个数、某行加上另一行的倍数。每一步都等于在左边乘一个「初等矩阵」，所以左右两边一起变；左边变成 I 时，右边累积的就是 A⁻¹。</p>
+  <p class="zh"><b>固定套路：</b>一列一列地处理。对第 j 列：① 如果对角线上的数（叫「主元」）是 0，先和下面某一行对调；② 把第 j 行整行除以主元，让主元变成 1；③ 对其他每一行，减去「这一行在第 j 列的数」倍的第 j 行，把这一列的其他位置都消成 0。处理完所有列，左边就是 I。下面每一步都会写出为什么这样做，以及每个数是怎么算出来的。</p>
   <p class="en">Three row operations: swap two rows, multiply a row by a number, add a multiple of one row to another. Each step equals multiplying on the left by an "elementary matrix", so both halves change together; when the left becomes I, the right has accumulated A⁻¹.</p>
+  <p class="en"><b>The fixed recipe:</b> handle one column at a time. For column j: ① if the diagonal entry (the "pivot") is 0, swap with a row below; ② divide row j by the pivot so the pivot becomes 1; ③ for every other row, subtract (that row's entry in column j) times row j, clearing the rest of the column to 0. After all columns the left is I. Each step below says why it is done and how every number is computed.</p>
   <div class="panel">
     <div class="row">
       <span class="seg" role="radiogroup" aria-label="matrix">
@@ -318,12 +320,15 @@ button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in s
       </span>
     </div>
     <div class="cards">
+      <button type="button" id="gjPrev"><span class="zh">上一步</span><span class="en">Previous step</span></button>
       <button type="button" id="gjStep"><span class="zh">下一步</span><span class="en">Next step</span></button>
       <button type="button" id="gjAuto"><span class="zh">▶ 自动播放</span><span class="en">▶ Auto play</span></button>
       <button type="button" id="gjReset"><span class="zh">重来</span><span class="en">Restart</span></button>
     </div>
     <p id="gjOp" style="margin:0;font:600 15px var(--f-mono);min-height:1.4em"></p>
-    <canvas id="gjc" width="720" height="260" aria-label="Gauss-Jordan animation"></canvas>
+    <canvas id="gjc" width="720" height="280" aria-label="Gauss-Jordan animation"></canvas>
+    <p id="gjWhy" style="margin:0;padding:8px 10px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)"></p>
+    <div id="gjCalc" style="font:13px/1.8 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere"></div>
     <p class="meta" id="gjNote"></p>
   </div>
 
@@ -1229,29 +1234,56 @@ function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx
       const p = M[j][j]; if (Math.abs(p - 1) > 1e-9){ M[j] = M[j].map(v => v / p); push("scale", j, j, 1 / p); }
       for (let i = 0; i < n; i++) if (i !== j && Math.abs(M[i][j]) > 1e-9){ const f = M[i][j]; M[i] = M[i].map((v, c) => v - f * M[j][c]); push("elim", i, j, f); } }
     return steps; }
+  const fp = v => v < 0 ? `(${fmt(v)})` : fmt(v);
+  function gjLines(st, prev, n, ac){ const z = lang() === "zh", out = [];
+    if (!st.op || st.op === "swap") return "";
+    for (let c = 0; c < 2 * n; c++){ const old = prev.M[st.i][c], nw = st.M[st.i][c], cn = z ? `第 ${c + 1} 列` : `col ${c + 1}`;
+      const eq = st.op === "scale" ? `${fmt(old)} × ${fp(st.f)} = ${fmt(nw)}` : `${fmt(old)} − ${fp(st.f)} × ${fp(prev.M[st.j][c])} = ${fmt(nw)}`;
+      const line = `${c === ac ? "▶ " : "  "}${cn}${c === n ? (z ? "（右边开始）" : " (right half)") : ""}${z ? "：" : ": "}${eq}`;
+      out.push(c === ac ? `<b style="color:var(--accent)">${line}</b>` : c > ac ? `<span style="color:var(--muted)">${line}</span>` : line); }
+    return (z ? (st.op === "scale" ? `新的${R_(st.i)} = 旧的${R_(st.i)} × ${fp(st.f)}，逐个数：\n` : `新的${R_(st.i)} = 旧的${R_(st.i)} − ${fp(st.f)} × ${R_(st.j)}，逐个数（同一列上下对应）：\n`)
+              : (st.op === "scale" ? `new R${st.i + 1} = old R${st.i + 1} × ${fp(st.f)}, entry by entry:\n` : `new R${st.i + 1} = old R${st.i + 1} − ${fp(st.f)} × R${st.j + 1}, entry by entry (same column):\n`)) + out.join("\n"); }
+  const R_ = i => lang() === "zh" ? `第 ${i + 1} 行` : `R${i + 1}`;
   function drawGJ(){ const z = lang() === "zh", k = kOf(gc), st = gjSteps[gjI], prev = gjSteps[Math.max(0, gjI - 1)], n = st.M.length, cols = 2 * n;
-    const cw = Math.min(70 * Math.min(k, 1.3), (gc.width - 60) / cols), ch = Math.min(56 * Math.min(k, 1.3), (gc.height - 30) / n), W = cw * cols + 20, x0 = (gc.width - W) / 2, y0 = (gc.height - ch * n) / 2, e = ease(gjU);
+    const cw = Math.min(70 * Math.min(k, 1.3), (gc.width - 60) / cols), ch = Math.min(56 * Math.min(k, 1.3), (gc.height - 60) / n), W = cw * cols + 20, x0 = (gc.width - W) / 2, y0 = (gc.height - ch * n) / 2 + 14 * k, e = ease(gjU);
+    const sweep = st.op === "scale" || st.op === "elim", ac = sweep && gjU < 1 ? Math.min(cols - 1, Math.floor(gjU * cols)) : -1, sub = sweep ? ease(Math.min(1, gjU * cols - ac)) : 0;
+    const cxOf = c => x0 + (c + 0.5) * cw + (c >= n ? 20 : 0);
     gx.fillStyle = css("--surface"); gx.fillRect(0, 0, gc.width, gc.height);
+    cellText(gx, "A", x0 + n * cw / 2, y0 - 20 * k, 15, css("--ink"), k);
+    cellText(gx, gjI === gjSteps.length - 1 ? "A⁻¹" : (z ? "I（记录操作）" : "I (records the steps)"), x0 + n * cw + 20 + n * cw / 2, y0 - 20 * k, 15, css("--muted"), k);
     if (st.op){ const hi = (r, col, a) => { gx.save(); gx.globalAlpha = a; gx.fillStyle = col; gx.fillRect(x0 - 6, y0 + r * ch + 3, W + 12, ch - 6); gx.restore(); };
       hi(st.i, css("--accent"), 0.16); if (st.op !== "scale") hi(st.j, GOLD, 0.16); }
+    if (ac >= 0){ gx.save(); gx.globalAlpha = 0.5; gx.strokeStyle = css("--accent"); gx.lineWidth = 2 * k; gx.strokeRect(cxOf(ac) - cw / 2 + 3, y0 + 2, cw - 6, ch * n - 4); gx.restore();
+      if (st.op === "elim"){ gx.save(); gx.strokeStyle = GOLD; gx.lineWidth = 3 * k; gx.beginPath(); gx.arc(cxOf(ac), y0 + (st.j + 0.5) * ch, Math.min(cw, ch) * 0.36, 0, 2 * Math.PI); gx.stroke(); gx.restore(); } }
     for (let r = 0; r < n; r++) for (let c = 0; c < cols; c++){
-      let v = st.M[r][c], y = y0 + (r + 0.5) * ch;
-      if (st.op && gjU < 1){ if (st.op === "swap"){ const from = r === st.i ? st.j : r === st.j ? st.i : r; y = y0 + (from + (r - from) * e + 0.5) * ch; v = st.M[r][c]; }
-        else v = prev.M[r][c] + (st.M[r][c] - prev.M[r][c]) * e; }
-      const x = x0 + (c + 0.5) * cw + (c >= n ? 20 : 0), changed = st.op && st.op !== "swap" && r === st.i && Math.abs(prev.M[r][c] - st.M[r][c]) > 1e-9;
-      cellText(gx, gjU < 1 && st.op !== "swap" && changed ? num(Math.round(v * 100) / 100) : fmt(v), x, y, 19, changed ? css("--accent") : (c >= n ? css("--muted") : css("--ink")), k); }
+      let v = st.M[r][c], y = y0 + (r + 0.5) * ch, live = false;
+      if (st.op === "swap" && gjU < 1){ const from = r === st.i ? st.j : r === st.j ? st.i : r; y = y0 + (from + (r - from) * e + 0.5) * ch; }
+      if (sweep && r === st.i && ac >= 0){ if (c > ac) v = prev.M[r][c]; else if (c === ac){ v = prev.M[r][c] + (st.M[r][c] - prev.M[r][c]) * sub; live = sub < 1; } }
+      const changed = sweep && r === st.i && (ac < 0 || c <= ac) && Math.abs(prev.M[r][c] - st.M[r][c]) > 1e-9;
+      cellText(gx, live ? num(Math.round(v * 100) / 100) : fmt(v), cxOf(c), y, 19, changed ? css("--accent") : (c >= n ? css("--muted") : css("--ink")), k); }
     gx.save(); gx.strokeStyle = css("--line"); gx.lineWidth = 2; gx.beginPath(); gx.moveTo(x0 + n * cw + 10, y0); gx.lineTo(x0 + n * cw + 10, y0 + n * ch); gx.stroke(); gx.restore();
     bracket(gx, x0 - 8, y0 - 4, x0 + W + 8, y0 + n * ch + 4, k);
-    const R = i => (z ? `第 ${i + 1} 行` : `R${i + 1}`);
-    $("gjOp").textContent = !st.op ? (z ? "[A | I]：左边是 A，右边是单位矩阵" : "[A | I]: A on the left, the identity on the right")
-      : st.op === "swap" ? (z ? `交换${R(st.i)}和${R(st.j)}（主元是 0，先换一个不是 0 的上来）` : `Swap R${st.i + 1} and R${st.j + 1} (the pivot is 0; bring up a nonzero one)`)
-      : st.op === "scale" ? (z ? `${R(st.i)} × ${fmt(st.f)}（让主元变成 1）` : `R${st.i + 1} × ${fmt(st.f)} (make the pivot 1)`)
-      : (z ? `${R(st.i)} − ${fmt(st.f)} × ${R(st.j)}（把第 ${st.j + 1} 列这个数消成 0）` : `R${st.i + 1} − ${fmt(st.f)} × R${st.j + 1} (clear column ${st.j + 1} in this row)`);
+    $("gjOp").textContent = !st.op ? (z ? "第 0 步：写出 [A | I]" : "Step 0: write [A | I]")
+      : st.op === "swap" ? (z ? `第 ${gjI} 步：交换${R_(st.i)}和${R_(st.j)}` : `Step ${gjI}: swap R${st.i + 1} and R${st.j + 1}`)
+      : st.op === "scale" ? (z ? `第 ${gjI} 步：${R_(st.i)} × ${fp(st.f)}` : `Step ${gjI}: R${st.i + 1} × ${fp(st.f)}`)
+      : (z ? `第 ${gjI} 步：${R_(st.i)} − ${fp(st.f)} × ${R_(st.j)}` : `Step ${gjI}: R${st.i + 1} − ${fp(st.f)} × R${st.j + 1}`);
+    const p0 = st.op ? prev.M[st.op === "swap" ? st.j : st.i][st.j] : 0;
+    $("gjWhy").textContent = !st.op
+      ? (z ? `目标：只用行操作，把左边的 A 变成 I。右边从单位矩阵 I 开始，对它做完全一样的操作，等于把每一步都记下来。接下来从第 1 列开始，一列一列处理。` : `Goal: turn the left A into I using only row operations. The right starts as the identity I and gets exactly the same operations, so it records every step. Next, handle the columns one at a time, starting with column 1.`)
+      : st.op === "swap" ? (z ? `为什么：现在处理第 ${st.j + 1} 列，它的主元（对角线上的数，${R_(st.j)}第 ${st.j + 1} 个）是 0。0 没法通过「除以它」变成 1，所以往下找一行在这一列不是 0 的（${R_(st.i)}），把两整行对调。对调只是换了方程的顺序，不改变结果。` : `Why: we are on column ${st.j + 1} and its pivot (the diagonal entry, entry ${st.j + 1} of R${st.j + 1}) is 0. You cannot divide by 0 to make it 1, so look below for a row that is nonzero in this column (R${st.i + 1}) and swap the two whole rows. Swapping only reorders the equations; it changes nothing else.`)
+      : st.op === "scale" ? (z ? `为什么：现在处理第 ${st.j + 1} 列。主元（${R_(st.i)}第 ${st.j + 1} 个数）是 ${fmt(p0)}，要把它变成 1，所以整行乘 1/${fp(p0)} = ${fmt(st.f)}。整行的每个数都要乘，包括右边那一半。` : `Why: we are on column ${st.j + 1}. The pivot (entry ${st.j + 1} of R${st.i + 1}) is ${fmt(p0)}; to make it 1, multiply the whole row by 1/${fp(p0)} = ${fmt(st.f)}. Every entry in the row gets multiplied, including the right half.`)
+      : (z ? `为什么：第 ${st.j + 1} 列的主元已经是 1（在${R_(st.j)}，金色圈）。${R_(st.i)}在这一列还有个 ${fmt(st.f)}，要把它消成 0。因为${R_(st.j)}这一列是 1，所以让${R_(st.i)}减去 ${fmt(st.f)} 倍的${R_(st.j)}，这一列就变成 ${fmt(st.f)} − ${fp(st.f)} × 1 = 0。同一行的其他数也要减去同样的倍数（同一列上下对应）。` : `Why: column ${st.j + 1}'s pivot is already 1 (in R${st.j + 1}, gold circle). R${st.i + 1} still has ${fmt(st.f)} in this column, which must become 0. Since R${st.j + 1} has 1 there, subtract ${fmt(st.f)} times R${st.j + 1} from R${st.i + 1}: this column becomes ${fmt(st.f)} − ${fp(st.f)} × 1 = 0. Every other entry of the row is reduced by the same multiple (matching columns).`);
+    $("gjCalc").innerHTML = st.op === "swap" ? (z ? `${R_(st.i)}和${R_(st.j)}的全部 ${cols} 个数一起交换位置，不做任何计算。` : `All ${cols} entries of R${st.i + 1} and R${st.j + 1} trade places; nothing is computed.`) : gjLines(st, prev, n, ac);
     const last = gjI === gjSteps.length - 1;
-    $("gjNote").textContent = (z ? `第 ${gjI} / ${gjSteps.length - 1} 步。` : `Step ${gjI} / ${gjSteps.length - 1}. `) + (last ? (z ? "左边已经是 I，右边就是 A⁻¹。每一步行操作都等于左乘一个矩阵 E，所有 E 乘起来把 A 变成 I，所以它们的乘积就是 A⁻¹，而右边正好记下了这个乘积。" : "The left is now I, so the right is A⁻¹. Each row operation is a left-multiplication by some matrix E; together the Es turn A into I, so their product is A⁻¹, and the right half has recorded exactly that product.") : "");
-    $("gjStep").disabled = last; }
-  function gjNext(){ if (gjI >= gjSteps.length - 1){ gjAuto = false; return; } gjI++; run("gj", 800, t => { gjU = t; drawGJ(); }, () => { if (gjAuto) setTimeout(() => { if (gjAuto) gjNext(); }, 700); }); }
+    let verify = "";
+    if (last){ const A0 = gjSteps[0].M.map(r => r.slice(0, n)), Ai = st.M.map(r => r.slice(n)), P = A0.map(r => Ai[0].map((_, c) => r.reduce((s, v, kk) => s + v * Ai[kk][c], 0)));
+      verify = (z ? " 验算 A × A⁻¹ = " : " Check A × A⁻¹ = ") + "[" + P.map(r => "[" + r.map(fmt).join(", ") + "]").join(", ") + "] = I" + (z ? "。" : "."); }
+    $("gjNote").textContent = (z ? `第 ${gjI} / ${gjSteps.length - 1} 步。` : `Step ${gjI} / ${gjSteps.length - 1}. `) + (last ? (z ? "左边已经是 I，右边就是 A⁻¹。每一步行操作都等于左乘一个矩阵 E，所有 E 乘起来把 A 变成 I，所以它们的乘积就是 A⁻¹，右边正好记下了这个乘积。" : "The left is now I, so the right is A⁻¹. Each row operation is a left-multiplication by some matrix E; together the Es turn A into I, so their product is A⁻¹, which the right half has recorded.") + verify : "");
+    $("gjStep").disabled = last; $("gjPrev").disabled = gjI === 0; }
+  const gjDur = () => { const st = gjSteps[gjI]; return st.op === "swap" ? 1000 : st.M.length * 2 * 650; };
+  function gjNext(){ if (gjI >= gjSteps.length - 1){ gjAuto = false; return; } gjI++; run("gj", gjDur(), t => { gjU = t; drawGJ(); }, () => { if (gjAuto) setTimeout(() => { if (gjAuto) gjNext(); }, 2500); }); }
   function gjReset(){ gjAuto = false; if (anims.gj){ cancelAnimationFrame(anims.gj); anims.gj = null; } gjSteps = buildGJ(GJ[+document.querySelector('input[name="gjm"]:checked').value]); gjI = 0; gjU = 1; drawGJ(); }
+  $("gjPrev").onclick = () => { gjAuto = false; if (anims.gj){ cancelAnimationFrame(anims.gj); anims.gj = null; } if (gjI > 0) gjI--; gjU = 1; drawGJ(); };
   $("gjStep").onclick = () => { gjAuto = false; gjNext(); }; $("gjAuto").onclick = () => { if (gjI >= gjSteps.length - 1) gjReset(); gjAuto = true; gjNext(); }; $("gjReset").onclick = gjReset;
   document.querySelectorAll('input[name="gjm"]').forEach(r => r.addEventListener("change", gjReset));
 

@@ -336,6 +336,23 @@ button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in s
   <p class="en"><b>Rule: do the same row operation to the identity I and you get E; left-multiplying by E performs that row operation.</b> Row i of (E A) is the rows of A weighted by row i of E. For 3×3: swapping rows 1 and 2 is E = [[0, 1, 0], [1, 0, 0], [0, 0, 1]], its own inverse; multiplying row 2 by k is E = diag(1, k, 1) with inverse diag(1, 1/k, 1) (so k ≠ 0); subtracting f times row 1 from row 3 puts −f in row 3, column 1 of I, and its inverse puts +f there.</p>
   <p class="zh"><b>为什么偏偏是这三种：</b>① 都能撤销，不丢信息（乘 0 会抹掉一行，撤销不了，所以不允许）；② 够用，任何可逆矩阵都能靠它们变成 I；③ 不改变方程组 A x = b 的解：交换方程顺序、方程两边同乘一个数、一个方程减去另一个的倍数，就是中学的消元法。<b>为什么右边变成 A⁻¹：</b>E_k ⋯ E₁ A = I，所以 E_k ⋯ E₁ = A⁻¹，右边从 I 出发经历同样的操作，正好等于这个乘积。</p>
   <p class="en"><b>Why exactly these three:</b> ① each can be undone, so nothing is lost (multiplying by 0 would wipe a row irreversibly, so it is not allowed); ② they suffice: any invertible matrix can be brought to I with them; ③ they do not change the solutions of A x = b: reordering equations, scaling both sides of one, and subtracting a multiple of one from another is school elimination. <b>Why the right half becomes A⁻¹:</b> E_k ⋯ E₁ A = I, so E_k ⋯ E₁ = A⁻¹, and the right half started as I and went through the same operations, so it equals that product.</p>
+  <p class="zh"><b>为什么「第 2 行减去 f 倍第 1 行」是剪切：</b>把点写成列向量 (x, y)，第 1 行就是 x 坐标，第 2 行就是 y 坐标。所以这个行操作作用在点上，就是 <b>y′ = y − f·x，x′ = x</b>：x 不变，y 被减去「f 倍的 x」。x = 0 的点（y 轴）完全不动；越往右的点，被往下推得越多，推的量和 x 成正比。「位移和到某条线的距离成正比，方向平行于这条线」正是剪切的定义。换成矩阵看：E = [[1, 0], [−f, 1]]，第 1 列 î 变成 (1, −f)，第 2 列 ĵ 不变。下面播放动画，看每个格点的位移箭头。</p>
+  <p class="en"><b>Why "row 2 minus f times row 1" is a shear:</b> write a point as the column (x, y); row 1 is the x-coordinate and row 2 the y-coordinate. Applied to a point, the row operation is <b>y′ = y − f·x, x′ = x</b>: x is unchanged and y loses f times x. Points with x = 0 (the y axis) do not move at all; the further right a point is, the further it is pushed down, in proportion to x. "Displacement proportional to the distance from a line, parallel to that line" is exactly the definition of a shear. As a matrix: E = [[1, 0], [−f, 1]]; column 1, î, becomes (1, −f) and column 2, ĵ, is unchanged. Play the animation below and watch each grid point's displacement arrow.</p>
+  <div class="panel">
+    <div class="cards">
+      <button type="button" data-el="add" aria-pressed="true"><span class="zh">第 2 行 − f × 第 1 行（剪切）</span><span class="en">R2 − f × R1 (shear)</span></button>
+      <button type="button" data-el="scale" aria-pressed="false"><span class="zh">第 1 行 × k（拉伸）</span><span class="en">R1 × k (stretch)</span></button>
+      <button type="button" data-el="swap" aria-pressed="false"><span class="zh">交换两行（镜像）</span><span class="en">Swap rows (mirror)</span></button>
+    </div>
+    <div class="slid">
+      <label for="elF">f = <output id="elFO">0.5</output></label><input type="range" id="elF" min="-2" max="2" step="0.25" value="0.5">
+      <label for="elK">k = <output id="elKO">2</output></label><input type="range" id="elK" min="-2" max="3" step="0.25" value="2">
+    </div>
+    <div class="cards"><button type="button" id="elPlay"><span class="zh">▶ 播放</span><span class="en">▶ Play</span></button></div>
+    <canvas id="ec" width="720" height="380" aria-label="elementary matrix geometry"></canvas>
+    <dl class="readout" id="elOut"></dl>
+    <p class="meta" id="elNote"></p>
+  </div>
   <p class="zh"><b>惊喜：它们的几何意义。</b>在 2D 里，交换两行 = 沿 y = x 镜像（det = −1），某行乘 k = 沿一个轴拉伸（det = k），减去另一行的倍数 = 剪切（det = 1）。所以高斯-约当顺便证明了：<b>任何可逆矩阵都能拆成剪切、拉伸和镜像的乘积。</b>它还能算 det：每次交换 det 乘 −1，每次乘 k 让 det 乘 k，剪切不变，最后是 det(I) = 1，倒推回去就是 det(A)。例如 [[2, 1], [1, 1]] 消元时乘过 1/2 和 2、没有交换，所以 det(A) = 1 ÷ (1/2 × 2) = 1，和 ad − bc 一致。</p>
   <p class="en"><b>A surprise: their geometry.</b> In 2D, swapping rows is the mirror across y = x (det = −1), scaling a row stretches one axis (det = k), and subtracting a multiple of a row is a shear (det = 1). So Gauss–Jordan quietly proves that <b>every invertible matrix is a product of shears, stretches and mirrors.</b> It also computes det: each swap multiplies det by −1, each scaling by k multiplies it by k, shears leave it alone, and the end is det(I) = 1; work backwards to get det(A). For [[2, 1], [1, 1]] the elimination scaled by 1/2 and 2 with no swaps, so det(A) = 1 ÷ (1/2 × 2) = 1, matching ad − bc.</p>
 
@@ -1315,7 +1332,34 @@ function originMark(B){ const ctx = B.ctx, [p, q] = B.px(0, 0), r = 9 * B.k; ctx
   }
   ["lSx", "lSh"].forEach(id => $(id).addEventListener("input", drawL));
 
-  const all = () => { drawT(); drawX(); drawU(); drawGJ(); drawL(); };
+  // ---------- 三种初等矩阵的几何 / geometry of the three elementary matrices ----------
+  const EB = makeBoard($("ec"), 40);
+  let elKind = "add", elU = 1;
+  const elE = () => { const f = +$("elF").value, kk = +$("elK").value; return elKind === "add" ? AF.lin(1, 0, -f, 1) : elKind === "scale" ? AF.lin(kk, 0, 0, 1) : AF.lin(0, 1, 1, 0); };
+  function drawE(){ const z = lang() === "zh", f = +$("elF").value, kk = +$("elK").value; $("elFO").textContent = num(f); $("elKO").textContent = num(kk);
+    const E = elE(), M = lerpM(AF.I(), E, ease(elU)), acc = css("--accent"), mut = css("--muted");
+    EB.clear(); drawGrid(EB, M, acc, 0.3);
+    if (elKind === "swap") EB.path([[-9, -9], [9, 9]], GOLD, 2, [6, 5]);
+    if (elKind === "add") EB.path([[0, -6], [0, 6]], GOLD, 3, null, 0.7);
+    // 格点位移箭头 / displacement arrows of grid points
+    for (let x = -4; x <= 4; x++) for (const y of [-2, 2]){ const P = AF.ap(M, [x, y]); if (Math.hypot(P[0] - x, P[1] - y) > 0.05) arrow(EB, P, css("--accent-2"), 1.5, [x, y]); EB.dot(...P, css("--ink"), 2.5); }
+    fillPoly(EB, [[0, 0], [1, 0], [1, 1], [0, 1]].map(p => AF.ap(M, p)), GOLD, 0.35);
+    drawF(EB, AF.I(), mut, 0.3, [5, 5]); drawF(EB, M, acc);
+    arrow(EB, [M.a, M.c], css("--good"), 4); arrow(EB, [M.b, M.d], css("--accent-2"), 4); EB.text("î′", M.a, M.c, css("--good"), 6, 16, 15); EB.text("ĵ′", M.b, M.d, css("--accent-2"), 6, -6, 15);
+    const det = M.a * M.d - M.b * M.c, P = [2, 1], P2 = AF.ap(E, P);
+    $("elOut").innerHTML = (z ? [["E", `[[${fmt(E.a)}, ${fmt(E.b)}], [${fmt(E.c)}, ${fmt(E.d)}]]`], ["作用在点上", elKind === "add" ? `x′ = x，y′ = y − ${fp(f)}·x` : elKind === "scale" ? `x′ = ${fp(kk)}·x，y′ = y` : "x′ = y，y′ = x"],
+        ["例：P = (2, 1)", elKind === "add" ? `y′ = 1 − ${fp(f)} × 2 = ${fmt(P2[1])}，P′ = (${fmt(P2[0])}, ${fmt(P2[1])})` : `P′ = (${fmt(P2[0])}, ${fmt(P2[1])})`], ["金色方块的面积 = det", num(Math.round(det * 100) / 100) + (elU < 1 ? "（动画中）" : "")]]
+      : [["E", `[[${fmt(E.a)}, ${fmt(E.b)}], [${fmt(E.c)}, ${fmt(E.d)}]]`], ["on a point", elKind === "add" ? `x′ = x, y′ = y − ${fp(f)}·x` : elKind === "scale" ? `x′ = ${fp(kk)}·x, y′ = y` : "x′ = y, y′ = x"],
+        ["e.g. P = (2, 1)", elKind === "add" ? `y′ = 1 − ${fp(f)} × 2 = ${fmt(P2[1])}, P′ = (${fmt(P2[0])}, ${fmt(P2[1])})` : `P′ = (${fmt(P2[0])}, ${fmt(P2[1])})`], ["gold square's area = det", num(Math.round(det * 100) / 100) + (elU < 1 ? " (animating)" : "")]]).map(([a, v]) => `<dt>${a}</dt><dd>${v}</dd>`).join("");
+    $("elNote").textContent = elKind === "add"
+      ? (z ? "玫红箭头是每个格点的位移：全都是竖直的（只改 y），长度和 x 成正比，y 轴（金色）上的点一动不动。竖线还是竖线，横线被扳斜了。金色方块变成了平行四边形，但面积始终是 1：剪切不改变面积，det = 1。" : "The magenta arrows are each grid point's displacement: all vertical (only y changes), with length proportional to x, and points on the y axis (gold) do not move. Vertical lines stay vertical, horizontal lines tilt. The gold square becomes a parallelogram whose area stays 1: a shear preserves area, det = 1.")
+      : elKind === "scale" ? (z ? "第 1 行乘 k 就是 x′ = k·x：沿 x 方向拉伸 k 倍，面积也变成 k 倍，det = k。k 为负时还会左右翻转。k = 0 会把一切压到 y 轴上，撤销不了，所以高斯-约当不允许乘 0。" : "Multiplying row 1 by k is x′ = k·x: a stretch by k along x, area times k, det = k. A negative k also flips left and right. k = 0 squashes everything onto the y axis, which cannot be undone, so Gauss–Jordan never multiplies by 0.")
+      : (z ? "交换两行就是交换 x、y 坐标：沿 y = x（金色虚线）镜像，F 被翻面，det = −1。注意动画中间那一刻整个平面被压成一条线（det = 0）：从 det = 1 连续变到 −1，必须经过 0，镜像没法用连续的转动做出来。" : "Swapping rows swaps the x and y coordinates: a mirror across y = x (dashed gold); F is flipped and det = −1. Notice that halfway through the whole plane collapses onto a line (det = 0): going continuously from det = 1 to −1 must pass through 0, so a mirror cannot be made by any continuous turning.");
+  }
+  $("elPlay").onclick = () => run("el", elKind === "swap" ? 2400 : 1800, t => { elU = t; drawE(); });
+  document.querySelectorAll("[data-el]").forEach(bt => bt.onclick = () => { elKind = bt.dataset.el; document.querySelectorAll("[data-el]").forEach(c => c.setAttribute("aria-pressed", c === bt ? "true" : "false")); elU = 0; drawE(); $("elPlay").click(); });
+  ["elF", "elK"].forEach(id => $(id).addEventListener("input", () => { elU = 1; drawE(); }));
+  const all = () => { drawT(); drawX(); drawU(); drawGJ(); drawL(); drawE(); };
   gjSteps = buildGJ(GJ[0]);
   onLangChange.push(all); onTheme.push(all); all();
   window.__deep17 = { buildGJ, fmt };

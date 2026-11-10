@@ -1,0 +1,1288 @@
+<title>绕任意轴旋转 · Rodrigues</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<!--
+  课程页模板规则 / Lesson page rules
+  - 每段文字写两份：class="zh" 和 class="en"，由 data-lang 切换显示。
+    Write every text block twice (class "zh" and class "en"); data-lang on <html> picks which shows.
+  - JS 里的文字放在 T 字典里，切换语言时 render() 重绘。Strings used by JS live in the T dictionary.
+  - 需要公式时加 KaTeX@0.16.11，需要 three.js 时用 three@0.170.0（jsdelivr，import map）。
+-->
+<style>
+/* 布局：单栏讲义，背景像一张坐标纸 / single-column handout on graph paper */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#16201d; --muted:#5d6b66; --line:#d7dedb;
+  --accent:#0f7c74; --accent-2:#b8336a; --good:#2f7d3a; --code:#e9eeec;
+  --f-display:"Noto Serif SC","Songti SC","SimSun",Georgia,serif;
+  --f-body:system-ui,-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+    --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111615; --surface:#182120; --ink:#e4ece9; --muted:#93a39e; --line:#2a3634;
+  --accent:#4cc2b6; --accent-2:#ef77a6; --good:#6cc979; --code:#202b29; color-scheme:dark;
+}
+/* 语言切换 / language switch */
+:root[data-lang="en"] .zh, :root:not([data-lang="en"]) .en{display:none!important}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.75 var(--f-body);
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:24px 24px;background-attachment:fixed}
+main{max-width:780px;margin:0 auto;background:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:28px 64px;display:flex;flex-direction:column;gap:8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.crumb{font:13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.02em}
+.crumb a{color:inherit}
+h1{font:800 clamp(30px,6vw,44px)/1.15 var(--f-display);margin:4px 0 4px;text-wrap:balance}
+h2{font:600 22px/1.3 var(--f-display);margin:36px 0 4px;text-wrap:balance;display:flex;align-items:baseline;gap:10px}
+h2 .tag{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.meta{color:var(--muted);font-size:14px}
+p,li{max-width:66ch}
+a{color:var(--accent)}
+code{font:0.9em var(--f-mono);background:var(--code);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.readout{font:13px/1.6 var(--f-mono);display:grid;grid-template-columns:auto 1fr;gap:2px 14px;font-variant-numeric:tabular-nums;overflow-x:auto;margin:0}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0}
+button,.seg label{font:14px var(--f-body);padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,.seg input:focus-visible+label,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#langBtn{font:600 13px var(--f-mono);letter-spacing:.04em;border-color:var(--accent);color:var(--accent)}
+.seg{display:inline-flex}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border-radius:0}
+.seg label:first-of-type{border-radius:6px 0 0 6px}
+.seg label:last-of-type{border-radius:0 6px 6px 0;margin-left:-1px}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.swatch{width:22px;height:22px;border-radius:4px;border:1px solid var(--line);padding:0}
+.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+textarea{width:100%;min-height:150px;font:13px/1.55 var(--f-mono);background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;resize:vertical}
+.err{color:var(--accent-2);font:13px var(--f-mono);min-height:1.2em}
+.formula{font:15px/1.6 var(--f-mono);background:var(--code);border-radius:6px;padding:10px 12px;overflow-x:auto;margin:0}
+.mine{border:1px dashed var(--good);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.mine p{margin:0}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer}
+nav.lesson-nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-top:36px}
+button.done{border-color:var(--good);color:var(--good)}
+footer{color:var(--muted);font-size:13px;margin-top:24px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+.seg4{flex-wrap:wrap}
+input[type=range]{accent-color:var(--accent)}
+canvas#vc{image-rendering:auto;cursor:crosshair}
+.tests{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;font:13px/1.6 var(--f-mono)}
+.tests li{display:flex;gap:8px;align-items:baseline}
+.tests .mark{width:1.2em;flex:none;font-weight:600}
+.tests .ok .mark{color:var(--good)} .tests .no .mark{color:var(--accent-2)}
+.tests .no{color:var(--muted)}
+.err.allok{color:var(--good)}
+</style>
+
+<main>
+<script>
+const LESSON = {
+  id: "1.8", slug: "rodrigues",
+  stage: { zh: "阶段 1 · 数学基础", en: "Stage 1 · Math foundations" },
+  title: { zh: "绕任意轴旋转：Rodrigues 公式", en: "Rotating About Any Axis: Rodrigues' Formula" },
+  minutes: 90, prereqs: ["1.7"],
+  prev: "1.7-composition.html", next: null,
+  concepts: ["axis-angle", "parallel / perpendicular split", "cross-product matrix", "outer product", "orthogonal matrix"],
+  videos: { UCD: ["04"] }
+};
+(function(){
+  let l = null; try { l = localStorage.getItem("3dl-lang"); } catch {}
+  if (l !== "zh" && l !== "en") l = /^zh/i.test(navigator.language || "") ? "zh" : "en";
+  document.documentElement.dataset.lang = l;
+})();
+</script>
+<style>
+#why h3,#deep h3{font:600 18px/1.4 var(--f-display);margin:18px 0 4px}
+#deep h4{font:600 15px/1.4 var(--f-display);margin:12px 0 2px}
+#deep td,#deep th{padding:3px 12px 3px 0;vertical-align:top;text-align:left}
+.cards{display:flex;flex-wrap:wrap;gap:8px}
+button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+button:disabled{opacity:.45;cursor:default}
+.slid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 10px;align-items:center}
+.slid label{font:13px var(--f-mono);color:var(--muted);white-space:nowrap}
+.slid input{min-width:0}
+@media (max-width:560px){.slid{grid-template-columns:auto 1fr}}
+.numin{width:72px;font:15px var(--f-mono);padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-align:center}
+.step{margin:0;padding:8px 10px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);min-height:1.4em}
+.step code{background:transparent;padding:0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font:13px var(--f-mono);color:var(--muted);margin:0}
+.legend i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.mats{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+.matbox{display:flex;flex-direction:column;align-items:center;gap:2px}
+.matbox b{font:600 13px var(--f-mono);color:var(--muted)}
+.mat{display:grid;grid-template-columns:repeat(3,auto);gap:2px 4px;padding:4px 6px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);border-radius:7px;font:14px/1.5 var(--f-mono);font-variant-numeric:tabular-nums}
+.mat span{min-width:2.4em;text-align:right;padding:1px 4px;border-radius:3px;transition:background .3s}
+.mat span.hl{background:color-mix(in srgb,var(--accent) 24%,transparent);outline:1px solid var(--accent)}
+.mat span.dim{color:var(--muted);opacity:.5}
+.mats .op{font:18px var(--f-mono);color:var(--muted)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctl .cnt{font:13px var(--f-mono);color:var(--muted)}
+.ask details{border-top:1px solid var(--line)}
+.ask summary{font-weight:600}
+.card{border:1px solid var(--accent-2);border-radius:8px;padding:12px 14px;background:color-mix(in srgb,var(--accent-2) 6%,var(--surface));display:flex;flex-direction:column;gap:6px}
+.card p{margin:0}
+.card .k{font:600 11px/1 var(--f-mono);letter-spacing:.08em;color:var(--accent-2);text-transform:uppercase}
+.nextlayer{border-left:3px solid var(--good);padding:8px 12px;background:var(--code);border-radius:4px}
+.nextlayer p{margin:0}
+</style>
+
+<header id="meta">
+  <div class="topbar">
+    <div class="crumb"><a href="../index.html"><span class="zh">目录</span><span class="en">Contents</span></a> / <span id="stage"></span> / <span class="zh">第 <span class="lid"></span> 课</span><span class="en">Lesson <span class="lid"></span></span></div>
+    <button type="button" id="langBtn" aria-label="切换语言 / Switch language">EN</button>
+  </div>
+  <h1 id="ltitle"></h1>
+  <div class="meta zh">预计 90 分钟 · 前置：1.2 点积、1.3 叉积、1.5 矩阵的列、1.7 逆和转置 · 视频：UC Davis ECS 175 第 04 讲 Rotations About an Arbitrary Axis</div>
+  <div class="meta en">About 90 min · Prerequisites: 1.2 dot product, 1.3 cross product, 1.5 matrix columns, 1.7 inverse and transpose · Video: UC Davis ECS 175 lecture 04, Rotations About an Arbitrary Axis</div>
+</header>
+
+<section id="goals">
+  <h2><span class="tag">Goals</span><span class="zh">学习目标</span><span class="en">Learning goals</span></h2>
+  <ul class="zh">
+    <li><b>把 v 拆成两半：</b>沿轴的部分 v∥ = (k · v) k 转动时完全不动；垂直于轴的部分 v⊥ = v − v∥ 在一个垂直于轴的平面里画圆，圆心在 v∥ 的尖端，半径是 |v⊥|。（k 是单位向量。）</li>
+    <li><b>在那个平面里做一次 2D 旋转：</b>平面里有两条现成的互相垂直的轴：v⊥ 和 k × v（它就是 v⊥ 绕 k 转了 90°）。所以 v′ = v∥ + cosθ · v⊥ + sinθ · (k × v)。θ 的正方向用右手定则：拇指指向 k，四指弯的方向为正。</li>
+    <li><b>把它写成矩阵，并会反过来读：</b>R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ，其中 K 是「叉积矩阵」（K v = k × v），k kᵀ 是「投影矩阵」。R 的三列是 x、y、z 轴转过去的样子；R 是正交矩阵（Rᵀ = R⁻¹，det = +1）；对角线之和 = 1 + 2cosθ，可以读出转角。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Split v in two:</b> the part along the axis, v∥ = (k · v) k, does not move at all; the part perpendicular to the axis, v⊥ = v − v∥, traces a circle in a plane perpendicular to the axis, centered at the tip of v∥ with radius |v⊥|. (k is a unit vector.)</li>
+    <li><b>Do a 2D rotation in that plane:</b> the plane already has two perpendicular axes: v⊥ and k × v (which is v⊥ turned 90° about k). So v′ = v∥ + cosθ · v⊥ + sinθ · (k × v). The positive direction of θ follows the right-hand rule: thumb along k, the fingers curl in the positive direction.</li>
+    <li><b>Write it as a matrix and read it back:</b> R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ, where K is the "cross-product matrix" (K v = k × v) and k kᵀ is the "projection matrix". R's three columns are where the x, y, z axes go; R is orthogonal (Rᵀ = R⁻¹, det = +1); the sum of its diagonal is 1 + 2cosθ, which tells you the angle.</li>
+  </ul>
+</section>
+
+<section id="intuition">
+  <h2><span class="tag">Intuition</span><span class="zh">直觉</span><span class="en">Intuition</span></h2>
+  <p class="zh">想象烤串：签子是轴 k，串在上面的肉块绕着签子转。签子上的点不动；离签子越远的点，画的圆越大。每个点都在一个和签子垂直的圆盘里转圈，圆心就在签子上，正对着这个点。</p>
+  <p class="en">Picture a skewer: the stick is the axis k and the food on it turns around the stick. Points on the stick do not move; the farther a point is from the stick, the bigger its circle. Every point turns in a disk perpendicular to the stick, and the disk's center is on the stick, right across from the point.</p>
+  <p class="zh">所以绕任意轴旋转只需要三步：(1) 找到圆心，也就是 v 在轴上的投影（1.2 课的点积）；(2) 在圆盘里找两条互相垂直的方向：一条是从圆心指向 v 的 v⊥，另一条是把它转 90° 的 k × v（1.3 课的叉积）；(3) 在这两条方向组成的平面里做 1.5 课学过的 2D 旋转。Rodrigues 公式就是这三步写在一行里。</p>
+  <p class="en">So rotating about any axis takes three steps: (1) find the circle's center, the projection of v onto the axis (the dot product from lesson 1.2); (2) find two perpendicular directions in the disk: v⊥ from the center to v, and k × v, which is v⊥ turned 90° (the cross product from lesson 1.3); (3) do the 2D rotation from lesson 1.5 in the plane those two directions span. Rodrigues' formula is those three steps on one line.</p>
+  <p class="zh">1.6 课的 rotationZ 是这个公式的特例：k = (0, 0, 1) 时，v∥ 就是 z 分量，v⊥ 是 (x, y, 0)，k × v = (−y, x, 0)，代进去正好是 rotationZ。</p>
+  <p class="en">Lesson 1.6's rotationZ is a special case: with k = (0, 0, 1), v∥ is the z part, v⊥ is (x, y, 0) and k × v = (−y, x, 0); plug them in and you get exactly rotationZ.</p>
+</section>
+
+<section id="demo">
+  <h2><span class="tag">Demo</span><span class="zh">交互演示：一步一步绕轴转</span><span class="en">Demo: rotate about an axis step by step</span></h2>
+  <p class="meta zh">用滑块改变旋转轴 k 的方向、向量 v 和角度 θ。在画布空白处拖动可以转动视角。点「▶ 分步播放」，或用「上一步 / 下一步」，每一步下面都写着在算什么、为什么这样算。</p>
+  <p class="meta en">Use the sliders to change the axis k, the vector v and the angle θ. Drag empty space on the canvas to orbit the view. Press "▶ Play the steps" or use "Back / Next"; under each step is what is being computed and why.</p>
+  <div class="panel">
+    <div class="slid">
+      <label for="dAz">k <span class="zh">方位角</span><span class="en">azimuth</span> = <output id="dAzO"></output></label><input type="range" id="dAz" min="-180" max="180" step="15" value="30">
+      <label for="dEl">k <span class="zh">仰角</span><span class="en">elevation</span> = <output id="dElO"></output></label><input type="range" id="dEl" min="-90" max="90" step="15" value="45">
+      <label for="dVx">vx = <output id="dVxO"></output></label><input type="range" id="dVx" min="-2" max="2" step="0.5" value="2">
+      <label for="dVy">vy = <output id="dVyO"></output></label><input type="range" id="dVy" min="-2" max="2" step="0.5" value="0">
+      <label for="dVz">vz = <output id="dVzO"></output></label><input type="range" id="dVz" min="-2" max="2" step="0.5" value="0.5">
+      <label for="dTh">θ = <output id="dThO"></output></label><input type="range" id="dTh" min="-180" max="180" step="15" value="120">
+    </div>
+    <div class="ctl">
+      <button type="button" id="dPlay"><span class="zh">▶ 分步播放</span><span class="en">▶ Play the steps</span></button>
+      <button type="button" id="dPrev"><span class="zh">上一步</span><span class="en">Back</span></button>
+      <button type="button" id="dNext"><span class="zh">下一步</span><span class="en">Next</span></button>
+      <button type="button" id="dAll"><span class="zh">显示全部</span><span class="en">Show all</span></button>
+      <span class="cnt" id="dCnt"></span>
+    </div>
+    <p class="step" id="dStep"></p>
+    <canvas id="dc" width="720" height="480" aria-label="3D rotation about an axis"></canvas>
+    <p class="legend"><span><i style="background:#d39b1c"></i>k</span><span><i style="background:var(--ink)"></i>v, v′</span><span><i style="background:var(--accent)"></i>v∥</span><span><i style="background:var(--accent-2)"></i>v⊥</span><span><i style="background:var(--good)"></i>k × v</span></p>
+    <dl class="readout" id="dOut"></dl>
+  </div>
+</section>
+
+<section id="math">
+  <h2><span class="tag">Math</span><span class="zh">数学</span><span class="en">Math</span></h2>
+  <pre class="formula">k = 单位旋转轴 / unit axis,  θ = 转角 / angle（右手定则 / right-hand rule）
+
+拆分 / split:     v∥ = (k · v) k            不动 / stays put
+                 v⊥ = v − v∥               画圆 / goes round in a circle
+                 k × v = k × v⊥            v⊥ 转 90° / v⊥ turned 90°
+
+向量形式 / vector form:
+  v′ = v∥ + cosθ · v⊥ + sinθ · (k × v)
+     = cosθ · v + sinθ · (k × v) + (1 − cosθ)(k · v) k
+
+矩阵形式 / matrix form:
+  R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ  =  I + sinθ · K + (1 − cosθ) · K²
+
+        ┌  0   −kz   ky ┐                ┌ kx·kx  kx·ky  kx·kz ┐
+  K  =  │  kz   0   −kx │       k kᵀ  =  │ ky·kx  ky·ky  ky·kz │
+        └ −ky   kx   0  ┘                └ kz·kx  kz·ky  kz·kz ┘
+  K v = k × v                     (k kᵀ) v = (k · v) k = v∥
+
+读回去 / reading back:  R 的列 = R·x̂, R·ŷ, R·ẑ      Rᵀ = R⁻¹ = R(k, −θ)      det R = +1
+                       tr R = R₁₁ + R₂₂ + R₃₃ = 1 + 2cosθ</pre>
+  <p class="zh">第二行的向量形式是把 v⊥ = v − (k · v) k 代进去整理的结果：cosθ · v − cosθ (k · v) k + (k · v) k = cosθ · v + (1 − cosθ)(k · v) k。最常见的写法是这一种，代码里也最省事。</p>
+  <p class="en">The second line of the vector form comes from substituting v⊥ = v − (k · v) k and collecting terms: cosθ · v − cosθ (k · v) k + (k · v) k = cosθ · v + (1 − cosθ)(k · v) k. This is the most common way to write it and the cheapest to code.</p>
+  <p class="zh">矩阵形式里的 K 和 k kᵀ 是这一课新出现的两个工具，下面「补课」一节用动画一步一步构造它们。</p>
+  <p class="en">K and k kᵀ in the matrix form are the two new tools of this lesson; the "Primer" section below builds them step by step with animations.</p>
+</section>
+
+<section id="why">
+  <h2><span class="tag">Why</span><span class="zh">为什么公式长这样？</span><span class="en">Why does the formula look like this?</span></h2>
+  <h3 class="zh">1. 几何：顺着轴往下看，就是 1.5 课的 2D 旋转</h3><h3 class="en">1. Geometry: look down the axis and it is the 2D rotation from lesson 1.5</h3>
+  <p class="zh">站在 k 的尖端，朝原点往下看。v∥ 缩成了一个点（圆心），v⊥ 是一条半径，k × v 是把它逆时针转 90° 的另一条半径。这两条半径一样长、互相垂直，正好当作这个平面里的「x 轴」和「y 轴」。在这个坐标系里，转 θ 后的点就是 (cosθ, sinθ)，也就是 cosθ · v⊥ + sinθ · (k × v)。拖动 θ 看看。</p>
+  <p class="en">Stand at the tip of k and look down toward the origin. v∥ shrinks to a point (the center), v⊥ is one radius and k × v is that radius turned 90° counter-clockwise. The two radii have the same length and are perpendicular, so they serve as this plane's "x axis" and "y axis". In that frame the point after turning by θ is (cosθ, sinθ), i.e. cosθ · v⊥ + sinθ · (k × v). Drag θ to see it.</p>
+  <div class="panel">
+    <div class="slid">
+      <label for="wTh">θ = <output id="wThO">60°</output></label><input type="range" id="wTh" min="-180" max="180" step="5" value="60">
+    </div>
+    <canvas id="wc" width="720" height="420" aria-label="view down the axis"></canvas>
+    <p class="meta" id="wNote"></p>
+  </div>
+  <p class="zh">为什么 k × v 正好是 v⊥ 转了 90°？叉积 k × v 垂直于 k（所以在这个平面里）、垂直于 v（所以垂直于 v⊥），长度是 |k| |v| sin(夹角) = |v⊥|（1.3 课：叉积的长度是平行四边形面积，底 |k| = 1，高正是 |v⊥|）。方向由右手定则定：从 k 尖端看，是逆时针转 90°。</p>
+  <p class="en">Why is k × v exactly v⊥ turned 90°? The cross product k × v is perpendicular to k (so it lies in the plane) and to v (so it is perpendicular to v⊥), and its length is |k| |v| sin(angle) = |v⊥| (lesson 1.3: the length of a cross product is a parallelogram's area; the base |k| is 1 and the height is exactly |v⊥|). Its direction comes from the right-hand rule: seen from the tip of k, it is a 90° counter-clockwise turn.</p>
+
+  <h3 class="zh">2. 代数：从向量形式到矩阵形式</h3><h3 class="en">2. Algebra: from the vector form to the matrix form</h3>
+  <p class="zh">公式里每一项都是 v 的线性函数，所以整个公式能写成一个矩阵乘 v。只要把每一项都写成「某个矩阵乘 v」：</p>
+  <p class="en">Every term in the formula is a linear function of v, so the whole formula can be written as one matrix times v. Just write each term as "some matrix times v":</p>
+  <pre class="formula">cosθ · v            = (cosθ · I) v
+sinθ · (k × v)      = (sinθ · K) v                 K 把叉积写成矩阵 / K writes the cross product as a matrix
+(k · v) k = k (kᵀ v) = (k kᵀ) v                    换个括号 / regroup the brackets
+⇒ v′ = [ cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ ] v = R v</pre>
+  <p class="zh">第三行的关键是把 (k · v) k 看成 k · (kᵀ v)，再把括号换到前面：(k kᵀ) v。k kᵀ 是一个 3 × 1 的列乘 1 × 3 的行，结果是 3 × 3 的矩阵（外积）。另一种常见写法用 K² = k kᵀ − I（推导见补课 C），得到 R = I + sinθ · K + (1 − cosθ) · K²。</p>
+  <p class="en">The key in line three is to see (k · v) k as k · (kᵀ v) and move the brackets: (k kᵀ) v. k kᵀ is a 3 × 1 column times a 1 × 3 row, which gives a 3 × 3 matrix (the outer product). Another common form uses K² = k kᵀ − I (derived in primer C) and gives R = I + sinθ · K + (1 − cosθ) · K².</p>
+
+  <h3 class="zh">3. 物理：无数次「微小转动」加起来</h3><h3 class="en">3. Physics: the sum of countless tiny turns</h3>
+  <p class="zh">刚体以角速度 ω 绕轴 k 转动时，上面一点的速度是 ω k × v（物理课的 v = ω × r）。如果把转动 θ 分成 n 小步，每一步都沿着当前速度方向直走一小段：v ← v + (θ / n) · k × v。步数少时，路径是一个往外张开的多边形（每一步都走在切线上，会稍微远离圆心）；步数越多，越贴近真正的圆，终点越接近 Rodrigues 公式的结果。Rodrigues 公式就是 n → ∞ 时这个过程的精确答案。</p>
+  <p class="en">When a rigid body spins about the axis k with angular speed ω, a point on it has velocity ω k × v (the physics formula v = ω × r). Split the turn θ into n small steps and walk straight along the current velocity each time: v ← v + (θ / n) · k × v. With few steps the path is a polygon that spirals outward (every step runs along a tangent and drifts slightly away from the center); with more steps it hugs the true circle and the end point approaches Rodrigues' result. Rodrigues' formula is the exact answer as n → ∞.</p>
+  <div class="panel">
+    <div class="slid">
+      <label for="pN">n = <output id="pNO">8</output></label><input type="range" id="pN" min="1" max="64" step="1" value="8">
+      <label for="pTh">θ = <output id="pThO">180°</output></label><input type="range" id="pTh" min="15" max="360" step="15" value="180">
+    </div>
+    <canvas id="pc2" width="720" height="420" aria-label="small steps versus the exact rotation"></canvas>
+    <p class="meta" id="pNote"></p>
+  </div>
+  <p class="zh">这也解释了为什么物理引擎和游戏里一般不用「v += ω × v · Δt」来更新朝向：误差会让物体越转越大（长度不守恒）。正确的做法是每一帧用 Rodrigues 公式（或下一课的四元数）算出这一小段旋转，再乘上去。</p>
+  <p class="en">This is also why physics engines and games do not usually update orientation with "v += ω × v · Δt": the error makes the object grow as it spins (length is not preserved). The right way is to compute each frame's small rotation with Rodrigues' formula (or with next lesson's quaternions) and multiply it in.</p>
+</section>
+
+<section id="deep">
+  <h2><span class="tag">Primer</span><span class="zh">补课：这一课新用到的工具</span><span class="en">Primer: the new tools this lesson uses</span></h2>
+  <p class="zh">备课时我把这一课用到的每个符号和运算都对照了前面的课（前置审计）。结果如下，标「新」的在本节逐个讲，每个计算都有逐步动画。</p>
+  <p class="en">While preparing this lesson I checked every symbol and operation it uses against the earlier lessons (a prerequisite audit). The result is below; everything marked "new" is taught in this section, and every computation has a step-by-step animation.</p>
+  <table class="zh">
+    <tr><th>用到的</th><th>在哪学过</th></tr>
+    <tr><td>单位向量、归一化</td><td>1.1</td></tr>
+    <tr><td>点积、投影 (k · v) k</td><td>1.2</td></tr>
+    <tr><td>叉积、右手定则、长度 = 面积</td><td>1.3</td></tr>
+    <tr><td>cosθ、sinθ 画圆</td><td>1.4</td></tr>
+    <tr><td>矩阵的列 = 基向量去哪了</td><td>1.5</td></tr>
+    <tr><td>三明治 T(p) · R · T(−p)</td><td>1.6</td></tr>
+    <tr><td>转置、逆、Rᵀ = R⁻¹（提到过）</td><td>1.7</td></tr>
+    <tr><td><b>新</b>：叉积写成矩阵 K</td><td>补课 A</td></tr>
+    <tr><td><b>新</b>：外积 k kᵀ（投影矩阵）</td><td>补课 B</td></tr>
+    <tr><td><b>新</b>：k × (k × v) = −v⊥，即 K² = k kᵀ − I</td><td>补课 C</td></tr>
+    <tr><td><b>新</b>：把三部分加成 R 并验证</td><td>补课 D</td></tr>
+    <tr><td><b>新</b>：正交矩阵、迹（对角线之和）读转角</td><td>补课 E</td></tr>
+  </table>
+  <table class="en">
+    <tr><th>Used</th><th>Learned in</th></tr>
+    <tr><td>Unit vectors, normalizing</td><td>1.1</td></tr>
+    <tr><td>Dot product, projection (k · v) k</td><td>1.2</td></tr>
+    <tr><td>Cross product, right-hand rule, length = area</td><td>1.3</td></tr>
+    <tr><td>cosθ, sinθ trace a circle</td><td>1.4</td></tr>
+    <tr><td>Matrix columns = where the basis vectors go</td><td>1.5</td></tr>
+    <tr><td>The sandwich T(p) · R · T(−p)</td><td>1.6</td></tr>
+    <tr><td>Transpose, inverse, Rᵀ = R⁻¹ (mentioned)</td><td>1.7</td></tr>
+    <tr><td><b>New</b>: the cross product as a matrix K</td><td>Primer A</td></tr>
+    <tr><td><b>New</b>: the outer product k kᵀ (projection matrix)</td><td>Primer B</td></tr>
+    <tr><td><b>New</b>: k × (k × v) = −v⊥, i.e. K² = k kᵀ − I</td><td>Primer C</td></tr>
+    <tr><td><b>New</b>: adding the three parts into R and checking it</td><td>Primer D</td></tr>
+    <tr><td><b>New</b>: orthogonal matrices, reading the angle from the trace</td><td>Primer E</td></tr>
+  </table>
+
+  <h3 class="zh">A. 把叉积写成矩阵 K</h3><h3 class="en">A. The cross product as a matrix K</h3>
+  <p class="zh">固定 k，把 v 变成 k × v 是一个线性变换（v 加倍，结果也加倍；两个 v 相加，结果也相加）。线性变换都能写成矩阵，而 1.5 课说过：矩阵的第 j 列就是第 j 个基向量变过去的样子。所以 K 的三列就是 k × x̂、k × ŷ、k × ẑ。下面用 k = (1, 2, 3) 一列一列算。</p>
+  <p class="en">With k fixed, turning v into k × v is a linear map (double v and the result doubles; add two v's and the results add). Every linear map is a matrix, and lesson 1.5 said that column j of the matrix is where the j-th basis vector goes. So K's three columns are k × x̂, k × ŷ and k × ẑ. Below we compute them column by column for k = (1, 2, 3).</p>
+  <div class="panel" id="kS"></div>
+
+  <h3 class="zh">B. 外积 k kᵀ：一个做投影的矩阵</h3><h3 class="en">B. The outer product k kᵀ: a matrix that projects</h3>
+  <p class="zh">点积 kᵀ v 是「行 × 列」，得到一个数（内积）。反过来「列 × 行」k kᵀ 得到一个 3 × 3 矩阵（外积），第 i 行第 j 列是 kᵢ · kⱼ。它的作用是投影：(k kᵀ) v = k (kᵀ v) = (k · v) k = v∥。下面用单位向量 k = (2, 1, 2) / 3 来算。</p>
+  <p class="en">The dot product kᵀ v is "row × column" and gives a number (the inner product). The other way round, "column × row" k kᵀ gives a 3 × 3 matrix (the outer product) whose row i, column j entry is kᵢ · kⱼ. What it does is project: (k kᵀ) v = k (kᵀ v) = (k · v) k = v∥. Below we use the unit vector k = (2, 1, 2) / 3.</p>
+  <div class="panel" id="oS"></div>
+
+  <h3 class="zh">C. 叉两次：k × (k × v) = −v⊥</h3><h3 class="en">C. Crossing twice: k × (k × v) = −v⊥</h3>
+  <p class="zh"><b>几何：</b>k × 把 v⊥ 转 90°，同时把 v∥ 消掉（平行向量的叉积是 0）。再叉一次，又转 90°，一共转了 180°，所以得到 −v⊥。</p>
+  <p class="en"><b>Geometry:</b> k × turns v⊥ by 90° and kills v∥ (the cross product of parallel vectors is 0). Cross again and it turns another 90°, 180° in total, so the result is −v⊥.</p>
+  <p class="zh"><b>代数：</b>用三重积展开公式 a × (b × c) = b (a · c) − c (a · b)（记法：BAC − CAB）。取 a = b = k、c = v：k × (k × v) = k (k · v) − v (k · k) = v∥ − v = −v⊥（因为 k · k = 1）。写成矩阵就是 K² v = (k kᵀ − I) v，所以 K² = k kᵀ − I。把它代进 R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ，就得到另一种写法 R = I + sinθ · K + (1 − cosθ) · K²。</p>
+  <p class="en"><b>Algebra:</b> use the triple product expansion a × (b × c) = b (a · c) − c (a · b) (mnemonic: BAC − CAB). With a = b = k and c = v: k × (k × v) = k (k · v) − v (k · k) = v∥ − v = −v⊥ (because k · k = 1). As matrices that is K² v = (k kᵀ − I) v, so K² = k kᵀ − I. Substitute it into R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ and you get the other form R = I + sinθ · K + (1 − cosθ) · K².</p>
+  <p class="zh"><b>手算验证：</b>k = (0, 0, 1)，v = (3, 4, 5)。k × v = (−4, 3, 0)，k × (−4, 3, 0) = (−3, −4, 0)。而 v⊥ = (3, 4, 0)，确实是 −v⊥。</p>
+  <p class="en"><b>Check by hand:</b> k = (0, 0, 1), v = (3, 4, 5). k × v = (−4, 3, 0) and k × (−4, 3, 0) = (−3, −4, 0). Since v⊥ = (3, 4, 0), that is indeed −v⊥.</p>
+
+  <h3 class="zh">D. 组装 R，并检查它</h3><h3 class="en">D. Assemble R and check it</h3>
+  <p class="zh">用 B 里的 k = (2, 1, 2) / 3，转 θ = 90°。cos 90° = 0、sin 90° = 1，所以 R = K + k kᵀ。为了方便，所有数都写成「几分之九」。</p>
+  <p class="en">Use B's k = (2, 1, 2) / 3 and turn θ = 90°. cos 90° = 0 and sin 90° = 1, so R = K + k kᵀ. For convenience every number is written in ninths.</p>
+  <div class="panel" id="rS"></div>
+
+  <h3 class="zh">E. 正交矩阵：怎么判断「这是一个旋转」</h3><h3 class="en">E. Orthogonal matrices: how to tell "this is a rotation"</h3>
+  <p class="zh"><b>怎么算：</b>检查 Rᵀ R = I，也就是三列都是单位长度、两两垂直（Rᵀ R 的第 i 行第 j 列正好是第 i 列和第 j 列的点积）。再检查 det R = +1。</p>
+  <p class="en"><b>How to check:</b> verify Rᵀ R = I, i.e. the three columns have unit length and are pairwise perpendicular (row i, column j of Rᵀ R is exactly the dot product of column i and column j). Then check det R = +1.</p>
+  <p class="zh"><b>为什么：</b>旋转不改变长度和夹角，所以 x̂、ŷ、ẑ 转过去以后仍然是三条互相垂直的单位向量，也就是 R 的三列。det = +1 说明没有翻面（1.5 课：det 的正负是朝向）；三列正交但 det = −1 的是镜像，比如 diag(−1, 1, 1)。</p>
+  <p class="en"><b>Why:</b> a rotation preserves lengths and angles, so after turning, x̂, ŷ, ẑ are still three perpendicular unit vectors, and those are R's columns. det = +1 means nothing was flipped (lesson 1.5: the sign of det is orientation); orthonormal columns with det = −1 is a mirror, such as diag(−1, 1, 1).</p>
+  <p class="zh"><b>本质：</b>Rᵀ = R⁻¹，求逆只要转置，几乎不花计算。用 Rodrigues 公式也能看出来：K 是反对称的（Kᵀ = −K），k kᵀ 是对称的，所以 Rᵀ = cosθ · I − sinθ · K + (1 − cosθ) · k kᵀ = R(k, −θ)：转置就是倒着转。这也是 1.7 课「旋转的逆转置就是它自己」的原因：(R⁻¹)ᵀ = (Rᵀ)ᵀ = R。</p>
+  <p class="en"><b>What it really is:</b> Rᵀ = R⁻¹, so inverting costs almost nothing, just a transpose. Rodrigues' formula shows it too: K is antisymmetric (Kᵀ = −K) and k kᵀ is symmetric, so Rᵀ = cosθ · I − sinθ · K + (1 − cosθ) · k kᵀ = R(k, −θ): the transpose turns backwards. That is also why, in lesson 1.7, a rotation's inverse transpose is itself: (R⁻¹)ᵀ = (Rᵀ)ᵀ = R.</p>
+  <p class="zh"><b>读出转角：</b>对角线之和叫迹（trace）。I 的迹是 3，K 的迹是 0，k kᵀ 的迹是 kx² + ky² + kz² = 1，所以 tr R = 3cosθ + 0 + (1 − cosθ) = 1 + 2cosθ。D 里的例子迹是 (4 + 1 + 4) / 9 = 1，cosθ = 0，θ = 90°，对得上。</p>
+  <p class="en"><b>Reading the angle:</b> the sum of the diagonal is the trace. I has trace 3, K has trace 0 and k kᵀ has trace kx² + ky² + kz² = 1, so tr R = 3cosθ + 0 + (1 − cosθ) = 1 + 2cosθ. The example in D has trace (4 + 1 + 4) / 9 = 1, so cosθ = 0 and θ = 90°, as expected.</p>
+  <p class="zh"><b>读出转轴：</b>轴上的向量不动：R k = k。另外 R − Rᵀ = 2sinθ · K（对称部分抵消了），从 K 的三个元素就能读出 k（θ = 180° 时 sinθ = 0，这个办法失效，要改用 R + I 的列）。</p>
+  <p class="en"><b>Reading the axis:</b> vectors on the axis do not move: R k = k. Also R − Rᵀ = 2sinθ · K (the symmetric parts cancel), so k can be read off K's three entries (at θ = 180°, sinθ = 0 and this fails; use the columns of R + I instead).</p>
+</section>
+
+<section id="ask">
+  <h2><span class="tag">FAQ</span><span class="zh">你可能会问</span><span class="en">You might ask</span></h2>
+  <div class="ask">
+    <details><summary><span class="zh">1. 公式里为什么有个 (1 − cosθ)？它是什么意思？</span><span class="en">1. Why is there a (1 − cosθ) in the formula? What does it mean?</span></summary>
+      <p class="zh">它来自「v∥ 不动」。写成 v′ = cosθ · v + sinθ · (k × v) + (1 − cosθ) v∥：第一项把整个 v（包括 v∥）都乘了 cosθ，可 v∥ 本来不该缩短，所以要把少掉的 (1 − cosθ) v∥ 补回来。θ = 0 时补 0；θ = 180° 时 cosθ = −1，第一项把 v∥ 翻成了 −v∥，要补 2v∥ 才能翻回来。</p>
+      <p class="en">It comes from "v∥ stays put". Write v′ = cosθ · v + sinθ · (k × v) + (1 − cosθ) v∥: the first term multiplies all of v, including v∥, by cosθ, but v∥ should not shrink, so the missing (1 − cosθ) v∥ is added back. At θ = 0 nothing is added; at θ = 180°, cosθ = −1, the first term flips v∥ to −v∥, and 2v∥ must be added to flip it back.</p></details>
+    <details><summary><span class="zh">2. 它和「先把轴转到 z，绕 z 转，再转回来」是什么关系？</span><span class="en">2. How does it relate to "turn the axis onto z, rotate about z, turn back"?</span></summary>
+      <p class="zh">结果完全一样。那是 1.6 课三明治的旋转版：R = A · Rz(θ) · A⁻¹，其中 A 把 z 轴转到 k，而 A⁻¹ = Aᵀ（补课 E）。只是你得先找出 A（需要两个和 k 垂直的方向），还要乘三次矩阵。Rodrigues 公式等于把这个三明治提前乘好了，直接用 k 和 θ 就能写出 R。UC Davis 第 04 讲就是先讲三明治做法，再化简出这个公式。</p>
+      <p class="en">The result is exactly the same. It is the rotation version of lesson 1.6's sandwich: R = A · Rz(θ) · A⁻¹, where A turns the z axis onto k and A⁻¹ = Aᵀ (primer E). But you first have to find A (it needs two directions perpendicular to k) and then multiply three matrices. Rodrigues' formula is that sandwich multiplied out in advance, so R can be written straight from k and θ. UC Davis lecture 04 starts with the sandwich and simplifies it into this formula.</p></details>
+    <details><summary><span class="zh">3. 为什么 k 一定要是单位向量？忘了归一化会怎样？</span><span class="en">3. Why must k be a unit vector? What happens if I forget to normalize?</span></summary>
+      <p class="zh">推导里用了两次 |k| = 1：v∥ = (k · v) k 只有在 |k| = 1 时才是投影（否则多乘了 |k|²）；k × v 的长度等于 |v⊥| 也要求 |k| = 1。k = (0, 0, 2) 时，算出来的「旋转」会把向量拉长，R 不再是正交矩阵。所以代码第一步总是 k = k.normalize()。</p>
+      <p class="en">The derivation used |k| = 1 twice: v∥ = (k · v) k is a projection only when |k| = 1 (otherwise there is an extra factor |k|²), and the length of k × v equals |v⊥| only when |k| = 1. With k = (0, 0, 2) the "rotation" stretches vectors and R is no longer orthogonal. So the first line of the code is always k = k.normalize().</p></details>
+    <details><summary><span class="zh">4. 绕 −k 转 θ 和绕 k 转 −θ 一样吗？θ 的正方向到底怎么定？</span><span class="en">4. Is turning by θ about −k the same as turning by −θ about k? Which way is positive?</span></summary>
+      <p class="zh">一样。公式里 k 换成 −k：K 变号，k kᵀ 不变，效果和 sinθ 变号相同。所以「轴 + 角」这种表示有两个名字：(k, θ) 和 (−k, −θ) 是同一个旋转。正方向用右手定则：右手拇指指向 k，四指弯曲的方向就是正 θ；等价地说，从 k 的尖端往原点看，正 θ 是逆时针。这和 1.6 课 rotationZ 的约定一致（从 +z 往下看，正角度把 x 轴转向 y 轴）。</p>
+      <p class="en">Yes. Replace k with −k in the formula: K changes sign while k kᵀ does not, which has the same effect as flipping the sign of sinθ. So the axis-angle representation has two names for the same rotation: (k, θ) and (−k, −θ). The positive direction is the right-hand rule: point your right thumb along k, and the way your fingers curl is positive θ; equivalently, looking from the tip of k toward the origin, positive θ is counter-clockwise. This matches lesson 1.6's rotationZ (seen from +z, a positive angle turns the x axis toward the y axis).</p></details>
+    <details><summary><span class="zh">5. 轴不经过原点怎么办？比如门绕门轴转。</span><span class="en">5. What if the axis does not pass through the origin, like a door on its hinge?</span></summary>
+      <p class="zh">用 1.6 课的三明治：M = T(p) · R(k, θ) · T(−p)，p 是轴上任意一点。先把 p 移到原点，绕过原点的轴转，再移回去。写的顺序和执行顺序相反，最先做的 T(−p) 写在最右边。这就是练习的第三个方法。</p>
+      <p class="en">Use lesson 1.6's sandwich: M = T(p) · R(k, θ) · T(−p), where p is any point on the axis. Move p to the origin, rotate about the axis through the origin, move back. Written order is the reverse of execution order: T(−p), which happens first, goes on the far right. This is the exercise's third method.</p></details>
+  </div>
+</section>
+
+<section id="surprise">
+  <h2><span class="tag">Surprise</span><span class="zh">意想不到的联系</span><span class="en">An unexpected connection</span></h2>
+  <div class="card">
+    <span class="k zh">欧拉公式的 3D 版</span><span class="k en">Euler's formula, in 3D</span>
+    <p class="zh">你可能见过欧拉公式 e^(iθ) = cosθ + i · sinθ，它在复平面上表示「转 θ」，关键是 i² = −1。K 有一个类似的性质：K³ = −K（补课 C 里 K² = k kᵀ − I，再乘 K，因为 k kᵀ K = 0，得到 K³ = −K），也就是在垂直于轴的平面里，K 的作用和 i 完全一样：转 90°，转两次变成负号。</p>
+    <p class="en">You may have seen Euler's formula e^(iθ) = cosθ + i · sinθ, which means "turn by θ" in the complex plane; the key is i² = −1. K has a similar property: K³ = −K (from primer C, K² = k kᵀ − I; multiply by K, and since k kᵀ K = 0 you get K³ = −K). In the plane perpendicular to the axis, K acts exactly like i: a 90° turn, and two of them give a minus sign.</p>
+    <p class="zh">所以把指数函数的级数 e^(θK) = I + θK + (θK)²/2! + (θK)³/3! + … 展开，用 K³ = −K 把高次项全部化简，奇数次项凑成 sinθ · K，偶数次项凑成 (1 − cosθ) · K²，正好得到 R = I + sinθ · K + (1 − cosθ) · K²。Rodrigues 公式就是矩阵版的 e^(iθ)。上面「物理」那张图里步数 n → ∞ 的极限，也正是这个指数：(I + θK / n)ⁿ → e^(θK)。</p>
+    <p class="en">So expand the exponential series e^(θK) = I + θK + (θK)²/2! + (θK)³/3! + …, reduce every high power with K³ = −K, and the odd powers collect into sinθ · K while the even powers collect into (1 − cosθ) · K², giving exactly R = I + sinθ · K + (1 − cosθ) · K². Rodrigues' formula is a matrix version of e^(iθ). The n → ∞ limit in the physics figure above is this same exponential: (I + θK / n)ⁿ → e^(θK).</p>
+    <p class="zh">还有一段历史：Olinde Rodrigues 在 1840 年发表的论文里，研究了两个旋转怎么合成，用的是四个参数，这和 1843 年 Hamilton 发明的四元数乘法本质相同，早了三年，但长期没人注意。Simon Altmann 1989 年在 Mathematics Magazine 上写过一篇文章专门讲这段往事，标题就叫 Hamilton, Rodrigues, and the Quaternion Scandal。下一课就讲四元数。</p>
+    <p class="en">There is history too: in a paper published in 1840, Olinde Rodrigues worked out how two rotations combine, using four parameters. This is essentially the quaternion multiplication that Hamilton discovered in 1843, three years earlier, but it went unnoticed for a long time. Simon Altmann told the story in a 1989 Mathematics Magazine article titled Hamilton, Rodrigues, and the Quaternion Scandal. Quaternions are the next lesson.</p>
+  </div>
+</section>
+
+<section id="game">
+  <h2><span class="tag">Game</span><span class="zh">小游戏：三关，对应三个学习目标</span><span class="en">Game: three levels for three learning goals</span></h2>
+  <p class="meta zh">每一关只练一个学习目标。完成一关的全部任务后，会出现这一关要你记住的那句话。进度保存在你的浏览器里。3D 画布的空白处可以拖动转视角。</p>
+  <p class="meta en">Each level trains one learning goal. Finish all of a level's missions to unlock the one sentence it wants you to keep. Progress is saved in your browser. Drag empty space on the 3D canvas to orbit the view.</p>
+  <div class="panel">
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="level">
+        <input type="radio" name="glv" id="gl1" value="0" checked><label for="gl1"><span class="zh">1 拆开 v</span><span class="en">1 Split v</span><span id="gd0"></span></label>
+        <input type="radio" name="glv" id="gl2" value="1"><label for="gl2"><span class="zh">2 转到哪</span><span class="en">2 Where to</span><span id="gd1"></span></label>
+        <input type="radio" name="glv" id="gl3" value="2"><label for="gl3"><span class="zh">3 读矩阵</span><span class="en">3 Read R</span><span id="gd2"></span></label>
+      </span>
+    </div>
+    <div class="row">
+      <span class="seg" role="radiogroup" aria-label="mode" id="gModes">
+        <input type="radio" name="gm" id="gm0" value="0" checked><label for="gm0" id="gm0L"></label>
+        <input type="radio" name="gm" id="gm1" value="1"><label for="gm1" id="gm1L"></label>
+        <input type="radio" name="gm" id="gm2" value="2"><label for="gm2" id="gm2L"></label>
+      </span>
+    </div>
+    <p id="gTitle" style="margin:0;font-weight:600"></p>
+    <p class="meta" id="gIntro" style="margin:0"></p>
+    <p id="gAsk" style="margin:0;font-weight:600;font-family:var(--f-mono);overflow-wrap:anywhere;white-space:pre-wrap"></p>
+    <div class="mats" id="gMat"></div>
+    <div class="cards" id="gOpts"></div>
+    <div class="row" id="gNums">
+      <span class="meta" id="gNumL"></span>
+      <input class="numin" id="gn0" inputmode="decimal" aria-label="value 1">
+      <input class="numin" id="gn1" inputmode="decimal" aria-label="value 2">
+      <input class="numin" id="gn2" inputmode="decimal" aria-label="value 3">
+      <span class="meta" id="gNumR"></span>
+      <button type="button" id="gCheck"><span class="zh">检查</span><span class="en">Check</span></button>
+    </div>
+    <div class="cards"><button type="button" id="gNext"><span class="zh">下一题</span><span class="en">Next</span></button></div>
+    <canvas id="gc" width="720" height="440" aria-label="game board"></canvas>
+    <p id="gFb" style="margin:0"></p>
+    <ul class="tests" id="gMissions"></ul>
+    <p id="gTake" hidden style="margin:0;padding:10px 12px;border-left:3px solid var(--good);background:var(--code);border-radius:4px"></p>
+  </div>
+</section>
+
+<section id="exercise">
+  <h2><span class="tag">Exercise</span><span class="zh">你动手：绕任意轴旋转</span><span class="en">Your turn: rotate about any axis</span></h2>
+  <div class="panel">
+    <p class="zh"><b>任务：</b>在你 1.7 课的代码上再加三个方法（仍然是行优先 <code>m[r * 4 + c]</code>，都返回新对象，不修改输入）。轴 k 不一定是单位向量，要自己归一化。请先自己写，卡住了先看提示。</p>
+    <p class="en"><b>Task:</b> add three methods to your code from lesson 1.7 (still row-major <code>m[r * 4 + c]</code>, all returning new objects without changing their inputs). The axis k need not be a unit vector, so normalize it yourself. Write it yourself first; try the hints before the reference answer.</p>
+    <ul class="zh">
+      <li><code>v.rotateAxis(k, theta)</code>（写在 Vec3 里）：用向量形式，返回 v 绕过原点的轴 k 转 theta（弧度）后的向量。</li>
+      <li><code>Mat4.rotationAxis(k, theta)</code>：用矩阵形式 R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ，返回 4 × 4 矩阵（第 4 行、第 4 列和单位矩阵一样）。</li>
+      <li><code>Mat4.rotationAboutLine(p, k, theta)</code>：绕「经过点 p、方向为 k」的直线旋转。</li>
+    </ul>
+    <ul class="en">
+      <li><code>v.rotateAxis(k, theta)</code> (inside Vec3): using the vector form, return v turned by theta (radians) about the axis k through the origin.</li>
+      <li><code>Mat4.rotationAxis(k, theta)</code>: using the matrix form R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ, return a 4 × 4 matrix (row 4 and column 4 as in the identity).</li>
+      <li><code>Mat4.rotationAboutLine(p, k, theta)</code>: rotate about the line through the point p with direction k.</li>
+    </ul>
+    <label for="code" class="meta"><span class="zh">你的代码（已填好你 1.7 课的 Vec3 和 Mat4）</span><span class="en">Your code (pre-filled with your Vec3 and Mat4 from lesson 1.7)</span></label>
+    <textarea id="code" spellcheck="false" style="min-height:620px">class Vec3 {
+  constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
+  add(v)   { return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z); }
+  sub(v)   { return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z); }
+  scale(k) { return new Vec3(this.x * k, this.y * k, this.z * k); }
+  length() { return Math.hypot(this.x, this.y, this.z); }
+  normalize() {
+    const len = this.length();
+    if (len === 0) { return new Vec3(0, 0, 0); } else { return this.scale(1 / len); }
+  }
+  dot(v) { return this.x * v.x + this.y * v.y + this.z * v.z; }
+  cross(v) {
+    return new Vec3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
+  }
+
+  // ---- 1.8 新增 / new in 1.8 ----
+  rotateAxis(k, theta) { /* TODO：v′ = cosθ·v + sinθ·(k × v) + (1 − cosθ)(k · v) k，k 先归一化 / normalize k first */ }
+}
+
+class Mat4 {
+  // 行优先 / row-major: m[r * 4 + c]
+  constructor(m = [1,0,0,0,  0,1,0,0,  0,0,1,0,  0,0,0,1]) { this.m = m.slice(); }
+  get(r, c) { return this.m[r * 4 + c]; }
+  static identity() { return new Mat4(); }
+  static translation(tx, ty, tz) {
+    const a = [1, 0, 0, tx, 0, 1, 0, ty, 0, 0, 1, tz, 0, 0, 0, 1];
+    return new Mat4(a);
+  }
+  static rotationZ(theta) {
+    return new Mat4([Math.cos(theta),-Math.sin(theta),0,0,  Math.sin(theta), Math.cos(theta),0,0,  0,0,1,0,  0,0,0,1]);
+  }
+  mul(B) {
+    const r = [];
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+      let s = 0; for (let k = 0; k < 4; k++) s += this.get(i, k) * B.get(k, j);
+      r.push(s);
+    }
+    return new Mat4(r);
+  }
+  transformPoint(p) {
+    return new Vec3(this.m[0] * p.x + this.m[1] * p.y + this.m[2]  * p.z + this.m[3],
+                    this.m[4] * p.x + this.m[5] * p.y + this.m[6]  * p.z + this.m[7],
+                    this.m[8] * p.x + this.m[9] * p.y + this.m[10] * p.z + this.m[11]);
+  }
+  transformDirection(d) {
+    return new Vec3(this.m[0] * d.x + this.m[1] * d.y + this.m[2]  * d.z,
+                    this.m[4] * d.x + this.m[5] * d.y + this.m[6]  * d.z,
+                    this.m[8] * d.x + this.m[9] * d.y + this.m[10] * d.z);
+  }
+  static rotateAround(p, theta) {
+    return Mat4.translation(p.x, p.y, p.z).mul(Mat4.rotationZ(theta)).mul(Mat4.translation(-p.x, -p.y, -p.z));
+  }
+  static scaling(sx, sy, sz) { return new Mat4([sx,0,0,0,  0,sy,0,0,  0,0,sz,0,  0,0,0,1]); }
+  static compose(t, theta, s) {
+    return Mat4.translation(t.x, t.y, t.z).mul(Mat4.rotationZ(theta)).mul(Mat4.scaling(s.x, s.y, s.z));
+  }
+  normalMatrix() {
+    const a = new Vec3(this.m[0], this.m[4], this.m[8]), b = new Vec3(this.m[1], this.m[5], this.m[9]), c = new Vec3(this.m[2], this.m[6], this.m[10]);
+    const det = a.dot(b.cross(c));
+    const p = b.cross(c).scale(1 / det), q = c.cross(a).scale(1 / det), r = a.cross(b).scale(1 / det);
+    return new Mat4([p.x, q.x, r.x, 0,  p.y, q.y, r.y, 0,  p.z, q.z, r.z, 0,  0, 0, 0, 1]);
+  }
+  transformNormal(n) { return this.normalMatrix().transformDirection(n).normalize(); }
+
+  // ---- 1.8 新增 / new in 1.8 ----
+  static rotationAxis(k, theta)          { /* TODO：R = cosθ·I + sinθ·K + (1 − cosθ)·k kᵀ */ }
+  static rotationAboutLine(p, k, theta)  { /* TODO：经过 p、方向 k 的直线 / the line through p with direction k */ }
+}</textarea>
+    <div class="row"><button type="button" id="run"><span class="zh">运行测试</span><span class="en">Run tests</span></button><span class="err" id="exErr"></span></div>
+    <ul class="tests" id="tests"></ul>
+    <canvas id="pc" width="720" height="380" aria-label="your rotation"></canvas>
+    <p class="meta" id="pcNote"></p>
+    <details><summary><span class="zh">提示（先自己试）</span><span class="en">Hints (try first)</span></summary>
+      <p class="zh">rotateAxis：先 <code>const u = k.normalize()</code>，再按 cosθ · v + sinθ · (u × v) + (1 − cosθ)(u · v) u 用 scale、cross、dot、add 拼起来。rotationAxis：记 c = cosθ、s = sinθ、t = 1 − c，(x, y, z) 是归一化后的 k。对角线是 c + t·x²、c + t·y²、c + t·z²；第 1 行第 2 列是 t·x·y − s·z，第 2 行第 1 列是 t·x·y + s·z（K 是反对称的，所以对称位置的 s 项符号相反）。其余四个按同样规律写。rotationAboutLine：用 1.6 课 rotateAround 的写法，把 rotationZ 换掉，注意顺序。</p>
+      <p class="en">rotateAxis: start with <code>const u = k.normalize()</code>, then build cosθ · v + sinθ · (u × v) + (1 − cosθ)(u · v) u with scale, cross, dot and add. rotationAxis: let c = cosθ, s = sinθ, t = 1 − c, and (x, y, z) the normalized k. The diagonal is c + t·x², c + t·y², c + t·z²; row 1 column 2 is t·x·y − s·z and row 2 column 1 is t·x·y + s·z (K is antisymmetric, so mirrored s terms have opposite signs). Write the other four the same way. rotationAboutLine: copy lesson 1.6's rotateAround and replace rotationZ; mind the order.</p>
+    </details>
+    <details><summary><span class="zh">参考答案</span><span class="en">Reference answer</span></summary>
+      <pre class="formula">rotateAxis(k, theta) {                               // 写在 Vec3 里 / inside Vec3
+  const u = k.normalize(), c = Math.cos(theta), s = Math.sin(theta);
+  return this.scale(c).add(u.cross(this).scale(s)).add(u.scale((1 - c) * u.dot(this)));
+}
+static rotationAxis(k, theta) {
+  const u = k.normalize(), x = u.x, y = u.y, z = u.z;
+  const c = Math.cos(theta), s = Math.sin(theta), t = 1 - c;
+  return new Mat4([
+    c + t*x*x,    t*x*y - s*z,  t*x*z + s*y,  0,
+    t*x*y + s*z,  c + t*y*y,    t*y*z - s*x,  0,
+    t*x*z - s*y,  t*y*z + s*x,  c + t*z*z,    0,
+    0,            0,            0,            1]);
+}
+static rotationAboutLine(p, k, theta) {                // 最右边的 T(−p) 最先做 / the rightmost T(−p) happens first
+  return Mat4.translation(p.x, p.y, p.z).mul(Mat4.rotationAxis(k, theta)).mul(Mat4.translation(-p.x, -p.y, -p.z));
+}</pre>
+    </details>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <h2><span class="tag">Pitfalls</span><span class="zh">常见误区</span><span class="en">Common mistakes</span></h2>
+  <ul class="zh">
+    <li><b>忘了把 k 归一化。</b>结果会被拉长，R 不再正交。three.js 的 <code>Matrix4.makeRotationAxis(axis, angle)</code> 文档也写明 axis 必须是单位向量。</li>
+    <li><b>把矩阵写成了转置。</b>行优先数组里，第 1 行第 2 列是 m[1]，第 2 行第 1 列是 m[4]。把 −s·z 和 +s·z 放反，得到的是 Rᵀ = R(k, −θ)：转的方向反了，而且看起来「也是个旋转」，很难发现。测试一定要检查一个已知方向，比如绕 z 轴转 90° 时 x 轴要到 y 轴。</li>
+    <li><b>正方向搞反。</b>正 θ 是从 k 的尖端往回看的逆时针。k 和 −k 是两个不同的轴方向，转的方向正好相反。</li>
+    <li><b>角度单位。</b>Math.cos 要弧度。UI 里用度，进公式前乘 π / 180（1.2 课犯过一次）。</li>
+    <li><b>轴不过原点时直接用 R。</b>要用 T(p) · R · T(−p)，而且 T(−p) 在最右边。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Forgetting to normalize k.</b> The result gets stretched and R is no longer orthogonal. three.js's docs for <code>Matrix4.makeRotationAxis(axis, angle)</code> also say the axis must be a unit vector.</li>
+    <li><b>Writing the transpose by mistake.</b> In a row-major array, row 1 column 2 is m[1] and row 2 column 1 is m[4]. Swap −s·z and +s·z and you get Rᵀ = R(k, −θ): it turns the wrong way and still "looks like a rotation", which makes it hard to spot. Always test one known direction, e.g. a 90° turn about z must send the x axis to the y axis.</li>
+    <li><b>Getting the positive direction backwards.</b> Positive θ is counter-clockwise when looking back from the tip of k. k and −k are different axis directions and turn opposite ways.</li>
+    <li><b>Angle units.</b> Math.cos wants radians. If the UI uses degrees, multiply by π / 180 before the formula (this happened once in lesson 1.2).</li>
+    <li><b>Using R directly when the axis misses the origin.</b> Use T(p) · R · T(−p), with T(−p) on the far right.</li>
+  </ul>
+</section>
+
+<section id="quiz">
+  <h2><span class="tag">Quiz</span><span class="zh">自测</span><span class="en">Self-check</span></h2>
+  <details><summary><span class="zh">1. k = (0, 0, 1)，v = (3, 4, 5)，θ = 90°。分别写出 v∥、v⊥、k × v 和 v′。</span><span class="en">1. k = (0, 0, 1), v = (3, 4, 5), θ = 90°. Write v∥, v⊥, k × v and v′.</span></summary>
+    <p class="zh">v∥ = (0, 0, 5)，v⊥ = (3, 4, 0)，k × v = (−4, 3, 0)。cos 90° = 0、sin 90° = 1，所以 v′ = (0, 0, 5) + (−4, 3, 0) = (−4, 3, 5)。和 rotationZ(90°) 的结果一样。</p><p class="en">v∥ = (0, 0, 5), v⊥ = (3, 4, 0), k × v = (−4, 3, 0). cos 90° = 0 and sin 90° = 1, so v′ = (0, 0, 5) + (−4, 3, 0) = (−4, 3, 5), the same as rotationZ(90°).</p></details>
+  <details><summary><span class="zh">2. 绕 k = (1, 1, 1) / √3 转 120°，x 轴会被送到哪里？为什么？</span><span class="en">2. Turning 120° about k = (1, 1, 1) / √3, where does the x axis go, and why?</span></summary>
+    <p class="zh">到 y 轴（y 到 z，z 到 x）。直观上：从 (1, 1, 1) 方向往原点看，x、y、z 三个轴的尖端是一个正三角形，彼此相隔 120°，逆时针转 120° 正好轮换一格。代公式：k · x̂ = 1/√3，k × x̂ = (0, 1, −1)/√3，cos 120° = −1/2，sin 120° = √3/2，v′ = −½(1, 0, 0) + ½(0, 1, −1) + (3/2)(1/3)(1, 1, 1) = (0, 1, 0)。</p><p class="en">To the y axis (y goes to z, z to x). Intuitively: looking from (1, 1, 1) toward the origin, the tips of the x, y, z axes form an equilateral triangle, 120° apart, so a 120° counter-clockwise turn shifts each one place. By the formula: k · x̂ = 1/√3, k × x̂ = (0, 1, −1)/√3, cos 120° = −1/2, sin 120° = √3/2, and v′ = −½(1, 0, 0) + ½(0, 1, −1) + (3/2)(1/3)(1, 1, 1) = (0, 1, 0).</p></details>
+  <details><summary><span class="zh">3. 一个矩阵的对角线是 (0, 0, 0)，三列两两垂直且都是单位长度，det = +1。它转了多少度？它的转置代表什么？</span><span class="en">3. A matrix has diagonal (0, 0, 0), orthonormal columns and det = +1. By how much does it turn, and what does its transpose mean?</span></summary>
+    <p class="zh">迹 = 0 = 1 + 2cosθ，cosθ = −1/2，θ = 120°（比如第 2 题那个轮换矩阵）。它的转置就是它的逆，也就是绕同一个轴倒着转 120°。</p><p class="en">Trace = 0 = 1 + 2cosθ, so cosθ = −1/2 and θ = 120° (for example the cycling matrix of question 2). Its transpose is its inverse: a 120° turn backwards about the same axis.</p></details>
+</section>
+
+<section id="nextlayer">
+  <h2><span class="tag">Next layer</span><span class="zh">下一层</span><span class="en">The next layer</span></h2>
+  <div class="nextlayer">
+    <p class="zh">1.9 课的四元数 q = (cos(θ/2), sin(θ/2) · k) 会再一次用到「轴 + 角」。把 q v q* 展开，得到的正是这一课的 Rodrigues 公式，半角 θ/2 会在乘两次的时候合成 θ。想一想：既然已经有 3 × 3 矩阵了，为什么还要 4 个数的四元数？提示：两个旋转之间怎么平滑插值（比如动画里从朝向 A 转到朝向 B）。</p>
+    <p class="en">Lesson 1.9's quaternion q = (cos(θ/2), sin(θ/2) · k) uses "axis + angle" again. Expand q v q* and you get exactly this lesson's Rodrigues formula; the half angle θ/2 becomes θ because q is applied twice. Something to think about: with a 3 × 3 matrix already available, why bother with a 4-number quaternion? Hint: how would you smoothly interpolate between two rotations, say from orientation A to orientation B in an animation?</p>
+  </div>
+</section>
+
+<section id="refs">
+  <h2><span class="tag">Refs</span><span class="zh">参考资料</span><span class="en">References</span></h2>
+  <ul>
+    <li><span class="zh">UC Davis ECS 175（2009，Ken Joy）第 04 讲：Rotations About an Arbitrary Axis</span><span class="en">UC Davis ECS 175 (2009, Ken Joy), lecture 04: Rotations About an Arbitrary Axis</span></li>
+    <li><i>Fundamentals of Computer Graphics</i>, <span class="zh">第 7 章：变换矩阵（任意轴旋转）</span><span class="en">chapter 7: Transformation Matrices (rotation about an arbitrary axis)</span></li>
+    <li><span class="zh">GAMES101 第 4 讲：变换（Rodrigues 旋转公式）</span><span class="en">GAMES101 lecture 4: Transformation (Rodrigues' rotation formula; in Chinese)</span></li>
+    <li><span class="zh">维基百科：Rodrigues' rotation formula；Olinde Rodrigues</span><span class="en">Wikipedia: Rodrigues' rotation formula; Olinde Rodrigues</span></li>
+    <li>S. L. Altmann, <i>Hamilton, Rodrigues, and the Quaternion Scandal</i>, Mathematics Magazine 62(5), 1989</li>
+    <li><span class="zh">three.js 文档：Matrix4.makeRotationAxis、Vector3.applyAxisAngle</span><span class="en">three.js docs: Matrix4.makeRotationAxis, Vector3.applyAxisAngle</span></li>
+  </ul>
+</section>
+
+<nav class="lesson-nav" id="nav">
+  <a id="prev" href="#"><span class="zh">← 上一课</span><span class="en">← Previous</span></a>
+  <button id="doneBtn" type="button"></button>
+  <a id="next" href="#"><span class="zh">下一课 →</span><span class="en">Next →</span></a>
+</nav>
+
+<footer>
+  <span class="zh">学习笔记，由 ArchiFlow 与 AI 共同制作，可能有错误，以参考资料为准。</span>
+  <span class="en">Study notes made by ArchiFlow with AI. They may contain mistakes; trust the references over these notes.</span>
+</footer>
+</main>
+
+<script>
+// 通用页面逻辑（每课相同）/ shared page logic, identical in every lesson
+const T = {
+  zh: { done: "✓ 已完成", mark: "标记为已完成", toggle: "EN" },
+  en: { done: "✓ Completed", mark: "Mark as completed", toggle: "中文" }
+};
+const lang = () => document.documentElement.dataset.lang === "en" ? "en" : "zh";
+const onLangChange = [];
+(function(){
+  const $ = id => document.getElementById(id);
+  // 在网站或本地时用相对链接；单独发布成 artifact 时，链接指向公开网站上的对应页面
+  // Relative links on the site or locally; as a standalone artifact, link to the public website instead
+  const SITE = "https://archiflow-dev.github.io/3d-learning/";
+  const onSite = location.protocol === "file:" || /github\.io$/.test(location.hostname) || location.hostname === "localhost";
+  const link = f => onSite ? f : SITE + "lessons/" + f;
+  if (!onSite) document.querySelector(".crumb a").href = SITE;
+  if (LESSON.prev) $("prev").href = link(LESSON.prev); else $("prev").style.visibility = "hidden";
+  if (LESSON.next) $("next").href = link(LESSON.next); else $("next").style.visibility = "hidden";
+  document.querySelectorAll(".lid").forEach(el => el.textContent = LESSON.id);
+  const KEY = "3dl-progress";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = p => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {} };
+  const btn = $("doneBtn");
+  function render(){
+    const L = lang();
+    document.documentElement.lang = L === "en" ? "en" : "zh-CN";
+    $("stage").textContent = LESSON.stage[L];
+    $("ltitle").textContent = LESSON.title[L];
+    $("langBtn").textContent = T[L].toggle;
+    const d = !!load()[LESSON.id];
+    btn.textContent = d ? T[L].done : T[L].mark; btn.classList.toggle("done", d);
+    onLangChange.forEach(f => f());
+  }
+  btn.onclick = () => { const p = load(); p[LESSON.id] = !p[LESSON.id]; save(p); render(); };
+  $("langBtn").onclick = () => {
+    const next = lang() === "en" ? "zh" : "en";
+    document.documentElement.dataset.lang = next;
+    try { localStorage.setItem("3dl-lang", next); } catch {}
+    render();
+  };
+  window.addEventListener("DOMContentLoaded", render);
+  if (document.readyState !== "loading") render();
+})();
+</script>
+<script>
+// ==================== 公共绘图工具 / shared drawing helpers ====================
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const onTheme = [];
+(function(){ const fire = () => onTheme.forEach(f => f());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", fire);
+  new MutationObserver(fire).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] }); })();
+const GOLD = "#d39b1c";
+const num = v => { const r = Math.round(v * 100) / 100; return (Object.is(r, -0) ? 0 : r).toString().replace("-", "−"); };
+const shift = (n, a) => a === 0 ? n : a > 0 ? `(${n} − ${num(a)})` : `(${n} + ${num(-a)})`;
+const plus = (c, t) => c === 0 ? t : `${num(c)} + ${t}`, minus = (c, t) => c === 0 ? "−" + t : `${num(c)} − ${t}`;
+const sq = (n, a) => a === 0 ? n + "²" : shift(n, a) + "²";
+// a x + b y + c 的写法 / pretty a x + b y + c
+function lin(a, b, c){
+  const parts = []; const term = (k, n) => { if (!k) return; const s = Math.abs(k) === 1 && n ? n : num(Math.abs(k)) + n;
+    parts.push(parts.length ? (k < 0 ? "− " : "+ ") + s : (k < 0 ? "−" : "") + s); };
+  term(a, "x"); term(b, "y"); term(c, ""); return parts.length ? parts.join(" ") : "0";
+}
+const arcPts = (cx, cy, r, a0, a1, n = 200) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+function makeBoard(cv, U){
+  const ctx = cv.getContext("2d"), ox = cv.width / 2, oy = cv.height / 2;
+  const B = { cv, ctx, U, xr: ox / U, yr: oy / U };
+  B.px = (x, y) => [ox + x * U, oy - y * U];
+  B.world = e => { const rc = cv.getBoundingClientRect(); const px = (e.clientX - rc.left) * cv.width / rc.width, py = (e.clientY - rc.top) * cv.height / rc.height; return { x: (px - ox) / U, y: (oy - py) / U }; };
+  // 窄屏时画布被缩小，文字、点和线按比例放大 / on narrow screens the canvas is shrunk, so scale text, dots and lines up
+  B.k = 1;
+  B.clear = () => {
+    const cw = cv.getBoundingClientRect().width; B.k = cw ? Math.max(1, Math.min(1.8, cv.width / cw * 0.75)) : 1;
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.lineWidth = 1; ctx.strokeStyle = css("--line"); ctx.beginPath();
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++){ const [p] = B.px(x, 0); ctx.moveTo(p + .5, 0); ctx.lineTo(p + .5, cv.height); }
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++){ const [, q] = B.px(0, y); ctx.moveTo(0, q + .5); ctx.lineTo(cv.width, q + .5); }
+    ctx.stroke();
+    ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(cv.width, oy); ctx.moveTo(ox, 0); ctx.lineTo(ox, cv.height); ctx.stroke();
+    ctx.fillStyle = css("--muted"); ctx.font = 12 * B.k + "px " + css("--f-mono"); ctx.textAlign = "center";
+    for (let x = Math.ceil(-B.xr); x <= B.xr; x++) if (x && x % 2 === 0){ const [p] = B.px(x, 0); ctx.fillText(num(x), p, oy + 15 * B.k); }
+    ctx.textAlign = "right";
+    for (let y = Math.ceil(-B.yr); y <= B.yr; y++) if (y && y % 2 === 0){ const [, q] = B.px(0, y); ctx.fillText(num(y), ox - 5, q + 4); }
+    ctx.textAlign = "left";
+  };
+  B.path = (pts, col, w = 3, dash = null, alpha = 1, close = false) => { if (pts.length < 2) return; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w * B.k; ctx.lineJoin = ctx.lineCap = "round"; if (dash) ctx.setLineDash(dash.map(d => d * B.k));
+    ctx.beginPath(); pts.forEach(([x, y], i) => { const [p, q] = B.px(x, y); i ? ctx.lineTo(p, q) : ctx.moveTo(p, q); }); if (close) ctx.closePath(); ctx.stroke(); ctx.restore(); };
+  B.dot = (x, y, col, r = 5, ring = null) => { const [p, q] = B.px(x, y); ctx.beginPath(); ctx.arc(p, q, r * B.k, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill(); if (ring){ ctx.lineWidth = 3; ctx.strokeStyle = ring; ctx.stroke(); } };
+  B.text = (s, x, y, col, dx = 8, dy = -8, size = 14, align = "left") => { const [p, q] = B.px(x, y); dx *= B.k; dy *= B.k; size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.textAlign = align;
+    ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.lineJoin = "round"; ctx.strokeText(s, p + dx, q + dy); ctx.fillStyle = col; ctx.fillText(s, p + dx, q + dy); ctx.restore(); };
+  B.label = (s, col, size = 15) => { size *= B.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono"); ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.strokeText(s, 12, size + 8); ctx.fillStyle = col; ctx.fillText(s, 12, size + 8); ctx.restore(); };
+  B.head = (pts, col, size = 13) => { size *= B.k; const n = pts.length; if (n < 2) return; const [x1, y1] = B.px(...pts[n - 1]); let k = n - 2, x0, y0;
+    do { [x0, y0] = B.px(...pts[k]); k--; } while (k >= 0 && Math.hypot(x1 - x0, y1 - y0) < 8);
+    const g = Math.atan2(y1 - y0, x1 - x0); ctx.save(); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - size * Math.cos(g - .45), y1 - size * Math.sin(g - .45)); ctx.lineTo(x1 - size * Math.cos(g + .45), y1 - size * Math.sin(g + .45)); ctx.fill(); ctx.restore(); };
+  // 按 f 的正负给整个画布上色 / tint the board by the sign of f
+  B.heat = f => { const s = 8, inC = css("--accent-2"), outC = css("--accent"); ctx.save();
+    for (let py = 0; py < cv.height; py += s) for (let px = 0; px < cv.width; px += s){ const v = f((px + s / 2 - ox) / U, (oy - py - s / 2) / U);
+      ctx.globalAlpha = v < 0 ? .22 : .08; ctx.fillStyle = v < 0 ? inC : outC; ctx.fillRect(px, py, s, s); } ctx.restore(); };
+  // 整条直线 a x + b y + c = 0 在画布里的两端 / the two ends of the line a x + b y + c = 0 on the board
+  B.lineEnds = (a, b, c) => Math.abs(b) > Math.abs(a) ? [[-B.xr, (a * B.xr - c) / b], [B.xr, (-a * B.xr - c) / b]] : [[(b * B.yr - c) / a, -B.yr], [(-b * B.yr - c) / a, B.yr]];
+  return B;
+}
+</script>
+<script>
+// ==================== 3D 向量和视图工具 / 3D vector and view helpers ====================
+const v3 = {
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  sc: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]),
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; },
+  dist: (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]),
+  // Rodrigues 向量形式 / vector form
+  rot: (v, k, th) => { const u = v3.norm(k), c = Math.cos(th), s = Math.sin(th);
+    return v3.add(v3.add(v3.sc(v, c), v3.sc(v3.cross(u, v), s)), v3.sc(u, (1 - c) * v3.dot(u, v))); },
+  // Rodrigues 矩阵（行数组）/ matrix as rows
+  mat: (k, th) => { const [x, y, z] = v3.norm(k), c = Math.cos(th), s = Math.sin(th), t = 1 - c;
+    return [[c + t * x * x, t * x * y - s * z, t * x * z + s * y], [t * x * y + s * z, c + t * y * y, t * y * z - s * x], [t * x * z - s * y, t * y * z + s * x, c + t * z * z]]; },
+  mv: (M, v) => M.map(r => v3.dot(r, v)),
+  col: (M, j) => [M[0][j], M[1][j], M[2][j]],
+  det: M => v3.dot(v3.col(M, 0), v3.cross(v3.col(M, 1), v3.col(M, 2)))
+};
+const vs = a => `(${a.map(num).join(", ")})`;
+const pn = v => v < 0 ? "(" + num(v) + ")" : num(v);
+const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+
+function makeView(cv, U){
+  const ctx = cv.getContext("2d");
+  const V = { cv, ctx, U, yaw: -0.55, pitch: 0.38, k: 1, cy: cv.height * 0.56, G: 3 };
+  V.P = p => { const c = Math.cos(V.yaw), s = Math.sin(V.yaw), X = p[0] * c - p[1] * s, Y = p[0] * s + p[1] * c, cp = Math.cos(V.pitch), sp = Math.sin(V.pitch);
+    return [cv.width / 2 + X * V.U, V.cy - (p[2] * cp + Y * sp) * V.U, Y * cp - p[2] * sp]; };
+  V.clear = (axes = true) => {
+    const cw = cv.getBoundingClientRect().width; V.k = cw ? Math.max(1, Math.min(1.8, cv.width / cw * 0.75)) : 1;
+    ctx.setLineDash([]); ctx.globalAlpha = 1; ctx.fillStyle = css("--surface"); ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.save(); ctx.strokeStyle = css("--line"); ctx.lineWidth = 1; ctx.beginPath();
+    const G = V.G; for (let i = -G; i <= G; i++){ let a = V.P([i, -G, 0]), b = V.P([i, G, 0]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); a = V.P([-G, i, 0]); b = V.P([G, i, 0]); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+    ctx.stroke(); ctx.restore();
+    if (axes){ [["x", [V.G + 0.2, 0, 0]], ["y", [0, V.G + 0.2, 0]], ["z", [0, 0, V.G]]].forEach(([n, e]) => { V.line([0, 0, 0], e, css("--muted"), 1.5); V.text(n, e, css("--muted"), 6, -6, 13); }); }
+  };
+  V.line = (a, b, col, w = 2, dash = null, alpha = 1) => { const p = V.P(a), q = V.P(b); ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w * V.k; ctx.lineCap = "round";
+    if (dash) ctx.setLineDash(dash.map(d => d * V.k)); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); ctx.restore(); };
+  V.arrow = (a, b, col, w = 3, dash = null, alpha = 1) => { const p = V.P(a), q = V.P(b), L = Math.hypot(q[0] - p[0], q[1] - p[1]); if (v3.dist(a, b) < 1e-6) return;
+    V.line(a, b, col, w, dash, alpha); if (L < 4) return; const g = Math.atan2(q[1] - p[1], q[0] - p[0]), sz = Math.min(13 * V.k, L * 0.6);
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0] - sz * Math.cos(g - .42), q[1] - sz * Math.sin(g - .42)); ctx.lineTo(q[0] - sz * Math.cos(g + .42), q[1] - sz * Math.sin(g + .42)); ctx.fill(); ctx.restore(); };
+  V.poly = (pts, col, w = 2, dash = null, alpha = 1, close = false) => { if (pts.length < 2) return; ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w * V.k; ctx.lineJoin = ctx.lineCap = "round";
+    if (dash) ctx.setLineDash(dash.map(d => d * V.k)); ctx.beginPath(); pts.forEach((p, i) => { const q = V.P(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); if (close) ctx.closePath(); ctx.stroke(); ctx.restore(); };
+  V.fill = (pts, col, alpha) => { ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath(); pts.forEach((p, i) => { const q = V.P(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.closePath(); ctx.fill(); ctx.restore(); };
+  V.dot = (p, col, r = 5, ring = null) => { const q = V.P(p); ctx.save(); ctx.beginPath(); ctx.arc(q[0], q[1], r * V.k, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill(); if (ring){ ctx.lineWidth = 2 * V.k; ctx.strokeStyle = ring; ctx.stroke(); } ctx.restore(); };
+  V.text = (s, p, col, dx = 8, dy = -8, size = 14) => { const q = V.P(p); size *= V.k; dx *= V.k; dy *= V.k; ctx.save(); ctx.font = `600 ${size}px ` + css("--f-mono");
+    const w = ctx.measureText(s).width; let x = q[0] + dx, y = q[1] + dy; x = Math.max(4, Math.min(cv.width - w - 4, x)); y = Math.max(size + 2, Math.min(cv.height - 4, y));
+    ctx.lineWidth = 4; ctx.strokeStyle = css("--surface"); ctx.lineJoin = "round"; ctx.strokeText(s, x, y); ctx.fillStyle = col; ctx.fillText(s, x, y); ctx.restore(); };
+  // 圆：圆心 c，两条半径方向 e1、e2（已带长度），角度 a0 → a1 / circle with center c and radius vectors e1, e2
+  V.ring = (c, e1, e2, a0 = 0, a1 = 2 * Math.PI, n = 96) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return v3.add(c, v3.add(v3.sc(e1, Math.cos(a)), v3.sc(e2, Math.sin(a)))); });
+  // 拖动转视角；没拖动的点击交给 onClick / drag to orbit; a click without drag goes to onClick
+  V.orbit = (redraw, onClick) => { let d = null;
+    cv.addEventListener("pointerdown", e => { d = { x: e.clientX, y: e.clientY, yaw: V.yaw, pitch: V.pitch, moved: false }; try { cv.setPointerCapture(e.pointerId); } catch {} });
+    cv.addEventListener("pointermove", e => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y; if (Math.hypot(dx, dy) > 4) d.moved = true;
+      if (d.moved){ V.yaw = d.yaw - dx * 0.01; V.pitch = Math.max(-0.3, Math.min(1.5, d.pitch + dy * 0.01)); redraw(); } });
+    cv.addEventListener("pointerup", e => { if (d && !d.moved && onClick){ const rc = cv.getBoundingClientRect(); onClick((e.clientX - rc.left) * cv.width / rc.width, (e.clientY - rc.top) * cv.height / rc.height); } d = null; });
+    cv.addEventListener("pointercancel", () => d = null); };
+  return V;
+}
+function arrow2(B, from, to, col, w = 3, dash = null){ if (Math.hypot(to[0] - from[0], to[1] - from[1]) < 1e-6) return; B.path([from, to], col, w, dash); B.head([from, to], col, 14); }
+
+// ==================== 逐步动画组件 / step-by-step player ====================
+// steps: [{ zh, en, mats: [{ label, cells: [[...]], hl: ["r,c"], dim: bool } | "op"] }]
+function matHTML(m){
+  if (typeof m === "string") return `<span class="op">${m}</span>`;
+  const cols = m.cells[0].length, hl = new Set(m.hl || []);
+  const body = m.cells.map((r, i) => r.map((c, j) => `<span class="${hl.has(i + "," + j) ? "hl" : ""}${m.dim ? " dim" : ""}">${c === null || c === undefined ? "?" : c}</span>`).join("")).join("");
+  return `<div class="matbox"><b>${m.label || ""}</b><div class="mat" style="grid-template-columns:repeat(${cols},auto)">${body}</div></div>`;
+}
+function makeStepper(root, steps, ms = 2600){
+  root.innerHTML = `<div class="ctl"><button type="button" data-a="play"><span class="zh">▶ 自动播放</span><span class="en">▶ Play</span></button>
+    <button type="button" data-a="prev"><span class="zh">上一步</span><span class="en">Back</span></button>
+    <button type="button" data-a="next"><span class="zh">下一步</span><span class="en">Next</span></button>
+    <button type="button" data-a="reset"><span class="zh">重来</span><span class="en">Reset</span></button><span class="cnt"></span></div>
+    <div class="mats"></div><p class="step"></p>`;
+  const $m = root.querySelector(".mats"), $t = root.querySelector(".step"), $c = root.querySelector(".cnt");
+  let i = 0, timer = null;
+  const stop = () => { if (timer){ clearInterval(timer); timer = null; } };
+  const show = () => { const s = steps[i], z = lang(); $m.innerHTML = s.mats.map(matHTML).join(""); $t.innerHTML = s[z];
+    $c.textContent = (z === "zh" ? "第 " : "Step ") + i + " / " + (steps.length - 1) + (z === "zh" ? " 步" : "");
+    root.querySelector('[data-a="prev"]').disabled = i === 0; root.querySelector('[data-a="next"]').disabled = i === steps.length - 1; };
+  root.addEventListener("click", e => { const a = e.target.closest("button")?.dataset.a; if (!a) return;
+    if (a === "play"){ stop(); if (i === steps.length - 1) i = 0; show(); timer = setInterval(() => { if (i < steps.length - 1){ i++; show(); } else stop(); }, ms); }
+    else { stop(); if (a === "prev" && i > 0) i--; if (a === "next" && i < steps.length - 1) i++; if (a === "reset") i = 0; show(); } });
+  onLangChange.push(show); show();
+  return { go: n => { stop(); i = Math.max(0, Math.min(steps.length - 1, n)); show(); }, get i(){ return i; }, n: steps.length };
+}
+</script>
+<script>
+// ==================== 演示：分步绕轴转 / demo: step-by-step axis rotation ====================
+(function(){
+  const $ = id => document.getElementById(id), cv = $("dc"), V = makeView(cv, 105); V.G = 2; V.cy = cv.height * 0.6; V.yaw = -1.05; V.pitch = 0.61;
+  let step = 5, sweep = 1, raf = null;
+  const st = () => { const az = rad(+$("dAz").value), el = rad(+$("dEl").value);
+    const k = [Math.cos(el) * Math.cos(az), Math.cos(el) * Math.sin(az), Math.sin(el)].map(x => Math.abs(x) < 1e-12 ? 0 : x), v = [+$("dVx").value, +$("dVy").value, +$("dVz").value], th = rad(+$("dTh").value);
+    const kv = v3.dot(k, v), par = v3.sc(k, kv), perp = v3.sub(v, par), kxv = v3.cross(k, v), c = Math.cos(th), s = Math.sin(th);
+    const turned = v3.add(v3.sc(perp, c), v3.sc(kxv, s)), vr = v3.add(par, turned);
+    return { k, v, th, kv, par, perp, kxv, c, s, turned, vr, r: v3.len(perp) }; };
+  function text(S){
+    const z = lang() === "zh", { k, v, kv, par, perp, kxv, c, s, turned, vr, r } = S, thd = num(deg(S.th));
+    const sum = k.map((x, i) => `${pn(x)}·${pn(v[i])}`).join(" + ");
+    const T = [
+      [`第 0 步：k = ${vs(k)} 是单位旋转轴（由方位角和仰角换算：(cos 仰角 · cos 方位角, cos 仰角 · sin 方位角, sin 仰角)，长度一定是 1）。v = ${vs(v)} 是要转的向量，θ = ${thd}°。先拖动视角，看清 v 和轴的位置。`,
+       `Step 0: k = ${vs(k)} is the unit axis (from azimuth and elevation: (cos elev · cos azim, cos elev · sin azim, sin elev), so its length is always 1). v = ${vs(v)} is the vector to turn and θ = ${thd}°. Orbit the view first to see where v sits relative to the axis.`],
+      [`第 1 步：找圆心。v 在轴上的投影 v∥ = (k · v) k。k · v = ${sum} = ${num(kv)}，所以 v∥ = ${num(kv)} · k = ${vs(par)}。它沿着轴，旋转时不动。虚线是从 v 的尖端垂直落到轴上的位置。`,
+       `Step 1: find the center. The projection of v onto the axis is v∥ = (k · v) k. k · v = ${sum} = ${num(kv)}, so v∥ = ${num(kv)} · k = ${vs(par)}. It lies along the axis and does not move during the turn. The dashed line drops from the tip of v perpendicular onto the axis.`],
+      [`第 2 步：v⊥ = v − v∥ = ${vs(v)} − ${vs(par)} = ${vs(perp)}，长度 |v⊥| = ${num(r)}。它从圆心（v∥ 的尖端）指向 v 的尖端，就是圆的半径。检查：k · v⊥ = ${num(v3.dot(k, perp))}，垂直于轴。`,
+       `Step 2: v⊥ = v − v∥ = ${vs(v)} − ${vs(par)} = ${vs(perp)}, length |v⊥| = ${num(r)}. It runs from the center (the tip of v∥) to the tip of v: it is the circle's radius. Check: k · v⊥ = ${num(v3.dot(k, perp))}, perpendicular to the axis.`],
+      [`第 3 步：k × v = (ky·vz − kz·vy, kz·vx − kx·vz, kx·vy − ky·vx) = ${vs(kxv)}。它垂直于 k 和 v⊥，长度 ${num(v3.len(kxv))} 和 |v⊥| 一样，是 v⊥ 绕 k 逆时针转了 90°（从 k 的尖端看）。v⊥ 和 k × v 就是圆盘里的 x 轴和 y 轴。`,
+       `Step 3: k × v = (ky·vz − kz·vy, kz·vx − kx·vz, kx·vy − ky·vx) = ${vs(kxv)}. It is perpendicular to k and to v⊥, and its length ${num(v3.len(kxv))} equals |v⊥|: it is v⊥ turned 90° counter-clockwise about k (seen from the tip of k). v⊥ and k × v are the disk's x and y axes.`],
+      [`第 4 步：在圆盘里做 2D 旋转：cosθ · v⊥ + sinθ · (k × v)。cos ${thd}° = ${num(c)}，sin ${thd}° = ${num(s)}，所以 = ${pn(c)} · ${vs(perp)} + ${pn(s)} · ${vs(kxv)} = ${vs(turned)}。θ > 0 时从 k 的尖端往回看是逆时针。`,
+       `Step 4: do the 2D rotation in the disk: cosθ · v⊥ + sinθ · (k × v). cos ${thd}° = ${num(c)} and sin ${thd}° = ${num(s)}, so it is ${pn(c)} · ${vs(perp)} + ${pn(s)} · ${vs(kxv)} = ${vs(turned)}. For θ > 0 the turn is counter-clockwise when looking back from the tip of k.`],
+      [`第 5 步：加回不动的 v∥：v′ = v∥ + ${vs(turned)} = ${vs(par)} + ${vs(turned)} = ${vs(vr)}。检查：|v′| = ${num(v3.len(vr))} = |v| = ${num(v3.len(v))}；k · v′ = ${num(v3.dot(k, vr))} = k · v。长度和沿轴的分量都没变。`,
+       `Step 5: add back the fixed v∥: v′ = v∥ + ${vs(turned)} = ${vs(par)} + ${vs(turned)} = ${vs(vr)}. Check: |v′| = ${num(v3.len(vr))} = |v| = ${num(v3.len(v))}; k · v′ = ${num(v3.dot(k, vr))} = k · v. Neither the length nor the component along the axis changed.`]
+    ];
+    let t = T[step][z ? 0 : 1];
+    if (step >= 2 && r < 1e-9) t += z ? " 注意：v 正好在轴上，v⊥ = 0，圆缩成一个点，v 转了也不动。" : " Note: v lies on the axis, so v⊥ = 0, the circle shrinks to a point and v does not move.";
+    return t;
+  }
+  function draw(){
+    const S = st(), { k, v, par, perp, kxv, th, vr, r } = S, ink = css("--ink"), A = css("--accent"), A2 = css("--accent-2"), G = css("--good");
+    V.clear();
+    V.line(v3.sc(k, -2.6), v3.sc(k, 2.6), GOLD, 1.5, [6, 5]); V.arrow([0, 0, 0], k, GOLD, 4); V.text("k", k, GOLD, -18, -6, 15);
+    if (step >= 4 && r > 1e-9){ const ring = V.ring(par, perp, kxv); V.fill(ring, A2, 0.07); V.poly(ring, A2, 1.5, [5, 5], 0.7);
+      const arc = V.ring(par, v3.sc(perp, 0.35), v3.sc(kxv, 0.35), 0, th * sweep, 40); V.poly(arc, ink, 2); if (arc.length > 1) V.text("θ", arc[Math.floor(arc.length / 2)], ink, 6, -4, 13); }
+    V.arrow([0, 0, 0], v, ink, step >= 5 ? 2 : 3.5, step >= 5 ? [6, 5] : null, step >= 5 ? 0.7 : 1); V.text("v", v, ink);
+    if (step === 1) V.line(v, par, ink, 1.5, [4, 4], 0.8);
+    if (step >= 1){ V.arrow([0, 0, 0], par, A, 4); V.dot(par, A, 4); V.text("v∥", par, A, 10, 16); }
+    if (step >= 2 && r > 1e-9){ V.arrow(par, v, A2, 3.5); V.text("v⊥", v3.add(par, v3.sc(perp, 0.55)), A2, 6, 16); }
+    if (step >= 3 && r > 1e-9){ V.arrow(par, v3.add(par, kxv), G, 3.5); V.text("k × v", v3.add(par, kxv), G); }
+    if (step >= 4 && r > 1e-9){ const a = th * sweep, p = v3.add(par, v3.add(v3.sc(perp, Math.cos(a)), v3.sc(kxv, Math.sin(a))));
+      V.line(par, v3.add(par, v3.sc(perp, Math.cos(a))), A2, 1.5, [3, 4], 0.8); V.line(v3.add(par, v3.sc(perp, Math.cos(a))), p, G, 1.5, [3, 4], 0.8);
+      V.arrow(par, p, ink, 3); V.dot(p, ink, 4); }
+    if (step >= 5){ V.arrow([0, 0, 0], vr, ink, 4); V.text("v′", vr, ink, 8, -10, 15); }
+    $("dStep").textContent = text(S);
+    $("dCnt").textContent = (lang() === "zh" ? "第 " : "Step ") + step + " / 5" + (lang() === "zh" ? " 步" : "");
+    $("dPrev").disabled = step === 0; $("dNext").disabled = step === 5;
+    $("dOut").innerHTML = [["k", vs(k)], ["v", vs(v)], ["k · v", num(S.kv)], ["v∥ = (k·v) k", vs(par)], ["v⊥ = v − v∥", vs(perp)], ["k × v", vs(kxv)],
+      ["v′", vs(vr)], ["|v| → |v′|", num(v3.len(v)) + " → " + num(v3.len(vr))]].map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("");
+  }
+  const stop = () => { if (raf){ cancelAnimationFrame(raf); raf = null; } };
+  function sweepIn(){ stop(); sweep = 0; let t0 = null; const f = ts => { if (t0 === null) t0 = ts; sweep = Math.min(1, (ts - t0) / 1400); draw(); raf = sweep < 1 ? requestAnimationFrame(f) : null; }; raf = requestAnimationFrame(f); }
+  function play(){ stop(); step = 0; sweep = 0; let t0 = null; const D = 2600;
+    const f = ts => { if (t0 === null) t0 = ts; const t = ts - t0; step = Math.min(5, Math.floor(t / D)); sweep = step < 4 ? 0 : step > 4 ? 1 : Math.min(1, (t - 4 * D) / 1600);
+      draw(); raf = t < 5 * D ? requestAnimationFrame(f) : null; }; raf = requestAnimationFrame(f); }
+  const outs = () => { $("dAzO").textContent = $("dAz").value + "°"; $("dElO").textContent = $("dEl").value + "°"; $("dThO").textContent = $("dTh").value + "°";
+    ["Vx", "Vy", "Vz"].forEach(n => $("d" + n + "O").textContent = num(+$("d" + n).value)); };
+  ["dAz", "dEl", "dVx", "dVy", "dVz", "dTh"].forEach(id => $(id).addEventListener("input", () => { outs(); draw(); }));
+  $("dPlay").onclick = play; $("dAll").onclick = () => { stop(); step = 5; sweep = 1; draw(); };
+  $("dPrev").onclick = () => { stop(); if (step > 0) step--; sweep = 1; draw(); };
+  $("dNext").onclick = () => { stop(); if (step < 5) step++; if (step === 4) sweepIn(); else { sweep = 1; draw(); } };
+  V.orbit(draw); outs(); draw(); onLangChange.push(draw); onTheme.push(draw); addEventListener("resize", draw);
+  window.__demo18 = { st, draw, setStep: n => { stop(); step = n; sweep = 1; draw(); } };
+})();
+</script>
+<script>
+// ==================== 为什么：顺着轴看 + 微小步 / why: view down the axis + tiny steps ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const B = makeBoard($("wc"), 60), r = 2.4;
+  function drawW(){
+    const th = rad(+$("wTh").value), z = lang() === "zh", c = Math.cos(th), s = Math.sin(th), ink = css("--ink"), A2 = css("--accent-2"), G = css("--good");
+    $("wThO").textContent = $("wTh").value + "°";
+    B.clear(); B.path(arcPts(0, 0, r, 0, 2 * Math.PI), A2, 1.5, [5, 5], 0.7);
+    B.path(arcPts(0, 0, 0.7, 0, th, 60), ink, 2); const am = th / 2; B.text("θ", 0.95 * Math.cos(am), 0.95 * Math.sin(am), ink, -6, 6, 14);
+    arrow2(B, [0, 0], [r, 0], A2, 3.5); B.text("v⊥", r, 0, A2, 6, 18);
+    arrow2(B, [0, 0], [0, r], G, 3.5); B.text("k × v", 0, r, G, 8, 4);
+    const P = [r * c, r * s];
+    B.path([[0, 0], [r * c, 0]], A2, 2, [4, 4]); B.path([[r * c, 0], P], G, 2, [4, 4]);
+    arrow2(B, [0, 0], P, ink, 4); B.dot(P[0], P[1], ink, 5); B.text(z ? "转后" : "turned", P[0], P[1], ink, 8, -8);
+    // k 指向屏幕外 ⊙ / k points out of the screen
+    const ctx = B.ctx, [ox, oy] = B.px(0, 0), rr = 11 * B.k; ctx.save(); ctx.strokeStyle = GOLD; ctx.fillStyle = GOLD; ctx.lineWidth = 2.5 * B.k; ctx.beginPath(); ctx.arc(ox, oy, rr, 0, 2 * Math.PI); ctx.stroke(); ctx.beginPath(); ctx.arc(ox, oy, 3.5 * B.k, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
+    B.text(z ? "k 指向你" : "k points at you", 0, 0, GOLD, -14, 26, 13, "right");
+    $("wNote").textContent = z ? `θ = ${$("wTh").value}°：cosθ = ${num(c)}，sinθ = ${num(s)}。转后的半径 = ${num(c)} · v⊥ + ${num(s)} · (k × v)。虚线是两个分量：沿 v⊥ 走 ${num(c)} 倍，再沿 k × v 走 ${num(s)} 倍。这和 1.5 课把 (1, 0) 转 θ 得到 (cosθ, sinθ) 是同一件事，只是坐标轴换成了 v⊥ 和 k × v。`
+                              : `θ = ${$("wTh").value}°: cosθ = ${num(c)}, sinθ = ${num(s)}. The turned radius is ${num(c)} · v⊥ + ${num(s)} · (k × v). The dashed lines are the two parts: ${num(c)} times along v⊥, then ${num(s)} times along k × v. It is the same as turning (1, 0) by θ to get (cosθ, sinθ) in lesson 1.5, with v⊥ and k × v as the axes.`;
+  }
+  const B2 = makeBoard($("pc2"), 42);
+  function drawP(){
+    const n = +$("pN").value, th = rad(+$("pTh").value), z = lang() === "zh", h = th / n, ink = css("--ink"), A2 = css("--accent-2"), A = css("--accent");
+    $("pNO").textContent = n; $("pThO").textContent = $("pTh").value + "°";
+    B2.clear(); B2.path(arcPts(0, 0, r, 0, 2 * Math.PI), css("--muted"), 1.5, [5, 5], 0.6); B2.path(arcPts(0, 0, r, 0, th, 120), A, 3);
+    const pts = [[r, 0]]; let [x, y] = [r, 0]; for (let i = 0; i < n; i++){ [x, y] = [x - h * y, y + h * x]; pts.push([x, y]); }
+    B2.path(pts, A2, 2.5); if (n <= 32) pts.forEach(([a, b]) => B2.dot(a, b, A2, 3.5));
+    arrow2(B2, [0, 0], [x, y], A2, 2.5, [5, 4]); arrow2(B2, [0, 0], [r * Math.cos(th), r * Math.sin(th)], A, 3.5);
+    B2.dot(r, 0, ink, 5); B2.text(z ? "起点" : "start", r, 0, ink, 8, 18);
+    const L = Math.hypot(x, y), err = Math.hypot(x - r * Math.cos(th), y - r * Math.sin(th));
+    $("pNote").textContent = z ? `青色：精确的旋转（Rodrigues）。玫红：分成 ${n} 步，每步沿速度方向 k × v 直走 θ/n = ${num(h)} 弧度。玫红终点的长度 = ${num(r)} · (1 + (θ/n)²)^(n/2) = ${num(L)}（应该是 ${num(r)}），离精确终点 ${num(err)}。把 n 拉大，误差趋于 0。`
+                               : `Teal: the exact rotation (Rodrigues). Magenta: ${n} steps, each walking straight along the velocity k × v for θ/n = ${num(h)} radians. The magenta end point has length ${num(r)} · (1 + (θ/n)²)^(n/2) = ${num(L)} (it should be ${num(r)}) and misses the exact end by ${num(err)}. Increase n and the error goes to 0.`;
+  }
+  $("wTh").addEventListener("input", drawW); $("pN").addEventListener("input", drawP); $("pTh").addEventListener("input", drawP);
+  const all = () => { drawW(); drawP(); }; all(); onLangChange.push(all); onTheme.push(all); addEventListener("resize", all);
+})();
+</script>
+<script>
+// ==================== 补课动画 / primer animations ====================
+(function(){
+  const N = x => x.toString().replace("-", "−");
+  const blank = (r = 3, c = 3) => Array.from({ length: r }, () => Array(c).fill(null));
+  const fillCols = (M, cols) => M.map((row, i) => row.map((x, j) => cols.includes(j) ? x : null));
+  const fillRows = (M, rows) => M.map((row, i) => rows.includes(i) ? row.slice() : Array(row.length).fill(null));
+  const rowHL = i => [0, 1, 2].map(j => i + "," + j), colHL = j => [0, 1, 2].map(i => i + "," + j);
+  const colV = a => a.map(x => [x]);
+
+  // ---- A：叉积矩阵 K，k = (1, 2, 3) ----
+  const K = [[0, -3, 2], [3, 0, -1], [-2, 1, 0]].map(r => r.map(N));
+  const v = ["1", "0", "1"], Kv = ["2", "2", "−2"];
+  makeStepper(document.getElementById("kS"), [
+    { mats: [{ label: "K", cells: blank() }],
+      zh: "目标：找一个矩阵 K，让 K v = k × v 对所有 v 都成立。k = (1, 2, 3)。根据 1.5 课，矩阵的第 j 列 = 它作用在第 j 个基向量上的结果，所以只要算出 k × x̂、k × ŷ、k × ẑ 三个向量，竖着填进去就行。叉积公式：a × b = (a_y b_z − a_z b_y, a_z b_x − a_x b_z, a_x b_y − a_y b_x)。",
+      en: "Goal: find a matrix K with K v = k × v for every v. k = (1, 2, 3). By lesson 1.5, column j of a matrix is what it does to the j-th basis vector, so we only need k × x̂, k × ŷ and k × ẑ, written in as columns. The cross product formula: a × b = (a_y b_z − a_z b_y, a_z b_x − a_x b_z, a_x b_y − a_y b_x)." },
+    { mats: [{ label: "K", cells: fillCols(K, [0]), hl: colHL(0) }],
+      zh: "第 1 列 = k × x̂ = (1, 2, 3) × (1, 0, 0) = (2·0 − 3·0, 3·1 − 1·0, 1·0 − 2·1) = (0, 3, −2)。一般地，k × x̂ = (0, kz, −ky)。",
+      en: "Column 1 = k × x̂ = (1, 2, 3) × (1, 0, 0) = (2·0 − 3·0, 3·1 − 1·0, 1·0 − 2·1) = (0, 3, −2). In general, k × x̂ = (0, kz, −ky)." },
+    { mats: [{ label: "K", cells: fillCols(K, [0, 1]), hl: colHL(1) }],
+      zh: "第 2 列 = k × ŷ = (1, 2, 3) × (0, 1, 0) = (2·0 − 3·1, 3·0 − 1·0, 1·1 − 2·0) = (−3, 0, 1)。一般地，k × ŷ = (−kz, 0, kx)。",
+      en: "Column 2 = k × ŷ = (1, 2, 3) × (0, 1, 0) = (2·0 − 3·1, 3·0 − 1·0, 1·1 − 2·0) = (−3, 0, 1). In general, k × ŷ = (−kz, 0, kx)." },
+    { mats: [{ label: "K", cells: K, hl: colHL(2) }],
+      zh: "第 3 列 = k × ẑ = (1, 2, 3) × (0, 0, 1) = (2·1 − 3·0, 3·0 − 1·1, 1·0 − 2·0) = (2, −1, 0)。一般地，k × ẑ = (ky, −kx, 0)。K 填完了。",
+      en: "Column 3 = k × ẑ = (1, 2, 3) × (0, 0, 1) = (2·1 − 3·0, 3·0 − 1·1, 1·0 − 2·0) = (2, −1, 0). In general, k × ẑ = (ky, −kx, 0). K is complete." },
+    { mats: [{ label: "K", cells: K, hl: ["0,1", "1,0", "0,2", "2,0", "1,2", "2,1"] }],
+      zh: "看规律：对角线全是 0；关于对角线对称的两个数互为相反数（−3 和 3，2 和 −2，−1 和 1）。也就是 Kᵀ = −K，这种矩阵叫反对称矩阵。原因：k × v 永远垂直于 v，所以 v · (K v) = 0 对所有 v 成立，只有反对称矩阵能做到。一般形式：第 1 行 (0, −kz, ky)，第 2 行 (kz, 0, −kx)，第 3 行 (−ky, kx, 0)。",
+      en: "Look at the pattern: the diagonal is all 0, and entries mirrored across the diagonal are negatives of each other (−3 and 3, 2 and −2, −1 and 1). So Kᵀ = −K; such a matrix is called antisymmetric. The reason: k × v is always perpendicular to v, so v · (K v) = 0 for every v, which only an antisymmetric matrix can do. General form: row 1 (0, −kz, ky), row 2 (kz, 0, −kx), row 3 (−ky, kx, 0)." },
+    { mats: [{ label: "K", cells: K, hl: rowHL(0) }, "·", { label: "v", cells: colV(v), hl: ["0,0", "1,0", "2,0"] }, "=", { label: "K v", cells: [[Kv[0]], [null], [null]], hl: ["0,0"] }],
+      zh: "检验，取 v = (1, 0, 1)。K v 的第 1 个数 = K 的第 1 行 · v = 0·1 + (−3)·0 + 2·1 = 2。",
+      en: "Check with v = (1, 0, 1). The first entry of K v = row 1 of K · v = 0·1 + (−3)·0 + 2·1 = 2." },
+    { mats: [{ label: "K", cells: K, hl: rowHL(1) }, "·", { label: "v", cells: colV(v), hl: ["0,0", "1,0", "2,0"] }, "=", { label: "K v", cells: [[Kv[0]], [Kv[1]], [null]], hl: ["1,0"] }],
+      zh: "第 2 个数 = 第 2 行 · v = 3·1 + 0·0 + (−1)·1 = 2。",
+      en: "The second entry = row 2 · v = 3·1 + 0·0 + (−1)·1 = 2." },
+    { mats: [{ label: "K", cells: K, hl: rowHL(2) }, "·", { label: "v", cells: colV(v), hl: ["0,0", "1,0", "2,0"] }, "=", { label: "K v", cells: colV(Kv), hl: ["2,0"] }],
+      zh: "第 3 个数 = 第 3 行 · v = (−2)·1 + 1·0 + 0·1 = −2。所以 K v = (2, 2, −2)。直接用叉积公式算 k × v = (2·1 − 3·0, 3·1 − 1·1, 1·0 − 2·1) = (2, 2, −2)，完全一样。",
+      en: "The third entry = row 3 · v = (−2)·1 + 1·0 + 0·1 = −2. So K v = (2, 2, −2). The cross product formula gives k × v = (2·1 − 3·0, 3·1 − 1·1, 1·0 − 2·1) = (2, 2, −2), exactly the same." }
+  ]);
+
+  // ---- B：外积 k kᵀ，k = (2, 1, 2) / 3 ----
+  const kc = ["2/3", "1/3", "2/3"], P = [["4/9", "2/9", "4/9"], ["2/9", "1/9", "2/9"], ["4/9", "2/9", "4/9"]];
+  const v2 = ["3", "0", "0"], Pv = ["4/3", "2/3", "4/3"];
+  const outer = (rows, hlRow) => [{ label: "k", cells: colV(kc), hl: hlRow === null ? [] : [hlRow + ",0"] }, "·", { label: "kᵀ", cells: [kc], hl: hlRow === null ? [] : ["0,0", "0,1", "0,2"] }, "=", { label: "k kᵀ", cells: fillRows(P, rows), hl: hlRow === null ? [] : rowHL(hlRow) }];
+  makeStepper(document.getElementById("oS"), [
+    { mats: outer([], null),
+      zh: "k = (2, 1, 2) / 3，长度 = √(4 + 1 + 4) / 3 = 1。把 k 竖着写成 3 × 1 的列，kᵀ 横着写成 1 × 3 的行。列乘行：结果第 i 行第 j 列 = kᵢ · kⱼ，一共 9 个数。（反过来行乘列 kᵀ k = k · k = 1 只是一个数。）",
+      en: "k = (2, 1, 2) / 3 has length √(4 + 1 + 4) / 3 = 1. Write k standing up as a 3 × 1 column and kᵀ lying down as a 1 × 3 row. Column times row: row i, column j of the result is kᵢ · kⱼ, 9 numbers in all. (The other way round, row times column kᵀ k = k · k = 1 is just a number.)" },
+    { mats: outer([0], 0),
+      zh: "第 1 行 = kx · kᵀ = (2/3) · (2/3, 1/3, 2/3) = (4/9, 2/9, 4/9)。",
+      en: "Row 1 = kx · kᵀ = (2/3) · (2/3, 1/3, 2/3) = (4/9, 2/9, 4/9)." },
+    { mats: outer([0, 1], 1),
+      zh: "第 2 行 = ky · kᵀ = (1/3) · (2/3, 1/3, 2/3) = (2/9, 1/9, 2/9)。",
+      en: "Row 2 = ky · kᵀ = (1/3) · (2/3, 1/3, 2/3) = (2/9, 1/9, 2/9)." },
+    { mats: outer([0, 1, 2], 2),
+      zh: "第 3 行 = kz · kᵀ = (2/3) · (2/3, 1/3, 2/3) = (4/9, 2/9, 4/9)。k kᵀ 填完了。",
+      en: "Row 3 = kz · kᵀ = (2/3) · (2/3, 1/3, 2/3) = (4/9, 2/9, 4/9). k kᵀ is complete." },
+    { mats: [{ label: "k kᵀ", cells: P, hl: ["0,0", "1,1", "2,2"] }],
+      zh: "性质：(1) 对称，(k kᵀ)ᵀ = k kᵀ（因为 kᵢkⱼ = kⱼkᵢ）。(2) 对角线之和 = (4 + 1 + 4)/9 = 1 = |k|²。(3) 它是投影：轴上的 k 投影后不变，(k kᵀ) k = k (k · k) = k；投影两次等于投影一次，(k kᵀ)(k kᵀ) = k kᵀ；垂直于 k 的向量投影成 0，比如 (1, 0, −1)：第 1 行 · (1, 0, −1) = (4 − 4)/9 = 0。",
+      en: "Properties: (1) symmetric, (k kᵀ)ᵀ = k kᵀ (because kᵢkⱼ = kⱼkᵢ). (2) The diagonal sums to (4 + 1 + 4)/9 = 1 = |k|². (3) It projects: k on the axis is unchanged, (k kᵀ) k = k (k · k) = k; projecting twice equals projecting once, (k kᵀ)(k kᵀ) = k kᵀ; vectors perpendicular to k project to 0, e.g. (1, 0, −1): row 1 · (1, 0, −1) = (4 − 4)/9 = 0." },
+    { mats: [{ label: "k kᵀ", cells: P, hl: rowHL(0) }, "·", { label: "v", cells: colV(v2) }, "=", { label: "v∥", cells: [[Pv[0]], [null], [null]], hl: ["0,0"] }],
+      zh: "用它投影 v = (3, 0, 0)。第 1 个数 = 第 1 行 · v = (4/9)·3 + (2/9)·0 + (4/9)·0 = 12/9 = 4/3。",
+      en: "Project v = (3, 0, 0) with it. Entry 1 = row 1 · v = (4/9)·3 + (2/9)·0 + (4/9)·0 = 12/9 = 4/3." },
+    { mats: [{ label: "k kᵀ", cells: P, hl: rowHL(1) }, "·", { label: "v", cells: colV(v2) }, "=", { label: "v∥", cells: [[Pv[0]], [Pv[1]], [null]], hl: ["1,0"] }],
+      zh: "第 2 个数 = (2/9)·3 = 6/9 = 2/3。",
+      en: "Entry 2 = (2/9)·3 = 6/9 = 2/3." },
+    { mats: [{ label: "k kᵀ", cells: P, hl: rowHL(2) }, "·", { label: "v", cells: colV(v2) }, "=", { label: "v∥", cells: colV(Pv), hl: ["2,0"] }],
+      zh: "第 3 个数 = (4/9)·3 = 4/3。所以 (k kᵀ) v = (4/3, 2/3, 4/3)。用 1.2 课的投影检查：k · v = (2/3)·3 = 2，(k · v) k = 2 · (2, 1, 2)/3 = (4/3, 2/3, 4/3)，一样。",
+      en: "Entry 3 = (4/9)·3 = 4/3. So (k kᵀ) v = (4/3, 2/3, 4/3). Check with lesson 1.2's projection: k · v = (2/3)·3 = 2 and (k · v) k = 2 · (2, 1, 2)/3 = (4/3, 2/3, 4/3), the same." }
+  ]);
+
+  // ---- D：组装 R，k = (2, 1, 2) / 3，θ = 90°（全部 ×9）----
+  const Z = [[0, 0, 0], [0, 0, 0], [0, 0, 0]].map(r => r.map(N)), K9 = [[0, -6, 3], [6, 0, -6], [-3, 6, 0]].map(r => r.map(N)), P9 = [[4, 2, 4], [2, 1, 2], [4, 2, 4]].map(r => r.map(N));
+  const R9 = [[4, -4, 7], [8, 1, -4], [1, 8, 4]].map(r => r.map(N));
+  const three = (a, b, c, hl, rRows) => [{ label: "9 · cosθ · I", cells: a, hl, dim: true }, "+", { label: "9 · sinθ · K", cells: b, hl }, "+", { label: "9 · (1 − cosθ) · k kᵀ", cells: c, hl }, "=", { label: "9 · R", cells: rRows ? fillRows(R9, rRows) : blank(), hl }];
+  makeStepper(document.getElementById("rS"), [
+    { mats: three(blank(), blank(), blank(), [], null),
+      zh: "R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ。θ = 90°：cosθ = 0，sinθ = 1，1 − cosθ = 1。所以三部分的系数分别是 0、1、1。为了少写分数，每个矩阵都乘了 9。",
+      en: "R = cosθ · I + sinθ · K + (1 − cosθ) · k kᵀ. θ = 90°: cosθ = 0, sinθ = 1, 1 − cosθ = 1. So the three parts have coefficients 0, 1 and 1. To avoid fractions, every matrix is multiplied by 9." },
+    { mats: three(Z, blank(), blank(), [], null),
+      zh: "第一部分 cosθ · I = 0 · I，全是 0。转 90° 时，原来的 v 一点也不直接保留（这一项在 θ = 0 时才是整个 I）。",
+      en: "Part one, cosθ · I = 0 · I, is all zeros. At 90°, nothing of the original v is kept directly (this term is the whole I only at θ = 0)." },
+    { mats: three(Z, K9, blank(), [], null),
+      zh: "第二部分 sinθ · K = K。用补课 A 的一般形式 (0, −kz, ky / kz, 0, −kx / −ky, kx, 0)，其中 kx = 2/3 = 6/9，ky = 1/3 = 3/9，kz = 2/3 = 6/9。乘 9 后第 1 行 (0, −6, 3)，第 2 行 (6, 0, −6)，第 3 行 (−3, 6, 0)。",
+      en: "Part two, sinθ · K = K. Use primer A's general form (0, −kz, ky / kz, 0, −kx / −ky, kx, 0) with kx = 2/3 = 6/9, ky = 1/3 = 3/9, kz = 2/3 = 6/9. Times 9: row 1 (0, −6, 3), row 2 (6, 0, −6), row 3 (−3, 6, 0)." },
+    { mats: three(Z, K9, P9, [], null),
+      zh: "第三部分 (1 − cosθ) · k kᵀ = k kᵀ，直接用补课 B 的结果，乘 9 后是 (4, 2, 4 / 2, 1, 2 / 4, 2, 4)。",
+      en: "Part three, (1 − cosθ) · k kᵀ = k kᵀ, is primer B's result; times 9 it is (4, 2, 4 / 2, 1, 2 / 4, 2, 4)." },
+    { mats: three(Z, K9, P9, rowHL(0), [0]),
+      zh: "逐个位置相加。第 1 行：0 + 0 + 4 = 4；0 + (−6) + 2 = −4；0 + 3 + 4 = 7。",
+      en: "Add position by position. Row 1: 0 + 0 + 4 = 4; 0 + (−6) + 2 = −4; 0 + 3 + 4 = 7." },
+    { mats: three(Z, K9, P9, rowHL(1), [0, 1]),
+      zh: "第 2 行：0 + 6 + 2 = 8；0 + 0 + 1 = 1；0 + (−6) + 2 = −4。",
+      en: "Row 2: 0 + 6 + 2 = 8; 0 + 0 + 1 = 1; 0 + (−6) + 2 = −4." },
+    { mats: three(Z, K9, P9, rowHL(2), [0, 1, 2]),
+      zh: "第 3 行：0 + (−3) + 4 = 1；0 + 6 + 2 = 8；0 + 0 + 4 = 4。所以 R = (1/9) · (4, −4, 7 / 8, 1, −4 / 1, 8, 4)。",
+      en: "Row 3: 0 + (−3) + 4 = 1; 0 + 6 + 2 = 8; 0 + 0 + 4 = 4. So R = (1/9) · (4, −4, 7 / 8, 1, −4 / 1, 8, 4)." },
+    { mats: [{ label: "9 · R", cells: R9, hl: colHL(0) }],
+      zh: "检查 1（列）：第 1 列 (4, 8, 1)/9 就是 x 轴转过去的位置。长度 √(16 + 64 + 1)/9 = 9/9 = 1。第 1 列 · 第 2 列 = (4·(−4) + 8·1 + 1·8)/81 = 0，垂直。三列都是单位长度、两两垂直，这是正交矩阵（补课 E）。",
+      en: "Check 1 (columns): column 1, (4, 8, 1)/9, is where the x axis goes. Its length is √(16 + 64 + 1)/9 = 9/9 = 1. Column 1 · column 2 = (4·(−4) + 8·1 + 1·8)/81 = 0: perpendicular. All three columns are unit length and pairwise perpendicular, so this is an orthogonal matrix (primer E)." },
+    { mats: [{ label: "9 · R", cells: R9, hl: ["0,0", "1,1", "2,2"] }, "·", { label: "3 · k", cells: colV(["2", "1", "2"]) }, "=", { label: "27 · R k", cells: colV(["18", "9", "18"]) }],
+      zh: "检查 2（轴不动）：R k 第 1 个数 = (4·2 − 4·1 + 7·2)/27 = 18/27 = 2/3；第 2 个 = (8·2 + 1·1 − 4·2)/27 = 9/27 = 1/3；第 3 个 = (1·2 + 8·1 + 4·2)/27 = 18/27 = 2/3。R k = k。检查 3（迹）：对角线 (4 + 1 + 4)/9 = 1 = 1 + 2cos 90°。",
+      en: "Check 2 (the axis stays): entry 1 of R k = (4·2 − 4·1 + 7·2)/27 = 18/27 = 2/3; entry 2 = (8·2 + 1·1 − 4·2)/27 = 9/27 = 1/3; entry 3 = (1·2 + 8·1 + 4·2)/27 = 18/27 = 2/3. R k = k. Check 3 (the trace): the diagonal gives (4 + 1 + 4)/9 = 1 = 1 + 2cos 90°." }
+  ], 3000);
+})();
+</script>
+<script>
+// ==================== 小游戏 / game ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const KEY = "3dl-game-1.8";
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+  let lv = 0, fb = null;
+  const isDone = (l, i) => !!(saved[l] || [])[i];
+  function done(l, i){ saved[l] = saved[l] || []; if (saved[l][i]) return null; saved[l][i] = true; save(); return LV[l].missions[i].note; }
+  const join = (a, b) => b ? { zh: a.zh + " " + b.zh, en: a.en + " " + b.en } : a;
+  const ri = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const V = makeView($("gc"), 76); V.cy = 440 * 0.6;
+  const mode = () => +document.querySelector('input[name="gm"]:checked').value;
+  const LET = ["A", "B", "C", "D"];
+  const parseNum = s => { const t = String(s).trim().replace(/−/g, "-").replace(/，/g, "."); if (!t) return NaN; if (/^-?\d*\.?\d+\s*\/\s*\d*\.?\d+$/.test(t)){ const [a, b] = t.split("/"); return +a / +b; } return Number(t); };
+  const AXES = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.6, 0.8, 0], [0, 0.6, 0.8], [0.8, 0, 0.6], [0.6, 0, 0.8], [0, 0.8, 0.6], [0.8, 0.6, 0]];
+  const randV = () => { let v; do { v = [ri(-2, 2), ri(-2, 2), ri(-1, 2)]; } while (v3.len(v) < 1.5); return v; };
+  const ink = () => css("--ink");
+  function scene(k, v){ V.line(v3.sc(k, -3.2), v3.sc(k, 3.2), GOLD, 1.5, [6, 5]); V.arrow([0, 0, 0], k, GOLD, 4); V.text("k", k, GOLD, 8, -8, 15); if (v){ V.arrow([0, 0, 0], v, ink(), 3.5); V.text("v", v, ink()); } }
+  function split(k, v){ const par = v3.sc(k, v3.dot(k, v)), perp = v3.sub(v, par); return { par, perp, kxv: v3.cross(k, v) }; }
+  function showSplit(k, v, th = null){ const { par, perp, kxv } = split(k, v);
+    V.arrow([0, 0, 0], par, css("--accent"), 4); V.text("v∥", par, css("--accent"), 10, 16);
+    if (v3.len(perp) > 1e-9){ const ring = V.ring(par, perp, kxv); V.fill(ring, css("--accent-2"), 0.07); V.poly(ring, css("--accent-2"), 1.5, [5, 5], 0.8); V.arrow(par, v, css("--accent-2"), 3); V.arrow(par, v3.add(par, kxv), css("--good"), 2.5);
+      if (th !== null){ V.poly(V.ring(par, v3.sc(perp, 0.3), v3.sc(kxv, 0.3), 0, th, 40), ink(), 2); } } }
+  const RIGHT = { zh: "对！", en: "Right!" };
+
+  // ---------- 第 1 关：拆开 v / level 1: split v ----------
+  const L1 = {
+    title: { zh: "第 1 关 · 拆开 v（目标：v∥ 不动，v⊥ 画圆）", en: "Level 1 · Split v (goal: v∥ stays, v⊥ circles)" },
+    modes: [{ zh: "找圆心", en: "Find the center" }, { zh: "算 v∥", en: "Compute v∥" }, { zh: "算半径", en: "Radius" }],
+    intro: [{ zh: "v 绕金色的轴 k 转一整圈，会画出一个圆。A、B、C 哪一个是圆心？可以拖动视角看清楚。", en: "Turning v all the way round the gold axis k traces a circle. Which of A, B, C is its center? Orbit the view to see clearly." },
+            { zh: "k 是单位向量。算出 v∥ = (k · v) k 的三个分量（可以写小数或分数）。", en: "k is a unit vector. Compute the three components of v∥ = (k · v) k (decimals or fractions are fine)." },
+            { zh: "v 绕 k 转一圈画出的圆，半径是多少？", en: "What is the radius of the circle v traces around k?" }],
+    missions: [
+      { zh: "找圆心：答对 2 题", en: "Find the center: 2 right", note: { zh: "圆心是 v 在轴上的投影 v∥ = (k · v) k，不是原点。", en: "The center is v's projection onto the axis, v∥ = (k · v) k, not the origin." } },
+      { zh: "算 v∥：答对 2 题", en: "Compute v∥: 2 right", note: { zh: "先点积得到一个数 k · v，再用它乘 k，得到一个向量。", en: "First the dot product gives a number k · v; multiply k by it to get a vector." } },
+      { zh: "算半径：答对 2 题", en: "Radius: 2 right", note: { zh: "半径 |v⊥| = √(|v|² − (k · v)²)，勾股定理：v 是斜边，v∥ 和 v⊥ 是两条直角边。", en: "Radius |v⊥| = √(|v|² − (k · v)²), Pythagoras: v is the hypotenuse, v∥ and v⊥ the legs." } }
+    ],
+    take: { zh: "v∥ = (k · v) k 是圆心，转动时不动；v⊥ = v − v∥ 是半径，绕着 v∥ 的尖端画圆。k 必须是单位向量。", en: "v∥ = (k · v) k is the center and stays put; v⊥ = v − v∥ is the radius and circles around the tip of v∥. k must be a unit vector." },
+    w: [0, 0, 0], q: [null, null, null], answered: [false, false, false],
+    newQ(m){ let k, v, s;
+      for (let t = 0; t < 300; t++){ k = pick(AXES); v = randV(); s = split(k, v); if (Math.abs(v3.dot(k, v)) > 0.5 && v3.len(s.perp) > 0.8) break; }
+      if (m === 0){ const c = [s.par, [0, 0, 0], v3.sc(k, v3.len(v) * Math.sign(v3.dot(k, v)))];
+        if (v3.dist(c[2], c[0]) < 0.6) c[2] = v3.sc(v, 0.5);
+        const order = shuffle([0, 1, 2]); this.q[0] = { k, v, pts: order.map(i => c[i]), ans: order.indexOf(0) }; }
+      else this.q[m] = { k, v };
+      this.answered[m] = false; },
+    ask(){ const m = mode(), q = this.q[m], z = lang() === "zh";
+      if (m === 0) return `k = ${vs(q.k)}，v = ${vs(q.v)}`.replace("，", z ? "，" : ", ");
+      return (z ? `k = ${vs(q.k)}，v = ${vs(q.v)}\n` : `k = ${vs(q.k)}, v = ${vs(q.v)}\n`) + (m === 1 ? (z ? "v∥ = ?" : "v∥ = ?") : (z ? "半径 |v⊥| = ?" : "radius |v⊥| = ?")); },
+    controls(){ const m = mode(); setOpts(m === 0 ? LET.slice(0, 3).map(l => ({ t: l })) : [], i => this.pickAns(i), this.answered[0]);
+      setNums(m === 0 ? 0 : m === 1 ? 3 : 1, m === 1 ? "v∥ = (" : "|v⊥| =", m === 1 ? ")" : "", this.answered[m]); setMat(null); },
+    draw(){ const m = mode(), q = this.q[m]; V.clear(); scene(q.k, q.v);
+      if (m === 0){ q.pts.forEach((p, i) => { V.dot(p, css("--muted"), 6, css("--surface")); V.text(LET[i], p, ink(), 9, -9, 15); }); }
+      if (this.answered[m]) showSplit(q.k, q.v); },
+    pickAns(i){ const q = this.q[0]; if (this.answered[0]) return; this.answered[0] = true; const { par } = split(q.k, q.v);
+      if (i === q.ans){ this.w[0]++; fb = join({ zh: `对！圆心是 v∥ = (k · v) k = ${num(v3.dot(q.k, q.v))} · k = ${vs(par)}。`, en: `Right! The center is v∥ = (k · v) k = ${num(v3.dot(q.k, q.v))} · k = ${vs(par)}.` }, this.w[0] >= 2 ? done(0, 0) : null); }
+      else fb = { zh: `不对，是 ${LET[q.ans]}。圆心在轴上、正对着 v 的尖端：v∥ = (k · v) k = ${vs(par)}。原点只有在 v 垂直于轴时才是圆心。`, en: `No, it is ${LET[q.ans]}. The center is on the axis right across from the tip of v: v∥ = (k · v) k = ${vs(par)}. The origin is the center only when v is perpendicular to the axis.` };
+      render(); },
+    check(){ const m = mode(), q = this.q[m], { par, perp } = split(q.k, q.v), kv = v3.dot(q.k, q.v), sum = q.k.map((x, i) => `${pn(x)}·${pn(q.v[i])}`).join(" + ");
+      if (this.answered[m]) return;
+      if (m === 1){ const a = [0, 1, 2].map(i => parseNum($("gn" + i).value)); if (a.some(isNaN)){ fb = { zh: "请填三个数。", en: "Please enter three numbers." }; render(); return; }
+        this.answered[1] = true; const ok = a.every((x, i) => Math.abs(x - par[i]) < 0.06);
+        const why = { zh: `k · v = ${sum} = ${num(kv)}，v∥ = ${num(kv)} · ${vs(q.k)} = ${vs(par)}。`, en: `k · v = ${sum} = ${num(kv)}, v∥ = ${num(kv)} · ${vs(q.k)} = ${vs(par)}.` };
+        if (ok){ this.w[1]++; fb = join(join(RIGHT, why), this.w[1] >= 2 ? done(0, 1) : null); } else fb = join({ zh: "不对。", en: "Not quite." }, why); }
+      else { const a = parseNum($("gn0").value); if (isNaN(a)){ fb = { zh: "请填一个数。", en: "Please enter a number." }; render(); return; }
+        this.answered[2] = true; const r = v3.len(perp), ok = Math.abs(a - r) < 0.06;
+        const why = { zh: `|v|² = ${num(v3.dot(q.v, q.v))}，k · v = ${num(kv)}，半径 = √(${num(v3.dot(q.v, q.v))} − ${num(kv * kv)}) = ${num(r)}。`, en: `|v|² = ${num(v3.dot(q.v, q.v))}, k · v = ${num(kv)}, radius = √(${num(v3.dot(q.v, q.v))} − ${num(kv * kv)}) = ${num(r)}.` };
+        if (ok){ this.w[2]++; fb = join(join(RIGHT, why), this.w[2] >= 2 ? done(0, 2) : null); }
+        else fb = join({ zh: Math.abs(a - v3.len(q.v)) < 0.06 ? "那是 |v|，不是半径。v 不垂直于轴时，半径比 |v| 短。" : "不对。", en: Math.abs(a - v3.len(q.v)) < 0.06 ? "That is |v|, not the radius. When v is not perpendicular to the axis, the radius is shorter than |v|." : "Not quite." }, why); }
+      render(); }
+  };
+
+  // ---------- 第 2 关：转到哪 / level 2: where does it go ----------
+  const CONV = [
+    { q: { zh: "从 k 的尖端往原点看，θ > 0 的旋转是？", en: "Looking from the tip of k toward the origin, a rotation with θ > 0 is?" },
+      o: [{ zh: "逆时针", en: "Counter-clockwise" }, { zh: "顺时针", en: "Clockwise" }, { zh: "取决于 k 的长度", en: "It depends on the length of k" }],
+      why: { zh: "右手定则：拇指指向 k，四指弯的方向为正；从 k 的尖端看回来就是逆时针。", en: "Right-hand rule: thumb along k, the fingers curl in the positive direction; seen from the tip of k that is counter-clockwise." } },
+    { q: { zh: "绕 −k 转 θ，等于？", en: "Turning by θ about −k equals?" },
+      o: [{ zh: "绕 k 转 −θ", en: "Turning by −θ about k" }, { zh: "绕 k 转 θ", en: "Turning by θ about k" }, { zh: "绕 k 转 180° − θ", en: "Turning by 180° − θ about k" }],
+      why: { zh: "k 换成 −k：K 变号，k kᵀ 不变，效果等于 sinθ 变号，也就是 θ 变成 −θ。", en: "Replacing k with −k flips K and leaves k kᵀ alone, which is the same as flipping sinθ, i.e. θ becomes −θ." } },
+    { q: { zh: "R(k, θ) 的转置 Rᵀ 是？", en: "The transpose Rᵀ of R(k, θ) is?" },
+      o: [{ zh: "R(k, −θ)，倒着转", en: "R(k, −θ), turning back" }, { zh: "R(−k, −θ)", en: "R(−k, −θ)" }, { zh: "不再是旋转矩阵", en: "No longer a rotation matrix" }],
+      why: { zh: "Kᵀ = −K，k kᵀ 对称，所以转置只把 sinθ 项变号：Rᵀ = R(k, −θ) = R⁻¹。R(−k, −θ) 其实就是 R(k, θ) 本身。", en: "Kᵀ = −K and k kᵀ is symmetric, so transposing only flips the sinθ term: Rᵀ = R(k, −θ) = R⁻¹. R(−k, −θ) is actually R(k, θ) itself." } },
+    { q: { zh: "行优先数组里，把 m[1] 的 −s·z 和 m[4] 的 +s·z 写反了，结果是？", en: "In a row-major array, −s·z in m[1] and +s·z in m[4] are swapped. The result is?" },
+      o: [{ zh: "转的方向反了（得到 Rᵀ）", en: "It turns the wrong way (you get Rᵀ)" }, { zh: "变成镜像", en: "It becomes a mirror" }, { zh: "向量长度会变", en: "Vector lengths change" }],
+      why: { zh: "s 项是反对称的那部分，交换对称位置等于转置，Rᵀ = R(k, −θ)：仍是旋转，只是方向反了，所以很难发现。", en: "The s terms are the antisymmetric part; swapping mirrored entries is a transpose, Rᵀ = R(k, −θ): still a rotation, just backwards, which is why it is hard to spot." } },
+    { q: { zh: "绕 k = (0, 0, 1) 转 +90°，x 轴 (1, 0, 0) 去哪？", en: "Turning +90° about k = (0, 0, 1), where does the x axis (1, 0, 0) go?" },
+      o: [{ zh: "(0, 1, 0)", en: "(0, 1, 0)" }, { zh: "(0, −1, 0)", en: "(0, −1, 0)" }, { zh: "(−1, 0, 0)", en: "(−1, 0, 0)" }],
+      why: { zh: "k × x̂ = ẑ × x̂ = ŷ，cos 90° = 0，sin 90° = 1，所以 v′ = ŷ。和 rotationZ 一致。", en: "k × x̂ = ẑ × x̂ = ŷ, cos 90° = 0, sin 90° = 1, so v′ = ŷ, consistent with rotationZ." } }
+  ];
+  const L2 = {
+    title: { zh: "第 2 关 · 转到哪（目标：圆盘里的 2D 旋转和右手定则）", en: "Level 2 · Where to (goal: the 2D rotation in the disk and the right-hand rule)" },
+    modes: [{ zh: "转 90°", en: "Turn 90°" }, { zh: "任意角", en: "Any angle" }, { zh: "约定题", en: "Conventions" }],
+    intro: [{ zh: "v 绕 k 转 +90° 后在哪里？想一想：v∥ 不动，v⊥ 变成 k × v。", en: "Where is v after a +90° turn about k? Think: v∥ stays, v⊥ becomes k × v." },
+            { zh: "v 绕 k 转 θ 后在哪里？θ > 0 时从 k 的尖端往回看是逆时针。", en: "Where is v after turning by θ about k? For θ > 0 it is counter-clockwise looking back from the tip of k." },
+            { zh: "不画图：关于方向和约定。", en: "No picture: direction and conventions." }],
+    missions: [
+      { zh: "转 90°：答对 3 题", en: "Turn 90°: 3 right", note: { zh: "转 90° 时 v′ = v∥ + k × v：半径正好换成 k × v。", en: "At 90°, v′ = v∥ + k × v: the radius becomes exactly k × v." } },
+      { zh: "任意角：答对 2 题", en: "Any angle: 2 right", note: { zh: "v′ = v∥ + cosθ · v⊥ + sinθ · (k × v)。", en: "v′ = v∥ + cosθ · v⊥ + sinθ · (k × v)." } },
+      { zh: "约定题：连续答对 3 题", en: "Conventions: 3 in a row", note: { zh: "(k, θ) 和 (−k, −θ) 是同一个旋转；转置就是倒着转。", en: "(k, θ) and (−k, −θ) are the same rotation; the transpose turns backwards." } }
+    ],
+    take: { zh: "v′ = v∥ + cosθ · v⊥ + sinθ · (k × v)。k × v 是 v⊥ 逆时针转 90°；从 k 的尖端往回看 θ > 0 是逆时针；(k, θ) 和 (−k, −θ) 是同一个旋转。", en: "v′ = v∥ + cosθ · v⊥ + sinθ · (k × v). k × v is v⊥ turned 90° counter-clockwise; θ > 0 is counter-clockwise looking back from the tip of k; (k, θ) and (−k, −θ) are the same rotation." },
+    w: [0, 0, 0], streak: 0, q: [null, null, null], answered: [false, false, false],
+    newQ(m){
+      if (m === 2){ const i = pick(CONV.map((_, j) => j).filter(j => !this.q[2] || j !== this.q[2].i)); this.q[2] = { i, order: shuffle([0, 1, 2]) }; this.answered[2] = false; return; }
+      for (let t = 0; t < 400; t++){
+        const k = v3.sc(pick(AXES), pick([1, -1])), v = randV(), th = m === 0 ? Math.PI / 2 : rad(pick([180, -90, 120, -120, 60, 135])), s = split(k, v);
+        if (v3.len(s.perp) < 1) continue;
+        const good = v3.rot(v, k, th), cands = [good, v3.rot(v, k, -th), v3.sub(good, s.par), v3.sc(v, -1), v3.add(s.par, v3.sc(s.perp, Math.cos(th)))];
+        const opts = [good]; for (const c of cands.slice(1)) if (opts.every(o => v3.dist(o, c) > 0.7) && v3.len(c) < 3.6) opts.push(c);
+        if (opts.length < 3) continue;
+        const use = [opts[0], ...shuffle(opts.slice(1)).slice(0, 2)], order = shuffle([0, 1, 2]);
+        this.q[m] = { k, v, th, pts: order.map(i => use[i]), ans: order.indexOf(0) }; this.answered[m] = false; return; } },
+    ask(){ const m = mode(), q = this.q[m], z = lang() === "zh";
+      if (m === 2){ const c = CONV[q.i]; return c.q[lang()]; }
+      return (z ? `k = ${vs(q.k)}，v = ${vs(q.v)}，θ = ${num(deg(q.th))}°。v′ 是 A、B、C 中的哪一个？` : `k = ${vs(q.k)}, v = ${vs(q.v)}, θ = ${num(deg(q.th))}°. Which of A, B, C is v′?`); },
+    controls(){ const m = mode(), z = lang();
+      if (m === 2){ const q = this.q[2], c = CONV[q.i]; setOpts(q.order.map(i => ({ t: c.o[i][z] })), i => this.conv(i), this.answered[2]); }
+      else setOpts(LET.slice(0, 3).map(l => ({ t: l })), i => this.pickAns(i), this.answered[m]);
+      setNums(0); setMat(null); },
+    draw(){ const m = mode(), q = this.q[m]; V.clear(); scene(q.k, q.v);
+      q.pts.forEach((p, i) => { V.arrow([0, 0, 0], p, css("--muted"), 2, [4, 4], 0.8); V.dot(p, css("--muted"), 6, css("--surface")); V.text(LET[i], p, ink(), 9, -9, 15); });
+      if (this.answered[m]){ showSplit(q.k, q.v, q.th); const g = v3.rot(q.v, q.k, q.th); V.arrow([0, 0, 0], g, css("--good"), 4); V.text("v′", g, css("--good"), 10, 18, 15); } },
+    pickAns(i){ const m = mode(), q = this.q[m]; if (this.answered[m]) return; this.answered[m] = true;
+      const s = split(q.k, q.v), c = Math.cos(q.th), sn = Math.sin(q.th), g = v3.rot(q.v, q.k, q.th);
+      const why = { zh: `v∥ = ${vs(s.par)}，v⊥ = ${vs(s.perp)}，k × v = ${vs(s.kxv)}；v′ = v∥ + ${pn(c)} · v⊥ + ${pn(sn)} · (k × v) = ${vs(g)}。`, en: `v∥ = ${vs(s.par)}, v⊥ = ${vs(s.perp)}, k × v = ${vs(s.kxv)}; v′ = v∥ + ${pn(c)} · v⊥ + ${pn(sn)} · (k × v) = ${vs(g)}.` };
+      if (i === q.ans){ this.w[m]++; fb = join(join(RIGHT, why), this.w[m] >= (m === 0 ? 3 : 2) ? done(1, m) : null); }
+      else { const p = q.pts[i], hint = v3.dist(p, v3.rot(q.v, q.k, -q.th)) < 1e-6 ? { zh: "你选的是转 −θ 的结果，方向反了。用右手：拇指指向 k。", en: "You picked the −θ result: wrong direction. Use your right hand with the thumb along k." }
+          : v3.dist(p, v3.sub(g, s.par)) < 1e-6 ? { zh: "你选的点少了 v∥：只转了 v⊥，忘了把不动的部分加回来。", en: "Your pick is missing v∥: only v⊥ was turned and the fixed part was not added back." }
+          : { zh: "不对。", en: "Not quite." };
+        fb = join(join(hint, { zh: `正确的是 ${LET[q.ans]}。`, en: `The right one is ${LET[q.ans]}.` }), why); }
+      render(); },
+    conv(i){ const q = this.q[2]; if (this.answered[2]) return; this.answered[2] = true; const c = CONV[q.i];
+      if (q.order[i] === 0){ this.streak++; fb = join(join(RIGHT, c.why), this.streak >= 3 ? done(1, 2) : { zh: `（连续 ${this.streak} / 3）`, en: `(${this.streak} / 3 in a row)` }); }
+      else { this.streak = 0; fb = join({ zh: `不对，是「${c.o[0].zh}」。`, en: `No, it is "${c.o[0].en}".` }, c.why); }
+      render(); }
+  };
+
+  // ---------- 第 3 关：读矩阵 / level 3: read the matrix ----------
+  const RAX = [[1, 1, 1], [2, 1, 2], [0, 0, 1], [1, 0, 0], [0, 1, 0], [0.6, 0.8, 0], [1, 0, 1], [0, 1, 1], [1, 2, 2]].map(v3.norm);
+  const fmt = M => M.map(r => r.map(x => num(Math.abs(x) < 5e-3 ? 0 : x)));
+  const L3 = {
+    title: { zh: "第 3 关 · 读矩阵（目标：列、迹、正交）", en: "Level 3 · Read the matrix (goal: columns, trace, orthogonality)" },
+    modes: [{ zh: "读转角", en: "Angle" }, { zh: "找转轴", en: "Axis" }, { zh: "是不是旋转", en: "Rotation?" }],
+    intro: [{ zh: "这是一个旋转矩阵。它转了多少度（0° 到 180°）？提示：迹 = 对角线之和 = 1 + 2cosθ。画布上实线是 R 的三列，也就是 x、y、z 轴转过去的样子。", en: "This is a rotation matrix. By how many degrees (0° to 180°) does it turn? Hint: trace = sum of the diagonal = 1 + 2cosθ. The solid arrows are R's three columns, where the x, y, z axes go." },
+            { zh: "这是一个旋转矩阵。它的转轴是哪一个？提示：轴上的向量不动，R k = k。", en: "This is a rotation matrix. Which is its axis? Hint: vectors on the axis do not move, R k = k." },
+            { zh: "这个矩阵是不是一个旋转？检查三列：长度都是 1 吗？两两垂直吗？det 是 +1 吗？", en: "Is this matrix a rotation? Check the columns: all length 1? Pairwise perpendicular? Is det +1?" }],
+    missions: [
+      { zh: "读转角：答对 2 题", en: "Angle: 2 right", note: { zh: "cosθ = (迹 − 1) / 2。", en: "cosθ = (trace − 1) / 2." } },
+      { zh: "找转轴：答对 2 题", en: "Axis: 2 right", note: { zh: "转轴是唯一不动的方向：R k = k。", en: "The axis is the one direction that does not move: R k = k." } },
+      { zh: "是不是旋转：连续答对 3 题", en: "Rotation?: 3 in a row", note: { zh: "正交（列单位、两两垂直）且 det = +1 才是旋转；Rᵀ 也是旋转。", en: "Orthogonal (unit, perpendicular columns) with det = +1 is a rotation; Rᵀ is one too." } }
+    ],
+    take: { zh: "R 的列是 x、y、z 轴转过去的样子；旋转矩阵的列单位长度、两两垂直，det = +1，Rᵀ = R⁻¹ 是倒着转；迹 = 1 + 2cosθ，轴满足 R k = k。", en: "R's columns are where the x, y, z axes go; a rotation matrix has unit, pairwise perpendicular columns and det = +1, and Rᵀ = R⁻¹ turns backwards; trace = 1 + 2cosθ and the axis satisfies R k = k." },
+    w: [0, 0, 0], streak: 0, q: [null, null, null], answered: [false, false, false],
+    newQ(m){ const k = pick(RAX), th = rad(pick(m === 0 ? [60, 90, 120, 180, 45] : [60, 90, 120, 150])), R = v3.mat(k, th);
+      if (m === 0) this.q[0] = { k, th, M: R };
+      else if (m === 1){ const far = (a, b) => v3.dist(a, b) > 0.55 && v3.dist(a, v3.sc(b, -1)) > 0.55, pool = shuffle(RAX.filter(a => far(a, k))), others = [pool[0], pool.find(a => far(a, pool[0]))], order = shuffle([0, 1, 2]), c = [k, ...others];
+        this.q[1] = { k, th, M: R, opts: order.map(i => c[i]), ans: order.indexOf(0) }; }
+      else { const kind = pick(["rot", "rot", "tr", "mir", "scl", "shr"]); let M = R;
+        if (kind === "tr") M = R[0].map((_, j) => R.map(r => r[j]));
+        if (kind === "mir") M = R.map(r => [r[0], r[1], -r[2]]);
+        if (kind === "scl") M = R.map(r => [r[0] * 1.5, r[1], r[2]]);
+        if (kind === "shr") M = R.map(r => [r[0], r[1] + 0.6 * r[0], r[2]]);
+        this.q[2] = { M, kind, ans: kind === "rot" || kind === "tr" ? 0 : kind === "mir" ? 1 : 2 }; }
+      this.answered[m] = false; },
+    ask(){ const m = mode(), z = lang() === "zh"; return m === 0 ? (z ? "θ = ?（度）" : "θ = ? (degrees)") : m === 1 ? (z ? "转轴 k 是？" : "The axis k is?") : (z ? "这是旋转吗？" : "Is this a rotation?"); },
+    controls(){ const m = mode(), z = lang(), q = this.q[m];
+      setMat({ label: "R", cells: fmt(q.M) });
+      if (m === 0){ setOpts([]); setNums(1, "θ =", "°", this.answered[0]); }
+      else if (m === 1){ setNums(0); setOpts(q.opts.map((a, i) => ({ t: LET[i] + "  " + vs(a) })), i => this.pickAx(i), this.answered[1]); }
+      else { setNums(0); setOpts([{ t: z ? "是旋转" : "Yes, a rotation" }, { t: z ? "不是：镜像（det = −1）" : "No: a mirror (det = −1)" }, { t: z ? "不是：有缩放或剪切" : "No: scale or shear" }], i => this.judge(i), this.answered[2]); } },
+    draw(){ const m = mode(), q = this.q[m], cols = [css("--accent-2"), css("--good"), css("--accent")]; V.clear();
+      [[1, 0, 0], [0, 1, 0], [0, 0, 1]].forEach((e, j) => { V.arrow([0, 0, 0], v3.sc(e, 2), cols[j], 1.5, [4, 4], 0.6); const c = v3.sc(v3.col(q.M, j), 2); V.arrow([0, 0, 0], c, cols[j], 3.5); V.text(["R·x̂", "R·ŷ", "R·ẑ"][j], c, cols[j]); });
+      if (m === 1) q.opts.forEach((a, i) => { V.line(v3.sc(a, -2.6), v3.sc(a, 2.6), css("--muted"), 1.5, [3, 5], 0.8); V.text(LET[i], v3.sc(a, 2.6), ink(), 6, -6, 14); });
+      if (this.answered[m] && q.k){ V.line(v3.sc(q.k, -3), v3.sc(q.k, 3), GOLD, 2.5); V.text("k", v3.sc(q.k, 3), GOLD); } },
+    check(){ const q = this.q[0]; if (this.answered[0]) return; const a = parseNum($("gn0").value); if (isNaN(a)){ fb = { zh: "请填一个角度。", en: "Please enter an angle." }; render(); return; }
+      this.answered[0] = true; const tr = q.M[0][0] + q.M[1][1] + q.M[2][2], d = deg(q.th);
+      const why = { zh: `迹 = ${num(q.M[0][0])} + ${pn(q.M[1][1])} + ${pn(q.M[2][2])} = ${num(tr)}，cosθ = (${num(tr)} − 1) / 2 = ${num((tr - 1) / 2)}，θ = ${num(d)}°。`, en: `Trace = ${num(q.M[0][0])} + ${pn(q.M[1][1])} + ${pn(q.M[2][2])} = ${num(tr)}, cosθ = (${num(tr)} − 1) / 2 = ${num((tr - 1) / 2)}, θ = ${num(d)}°.` };
+      if (Math.abs(a - d) < 2){ this.w[0]++; fb = join(join(RIGHT, why), this.w[0] >= 2 ? done(2, 0) : null); } else fb = join({ zh: "不对。", en: "Not quite." }, why);
+      render(); },
+    pickAx(i){ const q = this.q[1]; if (this.answered[1]) return; this.answered[1] = true; const a = q.opts[i], Ra = v3.mv(q.M, a);
+      const why = { zh: `R · ${vs(a)} = ${vs(Ra)}${v3.dist(Ra, a) < 1e-6 ? "，没变，所以它是轴。" : "，变了，所以它不是轴。"}`, en: `R · ${vs(a)} = ${vs(Ra)}${v3.dist(Ra, a) < 1e-6 ? ": unchanged, so it is the axis." : ": it moved, so it is not the axis."}` };
+      if (i === q.ans){ this.w[1]++; fb = join(join(RIGHT, why), this.w[1] >= 2 ? done(2, 1) : null); } else fb = join({ zh: `不对，是 ${LET[q.ans]}。`, en: `No, it is ${LET[q.ans]}.` }, why);
+      render(); },
+    judge(i){ const q = this.q[2]; if (this.answered[2]) return; this.answered[2] = true; const c = [0, 1, 2].map(j => v3.col(q.M, j)), L = c.map(v3.len), d = v3.det(q.M);
+      const facts = { zh: `三列长度 ${L.map(num).join("、")}；列 1 · 列 2 = ${num(v3.dot(c[0], c[1]))}，列 1 · 列 3 = ${num(v3.dot(c[0], c[2]))}，列 2 · 列 3 = ${num(v3.dot(c[1], c[2]))}；det = ${num(d)}。`,
+                      en: `Column lengths ${L.map(num).join(", ")}; col 1 · col 2 = ${num(v3.dot(c[0], c[1]))}, col 1 · col 3 = ${num(v3.dot(c[0], c[2]))}, col 2 · col 3 = ${num(v3.dot(c[1], c[2]))}; det = ${num(d)}.` };
+      const extra = q.kind === "tr" ? { zh: "这其实是某个旋转的转置，也是旋转（倒着转）。", en: "This is actually the transpose of a rotation, which is also a rotation (turning backwards)." } : null;
+      if (i === q.ans){ this.streak++; fb = join(join(join(RIGHT, facts), extra), this.streak >= 3 ? done(2, 2) : { zh: `（连续 ${this.streak} / 3）`, en: `(${this.streak} / 3 in a row)` }); }
+      else { this.streak = 0; fb = join(join({ zh: "不对。", en: "Not quite." }, facts), extra); }
+      render(); }
+  };
+
+  // ---------- 公共控件 / shared controls ----------
+  let optHandler = null;
+  function setOpts(list, h, disabled){ const box = $("gOpts"); optHandler = h || null; box.hidden = !list.length;
+    box.innerHTML = list.map((o, i) => `<button type="button" data-o="${i}"${disabled ? " disabled" : ""}>${o.t}</button>`).join(""); }
+  $("gOpts").addEventListener("click", e => { const b = e.target.closest("button[data-o]"); if (b && optHandler) optHandler(+b.dataset.o); });
+  function setNums(n, L = "", R = "", disabled = false){ $("gNums").hidden = !n; [0, 1, 2].forEach(i => { $("gn" + i).hidden = i >= n; $("gn" + i).disabled = disabled; }); $("gNumL").textContent = L; $("gNumR").textContent = R; $("gCheck").disabled = disabled; }
+  function setMat(m){ $("gMat").hidden = !m; $("gMat").innerHTML = m ? matHTML(m) : ""; }
+
+  const LV = [L1, L2, L3];
+  function render(){
+    const lvl = LV[lv], z = lang(), m = mode();
+    lvl.modes.forEach((x, i) => $("gm" + i + "L").textContent = x[z] + (isDone(lv, i) ? " ✓" : ""));
+    $("gTitle").textContent = lvl.title[z]; $("gIntro").textContent = lvl.intro[m][z]; $("gAsk").textContent = lvl.ask();
+    lvl.controls();
+    $("gc").hidden = lv === 1 && m === 2; if (!$("gc").hidden) lvl.draw();
+    const st = saved[lv] || [];
+    $("gMissions").innerHTML = lvl.missions.map((x, i) => `<li class="${st[i] ? "ok" : "no"}"><span class="mark">${st[i] ? "✓" : "○"}</span>${x[z]}</li>`).join("");
+    $("gFb").textContent = fb ? fb[z] : "";
+    const all = lvl.missions.every((_, i) => st[i]); $("gTake").hidden = !all; $("gTake").textContent = all ? (z === "zh" ? "这一关要记住的：" : "Keep this: ") + lvl.take[z] : "";
+    LV.forEach((x, i) => $("gd" + i).textContent = x.missions.every((_, j) => isDone(i, j)) ? " ✓" : "");
+  }
+  const clearNums = () => [0, 1, 2].forEach(i => $("gn" + i).value = "");
+  const re = () => { fb = null; render(); };
+  document.querySelectorAll('input[name="glv"]').forEach(r => r.addEventListener("change", () => { lv = +document.querySelector('input[name="glv"]:checked').value; $("gm0").checked = true; clearNums(); re(); }));
+  document.querySelectorAll('input[name="gm"]').forEach(r => r.addEventListener("change", () => { clearNums(); re(); }));
+  $("gCheck").onclick = () => LV[lv].check();
+  [0, 1, 2].forEach(i => $("gn" + i).addEventListener("keydown", e => { if (e.key === "Enter") LV[lv].check(); }));
+  $("gNext").onclick = () => { LV[lv].newQ(mode()); clearNums(); re(); };
+  LV.forEach(L => [0, 1, 2].forEach(m => L.newQ(m)));
+  V.orbit(() => { if (!$("gc").hidden) LV[lv].draw(); });
+  onLangChange.push(render); onTheme.push(render); addEventListener("resize", () => { if (!$("gc").hidden) LV[lv].draw(); });
+  render();
+  window.__game18 = { L1, L2, L3, LV, render, setLv: n => { $("gl" + (n + 1)).checked = true; lv = n; $("gm0").checked = true; re(); }, setMode: n => { $("gm" + n).checked = true; re(); } };   // 给自动测试用 / for automated checks
+})();
+</script>
+<script>
+// ---- 练习：自动测试 / exercise: auto-tests ----
+(function(){
+  const S_ = { zh: { err: "代码出错：", all: "全部通过！", some: "通过", missing: "没有找到 Vec3 或 Mat4 类",
+                     pc: "金色是轴 k = (1, 1, 1)，灰色虚线是正确的圆。绿点：你的 rotateAxis 把 v = (2, 0, 0.5) 转 0°、15°、30°……的结果；玫红圈：你的 rotationAxis 的结果。两者都应该落在虚线上，而且从 k 的尖端看是逆时针前进。", pcErr: "画图时出错：" },
+               en: { err: "Code error: ", all: "All tests pass!", some: "passed", missing: "No Vec3 or Mat4 class found",
+                     pc: "Gold is the axis k = (1, 1, 1) and the gray dashed ring is the correct circle. Green dots: your rotateAxis turning v = (2, 0, 0.5) by 0°, 15°, 30°, …; magenta rings: your rotationAxis. Both should sit on the dashed ring and advance counter-clockwise seen from the tip of k.", pcErr: "Error while plotting: " } };
+  const near = (p, q, e = 1e-9) => typeof p === "number" && Math.abs(p - q) < e;
+  const eq = (v, x, y, z, e) => !!v && near(v.x, x, e) && near(v.y, y, e) && near(v.z, z, e);
+  const meq = (A, B2) => !!A && !!B2 && typeof A.get === "function" && [...Array(16).keys()].every(i => near(A.get(Math.floor(i / 4), i % 4), B2.get(Math.floor(i / 4), i % 4)));
+  const veq = (a, b) => !!a && !!b && near(a.x, b.x) && near(a.y, b.y) && near(a.z, b.z);
+  const H = Math.PI / 2;
+  const TESTS = [
+    { zh: "rotateAxis 绕 z 轴转 90°：(1,0,0) → (0,1,0)，(0,1,0) → (−1,0,0)（和 rotationZ 同方向）", en: "rotateAxis by 90° about z: (1,0,0) → (0,1,0), (0,1,0) → (−1,0,0) (same direction as rotationZ)",
+      f: ({ V }) => { const z = new V(0, 0, 1); return eq(new V(1, 0, 0).rotateAxis(z, H), 0, 1, 0) && eq(new V(0, 1, 0).rotateAxis(z, H), -1, 0, 0); } },
+    { zh: "rotateAxis 绕 (1,1,1)（没归一化）转 120°：x 轴 → y 轴，y 轴 → z 轴", en: "rotateAxis by 120° about (1,1,1) (not normalized): x axis → y axis, y axis → z axis",
+      f: ({ V }) => { const k = new V(1, 1, 1), t = 2 * Math.PI / 3; return eq(new V(1, 0, 0).rotateAxis(k, t), 0, 1, 0) && eq(new V(0, 1, 0).rotateAxis(k, t), 0, 0, 1); } },
+    { zh: "rotateAxis：长度和沿轴分量不变；轴上的向量不动；不修改 v 和 k", en: "rotateAxis: length and the component along the axis are kept; vectors on the axis stay; v and k are not modified",
+      f: ({ V }) => { const k = new V(1, -2, 0.5), v = new V(0.3, 1, -2), w = v.rotateAxis(k, 2.3), u = k.normalize(), on = k.scale(3).rotateAxis(k, 1.1);
+        return near(w.length(), v.length()) && near(w.dot(u), v.dot(u)) && eq(on, 3, -6, 1.5) && eq(v, 0.3, 1, -2) && eq(k, 1, -2, 0.5); } },
+    { zh: "rotationAxis((0,0,1), θ) 等于 rotationZ(θ)；rotationAxis((1,0,0), 90°) 把 (0,1,0) 送到 (0,0,1)", en: "rotationAxis((0,0,1), θ) equals rotationZ(θ); rotationAxis((1,0,0), 90°) sends (0,1,0) to (0,0,1)",
+      f: ({ V, M }) => meq(M.rotationAxis(new V(0, 0, 1), 0.7), M.rotationZ(0.7)) && eq(M.rotationAxis(new V(1, 0, 0), H).transformDirection(new V(0, 1, 0)), 0, 0, 1) },
+    { zh: "rotationAxis 和你的 rotateAxis 结果一致（一般的 k、θ、v）", en: "rotationAxis agrees with your rotateAxis (general k, θ, v)",
+      f: ({ V, M }) => [[new V(1, -2, 0.5), 2.3, new V(0.3, 1, -2)], [new V(-3, 1, 4), -0.9, new V(2, 2, -1)]].every(([k, t, v]) => veq(M.rotationAxis(k, t).transformDirection(v), v.rotateAxis(k, t))) },
+    { zh: "rotationAxis((2,1,2), 90°) 等于补课 D 的 (1/9)(4,−4,7 / 8,1,−4 / 1,8,4)；第 4 行、第 4 列和单位矩阵一样", en: "rotationAxis((2,1,2), 90°) equals primer D's (1/9)(4,−4,7 / 8,1,−4 / 1,8,4); row 4 and column 4 as in the identity",
+      f: ({ V, M }) => meq(M.rotationAxis(new V(2, 1, 2), H), new M([4/9, -4/9, 7/9, 0,  8/9, 1/9, -4/9, 0,  1/9, 8/9, 4/9, 0,  0, 0, 0, 1])) },
+    { zh: "rotationAxis 是正交矩阵：R(k, θ) · R(k, −θ) = I，且 k 乘 5 结果不变", en: "rotationAxis is orthogonal: R(k, θ) · R(k, −θ) = I, and scaling k by 5 changes nothing",
+      f: ({ V, M }) => { const k = new V(1, -2, 0.5), A = M.rotationAxis(k, 1.3); return meq(A.mul(M.rotationAxis(k, -1.3)), M.identity()) && meq(M.rotationAxis(k.scale(5), 1.3), A); } },
+    { zh: "rotationAboutLine：p = (1,2,3)、k = (0,0,1)、90° 时 (2,2,3) → (1,3,3)；p 和 p + 2k 不动；等于 T(p) · R · T(−p)", en: "rotationAboutLine: with p = (1,2,3), k = (0,0,1), 90°: (2,2,3) → (1,3,3); p and p + 2k stay; equals T(p) · R · T(−p)",
+      f: ({ V, M }) => { const p = new V(1, 2, 3), A = M.rotationAboutLine(p, new V(0, 0, 1), H), k2 = new V(1, 1, -1), B = M.rotationAboutLine(p, k2, 0.8);
+        return eq(A.transformPoint(new V(2, 2, 3)), 1, 3, 3) && eq(A.transformPoint(p), 1, 2, 3) && eq(B.transformPoint(p.add(k2.scale(2))), 3, 4, 1)
+          && meq(B, M.translation(1, 2, 3).mul(M.rotationAxis(k2, 0.8)).mul(M.translation(-1, -2, -3))); } }
+  ];
+  const list = document.getElementById("tests"), err = document.getElementById("exErr");
+  const pc = document.getElementById("pc"), pcNote = document.getElementById("pcNote"), V = makeView(pc, 62); V.yaw = -1.45; V.pitch = 0.6;
+  let results = null, X = null, pcErr = "";
+  function plot(){
+    V.clear(); pcErr = ""; const k = v3.norm([1, 1, 1]), v = [2, 0, 0.5], par = v3.sc(k, v3.dot(k, v)), perp = v3.sub(v, par), kxv = v3.cross(k, v);
+    V.line(v3.sc(k, -3), v3.sc(k, 3), GOLD, 1.5, [6, 5]); V.arrow([0, 0, 0], v3.sc(k, 1.2), GOLD, 4); V.text("k", v3.sc(k, 1.2), GOLD);
+    V.poly(V.ring(par, perp, kxv), css("--muted"), 1.5, [5, 5]); V.arrow([0, 0, 0], v, css("--ink"), 3); V.text("v", v, css("--ink"));
+    if (X && X.V && X.M){
+      try { const K = new X.V(1, 1, 1), vv = new X.V(2, 0, 0.5);
+        for (let i = 0; i < 24; i++){ const t = i / 24 * 2 * Math.PI;
+          const a = vv.rotateAxis(K, t); if (a && isFinite(a.x)) V.dot([a.x, a.y, a.z], css("--good"), i === 0 ? 6 : 4);
+          const R = X.M.rotationAxis(K, t), b = R && R.transformDirection(vv); if (b && isFinite(b.x)){ const q = V.P([b.x, b.y, b.z]); V.ctx.save(); V.ctx.strokeStyle = css("--accent-2"); V.ctx.lineWidth = 2 * V.k; V.ctx.beginPath(); V.ctx.arc(q[0], q[1], 7 * V.k, 0, 2 * Math.PI); V.ctx.stroke(); V.ctx.restore(); } } }
+      catch (e){ pcErr = e.message; }
+    }
+    const t = S_[lang()]; pcNote.textContent = t.pc + (pcErr ? " " + t.pcErr + pcErr : "");
+  }
+  function show(){ const t = S_[lang()]; plot(); if (!results){ list.innerHTML = ""; return; }
+    list.innerHTML = results.map((ok, i) => `<li class="${ok ? "ok" : "no"}"><span class="mark">${ok ? "✓" : "✗"}</span>${TESTS[i][lang()]}</li>`).join("");
+    const n = results.filter(Boolean).length; err.textContent = n === results.length ? t.all : `${n} / ${results.length} ${t.some}`; err.classList.toggle("allok", n === results.length); }
+  function run(){ err.classList.remove("allok");
+    try { X = new Function(document.getElementById("code").value + "\nreturn { V: typeof Vec3 === 'undefined' ? undefined : Vec3, M: typeof Mat4 === 'undefined' ? undefined : Mat4 };")(); }
+    catch (e){ X = null; results = null; show(); err.textContent = S_[lang()].err + e.message; return; }
+    if (!X.V || !X.M){ results = null; show(); err.textContent = S_[lang()].missing; return; }
+    results = TESTS.map(tc => { try { return !!tc.f(X); } catch { return false; } }); show(); }
+  document.getElementById("run").onclick = run; V.orbit(plot); onLangChange.push(show); onTheme.push(plot); addEventListener("resize", plot); run();
+})();
+</script>

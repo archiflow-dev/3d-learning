@@ -340,6 +340,32 @@
           "4"
         ]
       }
+    },
+    {
+      "id": "1.8",
+      "stage": 1,
+      "title": {
+        "zh": "绕任意轴旋转：Rodrigues 公式",
+        "en": "Rotating About Any Axis: Rodrigues' Formula"
+      },
+      "file": "lessons/1.8-rodrigues.html",
+      "prereqs": [
+        "1.7"
+      ],
+      "concepts": [
+        "轴角表示",
+        "平行与垂直分解",
+        "叉积矩阵",
+        "外积",
+        "正交矩阵"
+      ],
+      "status": "in-progress",
+      "artifactUrl": "https://claude.ai/artifact/B28apbQqkocP1SbN43KX2W",
+      "videos": {
+        "UCD": [
+          "04"
+        ]
+      }
     }
   ],
   "videoRefs": {
